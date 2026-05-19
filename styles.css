@@ -600,18 +600,23 @@ h3 {
 .chart-canvas {
   display: block;
   width: 100%;
-  min-height: 260px;
+  height: 260px;
+  min-height: 0;
+  max-height: 260px;
   border-radius: var(--radius);
   background: var(--panel-soft);
 }
 
 .monthly-flow-chart {
-  min-height: 210px;
-  max-height: 220px;
+  height: 210px;
+  max-height: 210px;
+  min-height: 0;
 }
 
 .chart-canvas.tall {
-  min-height: 320px;
+  height: 300px;
+  max-height: 300px;
+  min-height: 0;
 }
 
 .recent-list,
@@ -1157,17 +1162,56 @@ tbody tr:last-child td {
   }
 
   .topbar {
-    align-items: start;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .topbar > div:not(.topbar-actions) {
+    justify-self: center;
+    width: 100%;
+    padding: 0 58px;
+    text-align: center;
   }
 
   .mobile-menu {
     display: inline-grid;
-    flex: 0 0 auto;
-    margin-top: 4px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin-top: 0;
   }
 
   .topbar-actions {
+    display: grid;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .topbar-actions .profile-switcher {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar-actions > button {
     display: none;
+  }
+
+  .chart-canvas {
+    height: 220px;
+    max-height: 220px;
+  }
+
+  .monthly-flow-chart {
+    height: 190px;
+    max-height: 190px;
+  }
+
+  .chart-canvas.tall {
+    height: 240px;
+    max-height: 240px;
   }
 
   .metric-grid,

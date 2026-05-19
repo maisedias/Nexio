@@ -2233,13 +2233,12 @@
 
   function resizeCanvas(canvas) {
     const rect = canvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = Math.max(Math.round(rect.width * ratio), 300);
-    canvas.height = Math.max(Math.round(rect.height * ratio), Number(canvas.getAttribute("height") || 280) * ratio);
+    const width = Math.max(Math.round(rect.width || canvas.clientWidth || 640), 300);
+    const height = Math.max(Math.round(rect.height || Number(canvas.getAttribute("height") || 280)), 180);
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext("2d");
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    canvas.width = Math.round(rect.width || 640);
-    canvas.height = Math.round(rect.height || Number(canvas.getAttribute("height") || 280));
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }
 
   function roundRect(ctx, x, y, width, height, radius) {
