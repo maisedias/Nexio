@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nexio | Gestão Financeira Inteligente</title>
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <template id="auth-template">
+      <main class="auth-shell">
+        <section class="auth-visual" aria-label="Nexio">
+          <div class="brand-orbit" aria-hidden="true">
+            <div class="orbit-card orbit-card-a">
+              <span>Saldo</span>
+              <strong data-auth-balance>R$ 0,00</strong>
+            </div>
+            <div class="orbit-card orbit-card-b">
+              <span>Metas</span>
+              <strong data-auth-goals>0 ativas</strong>
+            </div>
+            <canvas id="authMiniChart" width="520" height="360"></canvas>
+          </div>
+        </section>
+        <section class="auth-panel" aria-label="Acesso">
+          <div class="brand-lockup">
+            <img class="brand-logo brand-logo-light" src="assets/nexio-logo-light-transparent.png" alt="Nexio Gestão Financeira e Inteligência" />
+            <img class="brand-logo brand-logo-dark" src="assets/nexio-logo-dark-transparent.png" alt="Nexio Gestão Financeira e Inteligência" />
+          </div>
+          <div>
+            <p class="eyebrow">Nexio</p>
+            <h1>Gestão financeira inteligente</h1>
+          </div>
+
+          <div class="auth-tabs" role="tablist" aria-label="Entrar ou criar conta">
+            <button class="auth-tab is-active" data-auth-mode="login" type="button">Entrar</button>
+            <button class="auth-tab" data-auth-mode="register" type="button">Criar conta</button>
+          </div>
+
+          <form id="authForm" class="stacked-form" autocomplete="on">
+            <label class="field register-only">
+              <span>Nome</span>
+              <input id="authName" name="name" type="text" placeholder="Seu nome" />
+            </label>
+            <label class="field">
+              <span>E-mail</span>
+              <input id="authEmail" name="email" type="email" placeholder="voce@email.com" required />
+            </label>
+            <label class="field">
+              <span>Senha</span>
+              <input id="authPassword" name="password" type="password" placeholder="Digite sua senha" required />
+            </label>
+            <button class="primary-action" type="submit" data-auth-submit>Entrar</button>
+          </form>
+        </section>
+      </main>
+    </template>
+
+    <template id="dashboard-template">
+      <div class="app-shell">
+        <aside class="sidebar">
+          <div class="sidebar-brand">
+            <img class="brand-symbol" src="assets/nexio-symbol.png" alt="" />
+            <div>
+              <strong>Nexio</strong>
+              <span data-active-profile-label>Perfil financeiro</span>
+            </div>
+          </div>
+
+          <nav class="nav-list" aria-label="Navegação principal">
+            <button class="nav-item is-active" data-view="overview" type="button"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
+            <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon">↕</span><span>Transações</span></button>
+            <button class="nav-item" data-view="cashflow" type="button"><span class="nav-icon">≋</span><span>Fluxo de caixa</span></button>
+            <button class="nav-item" data-view="goals" type="button"><span class="nav-icon">◉</span><span>Metas</span></button>
+            <button class="nav-item" data-view="profiles" type="button"><span class="nav-icon">☷</span><span>Perfis</span></button>
+            <button class="nav-item" data-view="settings" type="button"><span class="nav-icon">⚙</span><span>Configurações</span></button>
+          </nav>
+
+          <div class="sidebar-footer">
+            <button class="ghost-action full" data-logout type="button">Sair</button>
+          </div>
+        </aside>
+
+        <main class="workspace">
+          <header class="topbar">
+            <button class="icon-button mobile-menu" data-mobile-menu type="button" aria-label="Abrir menu">☰</button>
+            <div>
+              <p class="eyebrow" data-today-label>Hoje</p>
+              <h1 data-view-title>Visão geral</h1>
+            </div>
+            <div class="topbar-actions">
+              <label class="select-shell profile-switcher">
+                <span>Perfil</span>
+                <select data-profile-select></select>
+              </label>
+              <button class="ghost-action compact" data-quick-profile type="button">Novo perfil</button>
+              <button class="primary-action compact" data-quick-transaction type="button">Nova transação</button>
+            </div>
+          </header>
+
+          <section id="view-overview" class="view is-visible" data-view-panel="overview">
+            <div class="metric-grid">
+              <article class="metric-card balance-card">
+                <span>Saldo atual</span>
+                <strong data-balance-total>R$ 0,00</strong>
+                <small data-balance-trend>Pronto para acompanhar seu mês.</small>
+              </article>
+              <article class="metric-card">
+                <span>Receitas do mês</span>
+                <strong data-month-income>R$ 0,00</strong>
+                <small data-income-count>0 lançamentos</small>
+              </article>
+              <article class="metric-card">
+                <span>Despesas do mês</span>
+                <strong data-month-expense>R$ 0,00</strong>
+                <small data-expense-count>0 lançamentos</small>
+              </article>
+              <article class="metric-card">
+                <span>Metas ativas</span>
+                <strong data-active-goals>0</strong>
+                <small data-goals-progress>0% guardado</small>
+              </article>
+            </div>
+
+            <div class="content-grid two-columns">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Fluxo mensal</p>
+                    <h2>Últimos meses</h2>
+                  </div>
+                  <span class="pill" data-month-range-label>6 meses</span>
+                </div>
+                <canvas id="monthlyFlowChart" class="chart-canvas monthly-flow-chart" height="210"></canvas>
+              </section>
+
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Movimento recente</p>
+                    <h2>Últimas do mês</h2>
+                  </div>
+                  <button class="ghost-action" data-view-shortcut="transactions" type="button">Ver tudo</button>
+                </div>
+                <div class="recent-list" data-recent-transactions></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-transactions" class="view" data-view-panel="transactions">
+            <div class="content-grid form-and-list">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow" data-transaction-form-mode>Novo lançamento</p>
+                    <h2>Transação</h2>
+                  </div>
+                  <button class="ghost-action" data-reset-transaction-form type="button">Limpar</button>
+                </div>
+
+                <form id="transactionForm" class="stacked-form">
+                  <input id="transactionId" type="hidden" />
+                  <div class="segmented" role="radiogroup" aria-label="Tipo da transação">
+                    <label><input type="radio" name="type" value="income" checked /><span>Receita</span></label>
+                    <label><input type="radio" name="type" value="expense" /><span>Despesa</span></label>
+                  </div>
+                  <label class="field">
+                    <span>Descrição</span>
+                    <input id="transactionDescription" type="text" placeholder="Ex.: Salário, aluguel, mercado" required />
+                  </label>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Valor</span>
+                      <input id="transactionAmount" type="number" min="0.01" step="0.01" placeholder="0,00" required />
+                    </label>
+                    <label class="field">
+                      <span>Data limite</span>
+                      <input id="transactionDate" type="date" required />
+                    </label>
+                  </div>
+                  <div class="installment-box">
+                    <label class="checkbox-line">
+                      <input id="transactionInstallmentsEnabled" type="checkbox" />
+                      <span>Lançar em parcelas mensais</span>
+                    </label>
+                    <label class="field installment-count-field">
+                      <span>Quantidade de parcelas</span>
+                      <input id="transactionInstallmentCount" type="number" min="2" max="120" step="1" value="2" />
+                    </label>
+                  </div>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Categoria</span>
+                      <select id="transactionCategory" required></select>
+                    </label>
+                    <label class="field">
+                      <span>Status</span>
+                      <select id="transactionStatus" required></select>
+                    </label>
+                  </div>
+                  <p class="form-hint">Ao parcelar, o valor informado é o valor de cada parcela. Parcelas pendentes mudam automaticamente para Atrasado quando a data limite passa; depois você pode editar valor e marcar como Pago ou Recebido.</p>
+                  <button class="primary-action" type="submit" data-save-transaction>Salvar transação</button>
+                </form>
+              </section>
+
+              <section class="panel categories-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Categorias</p>
+                    <h2>Ícones e nomes</h2>
+                  </div>
+                </div>
+                <form id="categoryForm" class="inline-form">
+                  <label class="field icon-field">
+                    <span>Ícone</span>
+                    <input id="categoryIcon" type="text" maxlength="4" placeholder="💼" required />
+                  </label>
+                  <label class="field">
+                    <span>Nome</span>
+                    <input id="categoryName" type="text" placeholder="Nova categoria" required />
+                  </label>
+                  <button class="primary-action square" type="submit">+</button>
+                </form>
+                <div class="icon-picker" data-category-icon-picker aria-label="Ícones disponíveis"></div>
+                <div class="category-list" data-category-list></div>
+              </section>
+            </div>
+
+            <section class="panel transaction-list-panel">
+              <div class="panel-heading wrap-heading">
+                <div>
+                  <p class="eyebrow">Controle</p>
+                  <h2>Transações</h2>
+                </div>
+                <div class="filter-grid">
+                  <label class="field compact-field">
+                    <span>Descrição</span>
+                    <input id="filterDescription" type="search" placeholder="Buscar" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>Categoria</span>
+                    <select id="filterCategory"></select>
+                  </label>
+                  <label class="field compact-field">
+                    <span>De</span>
+                    <input id="filterDateFrom" type="date" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>Até</span>
+                    <input id="filterDateTo" type="date" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>Valor mín.</span>
+                    <input id="filterValueMin" type="number" min="0" step="0.01" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>Valor máx.</span>
+                    <input id="filterValueMax" type="number" min="0" step="0.01" />
+                  </label>
+                  <label class="field compact-field">
+                    <span>Status</span>
+                    <select id="filterStatus"></select>
+                  </label>
+                  <label class="field compact-field">
+                    <span>Ordenar</span>
+                    <select id="sortTransactions">
+                      <option value="date-desc">Data recente</option>
+                      <option value="date-asc">Data antiga</option>
+                      <option value="amount-desc">Maior valor</option>
+                      <option value="amount-asc">Menor valor</option>
+                      <option value="description-asc">Descrição A-Z</option>
+                      <option value="status-asc">Status A-Z</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Descrição</th>
+                      <th>Categoria</th>
+                      <th>Data</th>
+                      <th>Valor</th>
+                      <th>Status</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody data-transactions-table></tbody>
+                </table>
+              </div>
+            </section>
+          </section>
+
+          <section id="view-cashflow" class="view" data-view-panel="cashflow">
+            <div class="metric-grid compact-metrics">
+              <article class="metric-card">
+                <span>Entradas no mês</span>
+                <strong data-cash-income>R$ 0,00</strong>
+              </article>
+              <article class="metric-card">
+                <span>Saídas no mês</span>
+                <strong data-cash-expense>R$ 0,00</strong>
+              </article>
+              <article class="metric-card">
+                <span>Resultado do mês</span>
+                <strong data-cash-result>R$ 0,00</strong>
+              </article>
+            </div>
+            <div class="content-grid two-columns">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Dia a dia</p>
+                    <h2>Entrada vs saída</h2>
+                  </div>
+                  <input class="month-input" id="cashflowMonth" type="month" />
+                </div>
+                <canvas id="dailyFlowChart" class="chart-canvas tall" height="320"></canvas>
+              </section>
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Saldo</p>
+                    <h2>Evolução no mês</h2>
+                  </div>
+                </div>
+                <canvas id="balanceEvolutionChart" class="chart-canvas tall" height="320"></canvas>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-goals" class="view" data-view-panel="goals">
+            <div class="metric-grid compact-metrics">
+              <article class="metric-card">
+                <span>Total guardado</span>
+                <strong data-goals-saved>R$ 0,00</strong>
+              </article>
+              <article class="metric-card">
+                <span>Progresso geral</span>
+                <strong data-goals-overall>0%</strong>
+              </article>
+              <article class="metric-card">
+                <span>Metas ativas</span>
+                <strong data-goals-active-count>0</strong>
+              </article>
+            </div>
+
+            <div class="content-grid form-and-list">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Objetivos</p>
+                    <h2>Nova meta</h2>
+                  </div>
+                </div>
+                <form id="goalForm" class="stacked-form">
+                  <input id="goalId" type="hidden" />
+                  <label class="field">
+                    <span>Nome</span>
+                    <input id="goalName" type="text" placeholder="Ex.: Viagem, reserva, carro" required />
+                  </label>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Valor da meta</span>
+                      <input id="goalTarget" type="number" min="1" step="0.01" required />
+                    </label>
+                    <label class="field">
+                      <span>Saldo inicial</span>
+                      <input id="goalInitial" type="number" min="0" step="0.01" value="0" required />
+                    </label>
+                  </div>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Prazo final</span>
+                      <input id="goalDeadline" type="date" required />
+                    </label>
+                    <label class="field">
+                      <span>Tema</span>
+                      <select id="goalTheme">
+                        <option value="aqua">Ciano</option>
+                        <option value="green">Azul</option>
+                        <option value="gold">Azul intenso</option>
+                        <option value="rose">Azul claro</option>
+                        <option value="violet">Azul gelo</option>
+                      </select>
+                    </label>
+                  </div>
+                  <button class="primary-action" type="submit">Salvar objetivo</button>
+                </form>
+              </section>
+
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Insights</p>
+                    <h2>Leitura inteligente</h2>
+                  </div>
+                </div>
+                <div class="insight-list" data-insight-list></div>
+              </section>
+            </div>
+
+            <section class="goal-grid" data-goal-list></section>
+          </section>
+
+          <section id="view-profiles" class="view" data-view-panel="profiles">
+            <div class="content-grid form-and-list">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Perfis</p>
+                    <h2>Criar perfil</h2>
+                  </div>
+                  <button class="ghost-action compact" data-reset-profile-form type="button">Novo</button>
+                </div>
+                <form id="profileForm" class="stacked-form">
+                  <input id="profileId" type="hidden" />
+                  <label class="field">
+                    <span>Nome do perfil</span>
+                    <input id="profileName" type="text" placeholder="Casa, Empresa, Viagem" required />
+                  </label>
+                  <button class="primary-action" data-save-profile type="submit">Criar perfil</button>
+                </form>
+              </section>
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Ativos</p>
+                    <h2>Perfis do login</h2>
+                  </div>
+                </div>
+                <div class="profile-list" data-profile-list></div>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-settings" class="view" data-view-panel="settings">
+            <div class="content-grid two-columns">
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Preferências</p>
+                    <h2>Conta e aparência</h2>
+                  </div>
+                </div>
+                <form id="settingsForm" class="stacked-form">
+                  <label class="field">
+                    <span>Nome do perfil atual</span>
+                    <input id="settingsProfileName" type="text" required />
+                  </label>
+                  <label class="field">
+                    <span>Nome do usuário</span>
+                    <input id="settingsUserName" type="text" required />
+                  </label>
+                  <div class="split-fields">
+                    <label class="field">
+                      <span>Tema</span>
+                      <select id="settingsTheme">
+                        <option value="dark">Escuro</option>
+                        <option value="light">Claro</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Moeda base</span>
+                      <select id="settingsCurrency">
+                        <option value="BRL">Real brasileiro (BRL)</option>
+                        <option value="USD">Dólar americano (USD)</option>
+                        <option value="EUR">Euro (EUR)</option>
+                        <option value="GBP">Libra esterlina (GBP)</option>
+                        <option value="JPY">Iene japonês (JPY)</option>
+                        <option value="ARS">Peso argentino (ARS)</option>
+                        <option value="CLP">Peso chileno (CLP)</option>
+                        <option value="MXN">Peso mexicano (MXN)</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="sync-card">
+                    <span>Sincronização</span>
+                    <strong data-sync-status>Salvamento local</strong>
+                  </div>
+                  <button class="primary-action" type="submit">Salvar configurações</button>
+                </form>
+              </section>
+
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Dados</p>
+                    <h2>Gerenciamento</h2>
+                  </div>
+                </div>
+                <div class="data-actions">
+                  <button class="ghost-action" data-export-data type="button">Exportar dados</button>
+                  <label class="ghost-action file-action">
+                    Importar CSV, Excel, PDF ou JSON
+                    <input id="importDataInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,application/pdf,.json,application/json" />
+                  </label>
+                  <button class="danger-action" data-clear-profile-data type="button">Limpar perfil atual</button>
+                </div>
+                <p class="data-hint">Cada CSV, Excel ou PDF importado é salvo como uma nova importação no perfil atual, sem apagar importações anteriores. Para CSV e Excel, use colunas como descrição, valor, data, categoria, status e tipo.</p>
+                <div class="import-history" data-import-history></div>
+                <pre class="export-box" data-export-box></pre>
+              </section>
+            </div>
+          </section>
+
+          <footer class="app-footer">@2026 Maíse Dias</footer>
+        </main>
+      </div>
+    </template>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
