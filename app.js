@@ -383,11 +383,18 @@
           options: { data: { name: name || "Usuário Nexio" } },
         });
         if (error) throw error;
-        if (!data.session || !data.user) {
-          showToast("Conta criada. Confirme seu e-mail e depois entre.");
-          return;
+        let authUser = data.user;
+        if (!data.session || !authUser) {
+          const login = await cloud.client.auth.signInWithPassword({ email, password });
+          if (login.error) {
+            showToast("Conta criada. Entre com seu e-mail e senha.");
+            state.authMode = "login";
+            renderAuth();
+            return;
+          }
+          authUser = login.data.user;
         }
-        await loadCloudUserData(data.user);
+        await loadCloudUserData(authUser);
         showToast("Conta criada e sincronizada.");
         render();
         return;
@@ -1806,13 +1813,43 @@
 
   function buildInsights(profile) {
     const insights = [];
+    const currentMonth = currentCalendarMonth();
+    const settledTransactions = profile.transactions.filter(isSettledTransaction);
+    const monthSettled = settledTransactions.filter((transaction) => isInCalendarMonth(transaction.date, currentMonth));
+    const monthIncome = sum(monthSettled.filter((transaction) => transaction.type === "income"), "amount");
+    const monthExpense = sum(monthSettled.filter((transaction) => transaction.type === "expense"), "amount");
+    const monthResult = monthIncome - monthExpense;
+    const spendingPeak = peakExpenseDay(monthSettled);
+    const topExpense = highestTransaction(monthSettled.filter((transaction) => transaction.type === "expense"));
+    const bestSaving = bestSavingMonth(settledTransactions);
+    const extraContribution = bestExtraGoalContribution(profile.goals);
     const activeGoals = profile.goals.filter((goal) => goal.saved < goal.target);
     const overdue = activeGoals.filter((goal) => daysUntil(goal.deadline) < 0);
     const close = activeGoals.filter((goal) => goal.saved / goal.target >= 0.75);
     const reminders = activeGoals.flatMap((goal) => (goal.reminders || []).map((reminder) => ({ ...reminder, goal: goal.name })));
 
-    if (!activeGoals.length) {
+    if (spendingPeak) {
+      insights.push(`💸 <strong>Dia de maior gasto.</strong> Em ${formatDate(spendingPeak.date)}, saíram ${money(spendingPeak.total)}. Vale revisar esse dia e procurar um ajuste pequeno para o próximo mês.`);
+    }
+    if (topExpense) {
+      const category = findCategory(topExpense.categoryId);
+      insights.push(`🔎 <strong>Maior despesa paga.</strong> ${escapeHtml(topExpense.description)} foi o maior movimento de saída do mês: ${money(topExpense.amount)} em ${escapeHtml(category.name)}.`);
+    }
+    if (bestSaving) {
+      insights.push(`🏆 <strong>Melhor economia recente.</strong> Em ${bestSaving.label}, você fechou com ${money(bestSaving.result)} de sobra. Esse é um ótimo padrão para tentar repetir.`);
+    }
+    if (monthResult > 0) {
+      insights.push(`💙 <strong>Sobrou dinheiro este mês.</strong> Você está positivo em ${money(monthResult)}. Separar uma parte disso para uma meta acelera seu progresso sem pesar.`);
+    } else if (monthExpense > monthIncome && monthIncome > 0) {
+      insights.push(`🧭 <strong>Mês pedindo atenção.</strong> As saídas pagas passaram as entradas em ${money(Math.abs(monthResult))}. Um corte pequeno nas maiores despesas já ajuda a virar o jogo.`);
+    }
+    if (extraContribution) {
+      insights.push(`🚀 <strong>Aporte acima da média.</strong> Você guardou ${money(extraContribution.amount)} em ${escapeHtml(extraContribution.goalName)}, acima da sua média de ${money(extraContribution.average)}. Esse é o tipo de avanço que muda o placar.`);
+    }
+    if (!profile.goals.length) {
       insights.push("💡 <strong>Metas em pausa.</strong> Crie um objetivo para acompanhar aportes, progresso e próximos passos.");
+    } else if (!activeGoals.length) {
+      insights.push("🎉 <strong>Metas concluídas.</strong> Você zerou seus objetivos ativos. Crie uma nova meta para continuar evoluindo.");
     }
     close.slice(0, 2).forEach((goal) => {
       insights.push(`🎯 <strong>${escapeHtml(goal.name)} está perto.</strong> Falta ${money(goal.target - goal.saved)} para concluir essa meta.`);
@@ -1834,11 +1871,65 @@
         insights.push(`⏰ <strong>Lembrete em ${formatDate(reminder.date)}.</strong> ${escapeHtml(reminder.text)}.`);
       });
 
-    return insights.slice(0, 5);
+    if (!insights.length) {
+      insights.push("✨ <strong>Comece seu histórico.</strong> Lance receitas, despesas pagas e aportes nas metas para receber leituras mais certeiras sobre seus hábitos.");
+    }
+
+    return insights.slice(0, 8);
+  }
+
+  function peakExpenseDay(transactions) {
+    const totals = new Map();
+    transactions
+      .filter((transaction) => transaction.type === "expense")
+      .forEach((transaction) => {
+        totals.set(transaction.date, (totals.get(transaction.date) || 0) + Number(transaction.amount || 0));
+      });
+    return [...totals.entries()]
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => b.total - a.total)[0] || null;
+  }
+
+  function highestTransaction(transactions) {
+    return [...transactions].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))[0] || null;
+  }
+
+  function bestSavingMonth(transactions) {
+    return lastMonths(6)
+      .map((month) => {
+        const income = monthlyTotal(transactions, month.value, "income");
+        const expense = monthlyTotal(transactions, month.value, "expense");
+        return { ...month, result: income - expense };
+      })
+      .filter((month) => month.result > 0)
+      .sort((a, b) => b.result - a.result)[0] || null;
+  }
+
+  function bestExtraGoalContribution(goals) {
+    const contributions = goals.flatMap((goal) => (goal.history || [])
+      .filter((entry) => Number(entry.amount || 0) > 0 && normalizeText(entry.note || "") !== "saldo inicial")
+      .map((entry) => ({
+        goalName: goal.name,
+        amount: Number(entry.amount || 0),
+        date: entry.date || goal.updatedAt || goal.createdAt || new Date().toISOString(),
+      })));
+    if (contributions.length < 2) return null;
+    const average = sum(contributions, "amount") / contributions.length;
+    const best = contributions
+      .filter((entry) => entry.amount > average)
+      .sort((a, b) => b.amount - a.amount || String(b.date).localeCompare(String(a.date)))[0];
+    return best ? { ...best, average } : null;
   }
 
   function goalInsight(goal, amount) {
     const progress = Math.min(Math.round((goal.saved / goal.target) * 100), 100);
+    const contributions = (goal.history || [])
+      .filter((entry) => Number(entry.amount || 0) > 0 && normalizeText(entry.note || "") !== "saldo inicial");
+    const previous = contributions.slice(0, -1);
+    const average = previous.length ? sum(previous, "amount") / previous.length : 0;
+    if (average && amount > average) {
+      return `🚀 Você guardou ${money(amount)} em ${goal.name}, acima da sua média de ${money(average)}. Continue nesse ritmo.`;
+    }
     if (progress >= 100) return `🎉 Meta concluída. Você adicionou ${money(amount)} e fechou ${goal.name}.`;
     if (progress >= 75) return `🚀 Ótimo avanço: ${goal.name} chegou a ${progress}%. Falta pouco.`;
     if (progress >= 40) return `📈 ${goal.name} ganhou força: ${progress}% da meta já está guardado.`;
