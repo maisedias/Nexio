@@ -577,21 +577,43 @@ h3 {
 .pending-item {
   min-width: 0;
   border: 1px solid var(--line);
+  border-left: 3px solid var(--pending-color, var(--line));
   border-radius: var(--radius);
   background: var(--panel-soft);
   padding: 12px;
 }
 
+.pending-item.pending-positive {
+  --pending-color: var(--income);
+}
+
+.pending-item.pending-negative {
+  --pending-color: #ef4444;
+}
+
+.pending-item.pending-neutral {
+  --pending-color: var(--muted);
+}
+
 .pending-item span {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 6px;
   color: var(--muted);
   font-size: 0.76rem;
   font-weight: 750;
 }
 
+.pending-item i {
+  color: var(--pending-color, var(--muted));
+  font-style: normal;
+  font-weight: 900;
+}
+
 .pending-item strong {
   overflow-wrap: anywhere;
+  color: var(--pending-color, var(--text));
   font-size: 1.05rem;
   line-height: 1.1;
 }

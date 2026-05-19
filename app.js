@@ -1477,6 +1477,8 @@
     app.querySelector("[data-pending-expense]").textContent = money(pendingExpense);
     app.querySelector("[data-pending-impact]").textContent = money(pendingImpact);
     app.querySelector("[data-projected-balance]").textContent = money(balance + pendingImpact);
+    updatePendingTone(app.querySelector("[data-pending-impact-card]"), app.querySelector("[data-pending-impact-icon]"), pendingImpact);
+    updatePendingTone(app.querySelector("[data-projected-balance-card]"), app.querySelector("[data-projected-balance-icon]"), balance + pendingImpact);
 
     app.querySelector("[data-cash-income]").textContent = money(monthIncome);
     app.querySelector("[data-cash-expense]").textContent = money(monthExpense);
@@ -1576,6 +1578,14 @@
     syncFilterInputs();
     renderTransactionsTable();
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function updatePendingTone(card, icon, value) {
+    if (!card) return;
+    card.classList.toggle("pending-positive", value > 0);
+    card.classList.toggle("pending-negative", value < 0);
+    card.classList.toggle("pending-neutral", value === 0);
+    if (icon) icon.textContent = value > 0 ? "↗" : value < 0 ? "↘" : "↔";
   }
 
   function syncFilterInputs() {
