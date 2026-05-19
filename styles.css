@@ -554,6 +554,48 @@ h3 {
     linear-gradient(145deg, color-mix(in srgb, var(--primary) 15%, var(--panel)), var(--panel));
 }
 
+.pending-summary {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: 0 10px 34px rgba(20, 32, 24, 0.05);
+  padding: 18px;
+}
+
+.pending-summary .panel-heading {
+  margin-bottom: 0;
+}
+
+.pending-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pending-item {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.pending-item span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.pending-item strong {
+  overflow-wrap: anywhere;
+  font-size: 1.05rem;
+  line-height: 1.1;
+}
+
 .content-grid {
   display: grid;
   gap: 18px;
@@ -1113,7 +1155,8 @@ tbody tr:last-child td {
 
 @media (max-width: 1160px) {
   .metric-grid,
-  .compact-metrics {
+  .compact-metrics,
+  .pending-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1215,7 +1258,8 @@ tbody tr:last-child td {
   }
 
   .metric-grid,
-  .compact-metrics {
+  .compact-metrics,
+  .pending-grid {
     grid-template-columns: 1fr;
   }
 

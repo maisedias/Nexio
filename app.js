@@ -441,6 +441,7 @@
     app.querySelectorAll("[data-view-shortcut]").forEach((button) => {
       button.addEventListener("click", () => setView(button.dataset.viewShortcut));
     });
+    app.querySelector("[data-view-pendencies]").addEventListener("click", showCurrentMonthPendencies);
     app.querySelector("[data-mobile-menu]").addEventListener("click", () => {
       document.body.classList.toggle("menu-open");
     });
@@ -1437,8 +1438,10 @@
 
     const filter = app.querySelector("#filterStatus");
     if (filter && !filter.options.length) {
-      ["Todos", ...new Set([...incomeStatuses, ...expenseStatuses])].forEach((status, index) => {
-        filter.append(new Option(status, index === 0 ? "all" : status));
+      filter.append(new Option("Todos", "all"));
+      filter.append(new Option("Pendências", "open"));
+      [...new Set([...incomeStatuses, ...expenseStatuses])].forEach((status) => {
+        filter.append(new Option(status, status));
       });
       filter.value = state.filters.status;
     }
@@ -1449,8 +1452,12 @@
     const currentMonth = currentCalendarMonth();
     const monthTransactions = profile.transactions.filter((item) => isInCalendarMonth(item.date, currentMonth));
     const settledMonthTransactions = monthTransactions.filter(isSettledTransaction);
+    const pendingMonthTransactions = monthTransactions.filter(isOpenTransaction);
     const monthIncome = sum(settledMonthTransactions.filter((item) => item.type === "income"), "amount");
     const monthExpense = sum(settledMonthTransactions.filter((item) => item.type === "expense"), "amount");
+    const pendingIncome = sum(pendingMonthTransactions.filter((item) => item.type === "income"), "amount");
+    const pendingExpense = sum(pendingMonthTransactions.filter((item) => item.type === "expense"), "amount");
+    const pendingImpact = pendingIncome - pendingExpense;
     const balance = calculateBalance(profile.transactions);
     const goalsActive = profile.goals.filter((goal) => goal.saved < goal.target);
     const goalsSaved = sum(profile.goals, "saved");
@@ -1465,6 +1472,11 @@
     app.querySelector("[data-expense-count]").textContent = plural(settledMonthTransactions.filter((item) => item.type === "expense").length, "lançamento", "lançamentos");
     app.querySelector("[data-goals-progress]").textContent = `${Math.min(goalProgress, 100)}% guardado`;
     app.querySelector("[data-balance-trend]").textContent = balance >= 0 ? "Saldo positivo no período." : "Saldo pede atenção.";
+    app.querySelector("[data-pending-month-label]").textContent = `Resumo de pendências - ${formatMonthYear(currentMonth.value)}`;
+    app.querySelector("[data-pending-income]").textContent = money(pendingIncome);
+    app.querySelector("[data-pending-expense]").textContent = money(pendingExpense);
+    app.querySelector("[data-pending-impact]").textContent = money(pendingImpact);
+    app.querySelector("[data-projected-balance]").textContent = money(balance + pendingImpact);
 
     app.querySelector("[data-cash-income]").textContent = money(monthIncome);
     app.querySelector("[data-cash-expense]").textContent = money(monthExpense);
@@ -1547,6 +1559,42 @@
     });
   }
 
+  function showCurrentMonthPendencies() {
+    const month = currentCalendarMonth();
+    state.filters = {
+      ...state.filters,
+      description: "",
+      category: "all",
+      dateFrom: month.start,
+      dateTo: month.end,
+      valueMin: "",
+      valueMax: "",
+      status: "open",
+      sort: "date-asc",
+    };
+    setView("transactions");
+    syncFilterInputs();
+    renderTransactionsTable();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function syncFilterInputs() {
+    const map = {
+      filterDescription: "description",
+      filterCategory: "category",
+      filterDateFrom: "dateFrom",
+      filterDateTo: "dateTo",
+      filterValueMin: "valueMin",
+      filterValueMax: "valueMax",
+      filterStatus: "status",
+      sortTransactions: "sort",
+    };
+    Object.entries(map).forEach(([id, key]) => {
+      const input = app.querySelector(`#${id}`);
+      if (input) input.value = state.filters[key];
+    });
+  }
+
   function getFilteredTransactions() {
     const profile = currentProfile();
     const filters = state.filters;
@@ -1557,7 +1605,8 @@
       const toMatches = !filters.dateTo || transaction.date <= filters.dateTo;
       const minMatches = !filters.valueMin || transaction.amount >= Number(filters.valueMin);
       const maxMatches = !filters.valueMax || transaction.amount <= Number(filters.valueMax);
-      const statusMatches = filters.status === "all" || transaction.status === filters.status;
+      const statusMatches = filters.status === "all" ||
+        (filters.status === "open" ? isOpenTransaction(transaction) : transaction.status === filters.status);
       return descriptionMatches && categoryMatches && fromMatches && toMatches && minMatches && maxMatches && statusMatches;
     });
 
@@ -2277,6 +2326,10 @@
       (transaction.type === "expense" && transaction.status === "Pago");
   }
 
+  function isOpenTransaction(transaction) {
+    return transaction.status === "Pendente" || transaction.status === "Atrasado";
+  }
+
   function currentCalendarMonth(date = new Date()) {
     return {
       value: toMonthInput(date),
@@ -2344,6 +2397,12 @@
       month: "long",
       year: "numeric",
     });
+  }
+
+  function formatMonthYear(value) {
+    const date = parseLocalDate(`${value}-01`);
+    const month = date.toLocaleDateString("pt-BR", { month: "long" });
+    return `${month.charAt(0).toUpperCase() + month.slice(1)}/${date.getFullYear()}`;
   }
 
   function parseLocalDate(value) {
