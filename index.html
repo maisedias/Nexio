@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -245,6 +245,7 @@
                   </div>
                 </div>
                 <form id="categoryForm" class="inline-form">
+                  <input id="categoryId" type="hidden" />
                   <label class="field icon-field">
                     <span>Ícone</span>
                     <input id="categoryIcon" type="text" maxlength="4" placeholder="💼" required />
@@ -253,7 +254,8 @@
                     <span>Nome</span>
                     <input id="categoryName" type="text" placeholder="Nova categoria" required />
                   </label>
-                  <button class="primary-action square" type="submit">+</button>
+                  <button class="primary-action square" data-save-category type="submit">+</button>
+                  <button class="ghost-action square" data-reset-category-form type="button">×</button>
                 </form>
                 <div class="icon-picker" data-category-icon-picker aria-label="Ícones disponíveis"></div>
                 <div class="category-list" data-category-list></div>

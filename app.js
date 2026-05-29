@@ -44,6 +44,7 @@
     authMode: "login",
     view: "overview",
     editingTransactionId: "",
+    editingCategoryId: "",
     editingGoalId: "",
     editingProfileId: "",
     filters: {
@@ -669,24 +670,41 @@
     app.querySelector("#categoryForm").addEventListener("submit", (event) => {
       event.preventDefault();
       const profile = currentProfile();
+      const id = app.querySelector("#categoryId").value;
       const name = app.querySelector("#categoryName").value.trim();
       const icon = app.querySelector("#categoryIcon").value.trim() || name.charAt(0).toUpperCase();
       if (!name) {
         showToast("Digite o nome da categoria.");
         return;
       }
-      if (profile.categories.some((category) => category.name.toLowerCase() === name.toLowerCase())) {
+      if (profile.categories.some((category) => category.id !== id && category.name.toLowerCase() === name.toLowerCase())) {
         showToast("Essa categoria já existe.");
         return;
       }
-      profile.categories.push({ id: uid("cat"), name, icon });
-      app.querySelector("#categoryForm").reset();
-      app.querySelector("#categoryIcon").value = categoryIconOptions[0];
-      syncCategoryIconPicker();
+      const existing = profile.categories.find((category) => category.id === id);
+      if (existing) {
+        existing.name = name;
+        existing.icon = icon;
+      } else {
+        profile.categories.push({ id: uid("cat"), name, icon });
+      }
+      resetCategoryForm();
       saveStore();
-      showToast("Categoria criada.");
+      showToast(existing ? "Categoria atualizada." : "Categoria criada.");
       refreshAll();
     });
+    app.querySelector("[data-reset-category-form]").addEventListener("click", resetCategoryForm);
+  }
+
+  function resetCategoryForm() {
+    const form = app.querySelector("#categoryForm");
+    if (!form) return;
+    form.reset();
+    app.querySelector("#categoryId").value = "";
+    app.querySelector("#categoryIcon").value = categoryIconOptions[0];
+    app.querySelector("[data-save-category]").textContent = "+";
+    state.editingCategoryId = "";
+    syncCategoryIconPicker();
   }
 
   function renderCategoryIconPicker() {
@@ -1767,9 +1785,15 @@
             <div class="list-meta">${used ? "Em uso" : "Disponível"}</div>
           </div>
         </div>
-        <button class="icon-button" data-delete-category="${category.id}" type="button" title="Excluir">×</button>
+        <div class="row-actions">
+          <button class="icon-button" data-edit-category="${category.id}" type="button" title="Editar">✎</button>
+          <button class="icon-button" data-delete-category="${category.id}" type="button" title="Excluir">×</button>
+        </div>
       `;
       box.append(item);
+    });
+    box.querySelectorAll("[data-edit-category]").forEach((button) => {
+      button.addEventListener("click", () => editCategory(button.dataset.editCategory));
     });
     box.querySelectorAll("[data-delete-category]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -1784,6 +1808,18 @@
         refreshAll();
       });
     });
+  }
+
+  function editCategory(id) {
+    const category = currentProfile().categories.find((item) => item.id === id);
+    if (!category) return;
+    state.editingCategoryId = id;
+    app.querySelector("#categoryId").value = category.id;
+    app.querySelector("#categoryIcon").value = category.icon;
+    app.querySelector("#categoryName").value = category.name;
+    app.querySelector("[data-save-category]").textContent = "✓";
+    syncCategoryIconPicker();
+    app.querySelector("#categoryName").focus();
   }
 
   function renderGoals() {
@@ -2245,7 +2281,7 @@
       });
       if (!config.dense || index % Math.ceil(config.labels.length / 10) === 0) {
         ctx.fillStyle = cssVar("--muted");
-        ctx.font = "12px Montserrat, sans-serif";
+        ctx.font = "12px Poppins, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(label, padding.left + index * groupWidth + groupWidth / 2, height - 16);
       }
@@ -2257,7 +2293,7 @@
       roundRect(ctx, x, 14, 12, 12, 3);
       ctx.fill();
       ctx.fillStyle = cssVar("--muted");
-      ctx.font = "12px Montserrat, sans-serif";
+      ctx.font = "12px Poppins, sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(series.label, x + 18, 24);
     });
@@ -2315,7 +2351,7 @@
       if (options.dense && index % Math.ceil(options.labels.length / 10) !== 0) return;
       const x = padding.left + (chartWidth / Math.max(options.labels.length - 1, 1)) * index;
       ctx.fillStyle = options.labelColor;
-      ctx.font = "12px Montserrat, sans-serif";
+      ctx.font = "12px Poppins, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(label, x, height - 16);
     });
@@ -2327,7 +2363,7 @@
     ctx.strokeStyle = options.gridColor || cssVar("--line");
     ctx.lineWidth = 1;
     ctx.fillStyle = options.labelColor || cssVar("--muted");
-    ctx.font = "12px Montserrat, sans-serif";
+    ctx.font = "12px Poppins, sans-serif";
     ctx.textAlign = "right";
     for (let index = 0; index <= steps; index += 1) {
       const y = padding.top + (chartHeight / steps) * index;
