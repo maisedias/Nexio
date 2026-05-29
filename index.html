@@ -308,6 +308,34 @@
                   </label>
                 </div>
               </div>
+              <div class="bulk-status-bar">
+                <div class="bulk-status-title">
+                  <span>Status em lote</span>
+                  <strong>Atualizar mês</strong>
+                </div>
+                <label class="field compact-field">
+                  <span>Mês</span>
+                  <input id="bulkStatusMonth" type="month" />
+                </label>
+                <label class="field compact-field">
+                  <span>Status atual</span>
+                  <select id="bulkStatusFrom">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Atrasado">Atrasado</option>
+                    <option value="Pago">Pago</option>
+                    <option value="Recebido">Recebido</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>Mudar para</span>
+                  <select id="bulkStatusTo">
+                    <option value="settled">Pago / Recebido</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Atrasado">Atrasado</option>
+                  </select>
+                </label>
+                <button class="primary-action compact" data-bulk-status-apply type="button">Aplicar</button>
+              </div>
               <div class="table-shell">
                 <table>
                   <thead>

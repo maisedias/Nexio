@@ -425,6 +425,7 @@
     bindTransactionForm();
     bindCategoryForm();
     bindFilters();
+    bindBulkStatusControls();
     bindGoalForm();
     bindProfileForm();
     bindSettingsForm();
@@ -1538,7 +1539,7 @@
         <td><span class="category-dot">${escapeHtml(category.icon)}</span> ${escapeHtml(category.name)}</td>
         <td>${formatDate(transaction.date)}</td>
         <td><strong class="${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong></td>
-        <td>${statusPill(transaction.status)}</td>
+        <td>${statusSelect(transaction)}</td>
         <td>
           <div class="row-actions">
             <button class="icon-button" data-edit-transaction="${transaction.id}" type="button" title="Editar">✎</button>
@@ -1559,6 +1560,55 @@
     tbody.querySelectorAll("[data-delete-transaction]").forEach((button) => {
       button.addEventListener("click", () => deleteTransaction(button.dataset.deleteTransaction));
     });
+    tbody.querySelectorAll("[data-inline-status]").forEach((select) => {
+      select.addEventListener("change", () => updateTransactionStatus(select.dataset.inlineStatus, select.value));
+    });
+  }
+
+  function bindBulkStatusControls() {
+    const month = app.querySelector("#bulkStatusMonth");
+    const button = app.querySelector("[data-bulk-status-apply]");
+    if (!month || !button) return;
+    month.value = toMonthInput(new Date());
+    button.addEventListener("click", applyBulkStatusUpdate);
+  }
+
+  function updateTransactionStatus(id, status) {
+    const transaction = currentProfile().transactions.find((item) => item.id === id);
+    if (!transaction || transaction.status === status) return;
+    transaction.status = status;
+    transaction.updatedAt = new Date().toISOString();
+    applyAutomaticOverdueStatus(transaction);
+    saveStore();
+    showToast("Status atualizado.");
+    refreshAll();
+  }
+
+  function applyBulkStatusUpdate() {
+    const profile = currentProfile();
+    const month = app.querySelector("#bulkStatusMonth").value || toMonthInput(new Date());
+    const currentStatus = app.querySelector("#bulkStatusFrom").value;
+    const target = app.querySelector("#bulkStatusTo").value;
+    let changed = 0;
+
+    profile.transactions.forEach((transaction) => {
+      if (toMonthInput(parseLocalDate(transaction.date)) !== month) return;
+      if (transaction.status !== currentStatus) return;
+      const nextStatus = target === "settled" ? settledStatusFor(transaction.type) : target;
+      if (!statusOptionsFor(transaction.type).includes(nextStatus) || transaction.status === nextStatus) return;
+      transaction.status = nextStatus;
+      transaction.updatedAt = new Date().toISOString();
+      applyAutomaticOverdueStatus(transaction);
+      changed += 1;
+    });
+
+    if (!changed) {
+      showToast("Nenhuma transação encontrada para esse mês e status.");
+      return;
+    }
+    saveStore();
+    showToast(`${changed} ${changed === 1 ? "status atualizado" : "status atualizados"}.`);
+    refreshAll();
   }
 
   function showCurrentMonthPendencies() {
@@ -2442,13 +2492,32 @@
   }
 
   function statusPill(status) {
+    return `<span class="status-pill ${statusClass(status)}">${escapeHtml(status)}</span>`;
+  }
+
+  function statusSelect(transaction) {
+    const options = statusOptionsFor(transaction.type)
+      .map((status) => `<option value="${escapeHtml(status)}"${status === transaction.status ? " selected" : ""}>${escapeHtml(status)}</option>`)
+      .join("");
+    return `<select class="status-select ${statusClass(transaction.status)}" data-inline-status="${escapeHtml(transaction.id)}" aria-label="Alterar status">${options}</select>`;
+  }
+
+  function statusOptionsFor(type) {
+    return type === "income" ? incomeStatuses : expenseStatuses;
+  }
+
+  function settledStatusFor(type) {
+    return type === "income" ? "Recebido" : "Pago";
+  }
+
+  function statusClass(status) {
     const classMap = {
       Pago: "status-paid",
       Recebido: "status-received",
       Pendente: "status-pending",
       Atrasado: "status-overdue",
     };
-    return `<span class="status-pill ${classMap[status] || ""}">${escapeHtml(status)}</span>`;
+    return classMap[status] || "";
   }
 
   function emptyState(text) {
