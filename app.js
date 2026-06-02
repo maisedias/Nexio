@@ -58,6 +58,7 @@
       sort: "date-desc",
     },
     cashflowMonth: toMonthInput(new Date()),
+    selectedTransactionIds: new Set(),
   };
 
   const cloud = {
@@ -427,6 +428,7 @@
     bindCategoryForm();
     bindFilters();
     bindBulkStatusControls();
+    bindTransactionListControls();
     bindGoalForm();
     bindProfileForm();
     bindSettingsForm();
@@ -474,6 +476,7 @@
     });
     select.addEventListener("change", () => {
       user.activeProfileId = select.value;
+      state.selectedTransactionIds.clear();
       saveStore();
       showToast("Perfil alterado.");
       renderDashboard();
@@ -1542,14 +1545,18 @@
     tbody.innerHTML = "";
     if (!rows.length) {
       const row = document.createElement("tr");
-      row.innerHTML = '<td colspan="6"><div class="empty-state">Nenhuma transação encontrada.</div></td>';
+      row.innerHTML = '<td colspan="7"><div class="empty-state">Nenhuma transação encontrada.</div></td>';
       tbody.append(row);
+      updateTransactionSelectionControls(rows);
+      updateSortButtons();
       return;
     }
     rows.forEach((transaction) => {
       const category = findCategory(transaction.categoryId);
+      const checked = state.selectedTransactionIds.has(transaction.id) ? " checked" : "";
       const row = document.createElement("tr");
       row.innerHTML = `
+        <td class="select-column"><input data-select-transaction="${transaction.id}" type="checkbox" aria-label="Selecionar ${escapeHtml(transaction.description)}"${checked} /></td>
         <td>
           <strong>${escapeHtml(transaction.description)}</strong>
           <div class="list-meta">${transaction.type === "income" ? "Receita" : "Despesa"}${installmentLabel(transaction)}</div>
@@ -1581,6 +1588,18 @@
     tbody.querySelectorAll("[data-inline-status]").forEach((select) => {
       select.addEventListener("change", () => updateTransactionStatus(select.dataset.inlineStatus, select.value));
     });
+    tbody.querySelectorAll("[data-select-transaction]").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) {
+          state.selectedTransactionIds.add(checkbox.dataset.selectTransaction);
+        } else {
+          state.selectedTransactionIds.delete(checkbox.dataset.selectTransaction);
+        }
+        updateTransactionSelectionControls(rows);
+      });
+    });
+    updateTransactionSelectionControls(rows);
+    updateSortButtons();
   }
 
   function bindBulkStatusControls() {
@@ -1589,6 +1608,86 @@
     if (!month || !button) return;
     month.value = toMonthInput(new Date());
     button.addEventListener("click", applyBulkStatusUpdate);
+  }
+
+  function bindTransactionListControls() {
+    app.querySelector("[data-delete-selected-transactions]").addEventListener("click", deleteSelectedTransactions);
+    app.querySelector("[data-select-all-transactions]").addEventListener("change", (event) => {
+      const rows = getFilteredTransactions();
+      if (event.currentTarget.checked) {
+        rows.forEach((transaction) => state.selectedTransactionIds.add(transaction.id));
+      } else {
+        rows.forEach((transaction) => state.selectedTransactionIds.delete(transaction.id));
+      }
+      renderTransactionsTable();
+    });
+    app.querySelectorAll("[data-table-sort]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.filters.sort = nextSortValue(button.dataset.tableSort);
+        syncFilterInputs();
+        renderTransactionsTable();
+      });
+    });
+    updateSortButtons();
+  }
+
+  function updateSortButtons() {
+    app.querySelectorAll("[data-table-sort]").forEach((button) => {
+      const sort = button.dataset.tableSort;
+      const opposite = nextSortPair(sort);
+      const isActive = state.filters.sort === sort || state.filters.sort === opposite;
+      button.classList.toggle("is-active", isActive);
+      button.dataset.sortIcon = isActive && state.filters.sort.endsWith("-asc") ? "↑" : isActive ? "↓" : "↕";
+    });
+  }
+
+  function updateTransactionSelectionControls(rows = getFilteredTransactions()) {
+    const visibleIds = rows.map((transaction) => transaction.id);
+    const visibleSelected = visibleIds.filter((id) => state.selectedTransactionIds.has(id));
+    const selectAll = app.querySelector("[data-select-all-transactions]");
+    if (selectAll) {
+      selectAll.checked = Boolean(visibleIds.length && visibleSelected.length === visibleIds.length);
+      selectAll.indeterminate = Boolean(visibleSelected.length && visibleSelected.length < visibleIds.length);
+    }
+    const button = app.querySelector("[data-delete-selected-transactions]");
+    if (button) {
+      const count = state.selectedTransactionIds.size;
+      button.disabled = !count;
+      button.textContent = count ? `Excluir selecionadas (${count})` : "Excluir selecionadas";
+    }
+  }
+
+  function deleteSelectedTransactions() {
+    const profile = currentProfile();
+    const ids = new Set(profile.transactions.filter((transaction) => state.selectedTransactionIds.has(transaction.id)).map((transaction) => transaction.id));
+    const count = ids.size;
+    if (!count) return;
+    if (!confirm(`Excluir ${count} ${count === 1 ? "transação selecionada" : "transações selecionadas"}?`)) return;
+    profile.transactions = profile.transactions.filter((transaction) => !ids.has(transaction.id));
+    state.selectedTransactionIds.clear();
+    saveStore();
+    showToast(`${count} ${count === 1 ? "transação excluída" : "transações excluídas"}.`);
+    refreshAll();
+  }
+
+  function nextSortValue(sort) {
+    return state.filters.sort === sort ? nextSortPair(sort) : sort;
+  }
+
+  function nextSortPair(sort) {
+    const opposite = {
+      "date-desc": "date-asc",
+      "date-asc": "date-desc",
+      "amount-desc": "amount-asc",
+      "amount-asc": "amount-desc",
+      "description-asc": "description-desc",
+      "description-desc": "description-asc",
+      "category-asc": "category-desc",
+      "category-desc": "category-asc",
+      "status-asc": "status-desc",
+      "status-desc": "status-asc",
+    };
+    return opposite[sort] || sort;
   }
 
   function updateTransactionStatus(id, status) {
@@ -1694,7 +1793,11 @@
       "amount-desc": (a, b) => b.amount - a.amount,
       "amount-asc": (a, b) => a.amount - b.amount,
       "description-asc": (a, b) => a.description.localeCompare(b.description),
+      "description-desc": (a, b) => b.description.localeCompare(a.description),
+      "category-asc": (a, b) => findCategory(a.categoryId).name.localeCompare(findCategory(b.categoryId).name),
+      "category-desc": (a, b) => findCategory(b.categoryId).name.localeCompare(findCategory(a.categoryId).name),
       "status-asc": (a, b) => a.status.localeCompare(b.status),
+      "status-desc": (a, b) => b.status.localeCompare(a.status),
     };
     rows.sort(sorters[filters.sort] || sorters["date-desc"]);
     return rows;
@@ -1745,6 +1848,7 @@
     if (!transaction) return;
     if (!confirm(`Excluir "${transaction.description}"?`)) return;
     profile.transactions = profile.transactions.filter((item) => item.id !== id);
+    state.selectedTransactionIds.delete(id);
     saveStore();
     showToast("Transação excluída.");
     refreshAll();

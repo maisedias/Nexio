@@ -305,7 +305,11 @@
                       <option value="amount-desc">Maior valor</option>
                       <option value="amount-asc">Menor valor</option>
                       <option value="description-asc">Descrição A-Z</option>
+                      <option value="description-desc">Descrição Z-A</option>
+                      <option value="category-asc">Categoria A-Z</option>
+                      <option value="category-desc">Categoria Z-A</option>
                       <option value="status-asc">Status A-Z</option>
+                      <option value="status-desc">Status Z-A</option>
                     </select>
                   </label>
                 </div>
@@ -337,16 +341,18 @@
                   </select>
                 </label>
                 <button class="primary-action compact" data-bulk-status-apply type="button">Aplicar</button>
+                <button class="danger-action compact" data-delete-selected-transactions type="button" disabled>Excluir selecionadas</button>
               </div>
               <div class="table-shell">
                 <table>
                   <thead>
                     <tr>
-                      <th>Descrição</th>
-                      <th>Categoria</th>
-                      <th>Data</th>
-                      <th>Valor</th>
-                      <th>Status</th>
+                      <th class="select-column"><input data-select-all-transactions type="checkbox" aria-label="Selecionar transações visíveis" /></th>
+                      <th><button class="table-sort" data-table-sort="description-asc" type="button">Descrição</button></th>
+                      <th><button class="table-sort" data-table-sort="category-asc" type="button">Categoria</button></th>
+                      <th><button class="table-sort" data-table-sort="date-desc" type="button">Data</button></th>
+                      <th><button class="table-sort" data-table-sort="amount-desc" type="button">Valor</button></th>
+                      <th><button class="table-sort" data-table-sort="status-asc" type="button">Status</button></th>
                       <th>Ações</th>
                     </tr>
                   </thead>
