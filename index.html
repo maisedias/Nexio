@@ -74,12 +74,12 @@
           </div>
 
           <nav class="nav-list" aria-label="Navegação principal">
-            <button class="nav-item is-active" data-view="overview" type="button"><span class="nav-icon">⌂</span><span>Visão geral</span></button>
-            <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon">↕</span><span>Transações</span></button>
-            <button class="nav-item" data-view="cashflow" type="button"><span class="nav-icon">≋</span><span>Fluxo de caixa</span></button>
-            <button class="nav-item" data-view="goals" type="button"><span class="nav-icon">◉</span><span>Metas</span></button>
-            <button class="nav-item" data-view="profiles" type="button"><span class="nav-icon">☷</span><span>Perfis</span></button>
-            <button class="nav-item" data-view="settings" type="button"><span class="nav-icon">⚙</span><span>Configurações</span></button>
+            <button class="nav-item is-active" data-view="overview" type="button"><span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true">▦</i></span><span>Visão geral</span></button>
+            <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon"><i data-lucide="wallet-cards" aria-hidden="true">▤</i></span><span>Transações</span></button>
+            <button class="nav-item" data-view="cashflow" type="button"><span class="nav-icon"><i data-lucide="chart-spline" aria-hidden="true">≋</i></span><span>Fluxo de caixa</span></button>
+            <button class="nav-item" data-view="goals" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
+            <button class="nav-item" data-view="profiles" type="button"><span class="nav-icon"><i data-lucide="users-round" aria-hidden="true">☷</i></span><span>Perfis</span></button>
+            <button class="nav-item" data-view="settings" type="button"><span class="nav-icon"><i data-lucide="settings" aria-hidden="true">⚙</i></span><span>Configurações</span></button>
           </nav>
 
           <div class="sidebar-footer">
@@ -342,6 +342,7 @@
                 </label>
                 <button class="primary-action compact" data-bulk-status-apply type="button">Aplicar</button>
                 <button class="danger-action compact" data-delete-selected-transactions type="button" disabled>Excluir selecionadas</button>
+                <button class="danger-action compact" data-delete-filtered-transactions type="button">Excluir filtradas</button>
               </div>
               <div class="table-shell">
                 <table>
@@ -454,6 +455,15 @@
                         <option value="gold">Azul intenso</option>
                         <option value="rose">Azul claro</option>
                         <option value="violet">Azul gelo</option>
+                        <option value="emerald">Esmeralda</option>
+                        <option value="lime">Lima</option>
+                        <option value="sun">Dourado</option>
+                        <option value="coral">Coral</option>
+                        <option value="pink">Rosa</option>
+                        <option value="purple">Violeta</option>
+                        <option value="lavender">Lavanda</option>
+                        <option value="graphite">Grafite</option>
+                        <option value="white">Branco</option>
                       </select>
                     </label>
                   </div>
@@ -585,6 +595,7 @@
 
     <script src="supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="app.js"></script>
   </body>
 </html>

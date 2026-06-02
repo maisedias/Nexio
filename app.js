@@ -325,6 +325,12 @@
     drawAuthChart();
   }
 
+  function renderIcons() {
+    if (window.lucide?.createIcons) {
+      window.lucide.createIcons();
+    }
+  }
+
   async function handleAuth(event) {
     event.preventDefault();
     const email = normalizeEmail(app.querySelector("#authEmail").value);
@@ -419,6 +425,7 @@
     applyTheme(user.theme);
     app.innerHTML = "";
     app.append(document.getElementById("dashboard-template").content.cloneNode(true));
+    renderIcons();
 
     app.querySelector("[data-today-label]").textContent = formatLongDate(new Date());
     app.querySelector("[data-active-profile-label]").textContent = profile.name;
@@ -1440,7 +1447,7 @@
     const transactionSelect = app.querySelector("#transactionCategory");
     const filterSelect = app.querySelector("#filterCategory");
     transactionSelect.innerHTML = "";
-    filterSelect.innerHTML = '<option value="all">Todas</option>';
+    filterSelect.innerHTML = '<option value="all">Todas</option><option value="uncategorized">Sem categoria</option>';
     profile.categories.forEach((category) => {
       const label = `${category.icon} ${category.name}`;
       transactionSelect.append(new Option(label, category.id));
@@ -1612,6 +1619,7 @@
 
   function bindTransactionListControls() {
     app.querySelector("[data-delete-selected-transactions]").addEventListener("click", deleteSelectedTransactions);
+    app.querySelector("[data-delete-filtered-transactions]").addEventListener("click", deleteFilteredTransactions);
     app.querySelector("[data-select-all-transactions]").addEventListener("change", (event) => {
       const rows = getFilteredTransactions();
       if (event.currentTarget.checked) {
@@ -1668,6 +1676,36 @@
     saveStore();
     showToast(`${count} ${count === 1 ? "transação excluída" : "transações excluídas"}.`);
     refreshAll();
+  }
+
+  function deleteFilteredTransactions() {
+    const profile = currentProfile();
+    const rows = getFilteredTransactions();
+    if (!rows.length) {
+      showToast("Nenhuma transação filtrada para excluir.");
+      return;
+    }
+    const count = rows.length;
+    const filterLabel = describeActiveTransactionFilters();
+    if (!confirm(`Excluir ${count} ${count === 1 ? "transação filtrada" : "transações filtradas"}?\n\nFiltro: ${filterLabel}`)) return;
+    const ids = new Set(rows.map((transaction) => transaction.id));
+    profile.transactions = profile.transactions.filter((transaction) => !ids.has(transaction.id));
+    rows.forEach((transaction) => state.selectedTransactionIds.delete(transaction.id));
+    saveStore();
+    showToast(`${count} ${count === 1 ? "transação excluída" : "transações excluídas"}.`);
+    refreshAll();
+  }
+
+  function describeActiveTransactionFilters() {
+    const filters = state.filters;
+    const parts = [];
+    if (filters.description) parts.push(`descrição contém "${filters.description}"`);
+    if (filters.category !== "all") parts.push(`categoria ${filters.category === "uncategorized" ? "Sem categoria" : findCategory(filters.category).name}`);
+    if (filters.dateFrom || filters.dateTo) parts.push(`data ${filters.dateFrom || "início"} até ${filters.dateTo || "fim"}`);
+    if (filters.valueMin) parts.push(`valor mín. ${money(filters.valueMin)}`);
+    if (filters.valueMax) parts.push(`valor máx. ${money(filters.valueMax)}`);
+    if (filters.status !== "all") parts.push(`status ${filters.status === "open" ? "Pendências" : filters.status}`);
+    return parts.length ? parts.join(", ") : "todas as transações visíveis";
   }
 
   function nextSortValue(sort) {
@@ -1777,7 +1815,9 @@
     const filters = state.filters;
     let rows = [...profile.transactions].filter((transaction) => {
       const descriptionMatches = transaction.description.toLowerCase().includes(filters.description.toLowerCase().trim());
-      const categoryMatches = filters.category === "all" || transaction.categoryId === filters.category;
+      const hasCategory = profile.categories.some((category) => category.id === transaction.categoryId);
+      const categoryMatches = filters.category === "all" ||
+        (filters.category === "uncategorized" ? !hasCategory : transaction.categoryId === filters.category);
       const fromMatches = !filters.dateFrom || transaction.date >= filters.dateFrom;
       const toMatches = !filters.dateTo || transaction.date <= filters.dateTo;
       const minMatches = !filters.valueMin || transaction.amount >= Number(filters.valueMin);

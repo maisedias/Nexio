@@ -454,6 +454,12 @@ h3 {
   font-weight: 900;
 }
 
+.nav-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.25;
+}
+
 .sidebar-footer {
   margin-top: auto;
 }
@@ -855,7 +861,7 @@ h3 {
 
 .bulk-status-bar {
   display: grid;
-  grid-template-columns: minmax(130px, 0.9fr) minmax(130px, 0.8fr) minmax(140px, 0.8fr) minmax(160px, 0.9fr) auto auto;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(130px, 0.8fr) minmax(140px, 0.8fr) minmax(160px, 0.9fr) repeat(3, auto);
   align-items: end;
   gap: 10px;
   margin: 14px 0;
@@ -1069,6 +1075,42 @@ button:disabled {
 
 .goal-card[data-theme="violet"] {
   --goal: #bdefff;
+}
+
+.goal-card[data-theme="emerald"] {
+  --goal: #10b981;
+}
+
+.goal-card[data-theme="lime"] {
+  --goal: #84cc16;
+}
+
+.goal-card[data-theme="sun"] {
+  --goal: #fbbf24;
+}
+
+.goal-card[data-theme="coral"] {
+  --goal: #fb7185;
+}
+
+.goal-card[data-theme="pink"] {
+  --goal: #ec4899;
+}
+
+.goal-card[data-theme="purple"] {
+  --goal: #8b5cf6;
+}
+
+.goal-card[data-theme="lavender"] {
+  --goal: #c4b5fd;
+}
+
+.goal-card[data-theme="graphite"] {
+  --goal: #94a3b8;
+}
+
+.goal-card[data-theme="white"] {
+  --goal: #f8fafc;
 }
 
 .goal-top {
