@@ -2320,9 +2320,12 @@
     const labels = Array.from({ length: days }, (_, index) => String(index + 1));
     const income = Array(days).fill(0);
     const expense = Array(days).fill(0);
+    const isForecast = isForecastCashflowMonth(month);
+    updateCashflowModeLabels(isForecast);
+    updateCashflowModeNote(profile, month, isForecast);
     profile.transactions.forEach((transaction) => {
       if (toMonthInput(parseLocalDate(transaction.date)) !== month) return;
-      if (!isSettledTransaction(transaction)) return;
+      if (!isCashflowTransactionIncluded(transaction)) return;
       const day = parseLocalDate(transaction.date).getDate() - 1;
       const amount = Number(transaction.amount || 0);
       if (transaction.type === "income") income[day] += amount;
@@ -2338,7 +2341,7 @@
       dense: true,
     });
 
-    let running = calculateBalance(profile.transactions.filter((transaction) => transaction.date < `${month}-01`));
+    let running = calculateCashflowBalance(profile.transactions.filter((transaction) => transaction.date < `${month}-01`));
     const evolution = labels.map((_, index) => {
       running += income[index] - expense[index];
       return running;
@@ -2356,6 +2359,51 @@
     app.querySelector("[data-cash-income]").textContent = money(income.reduce((a, b) => a + b, 0));
     app.querySelector("[data-cash-expense]").textContent = money(expense.reduce((a, b) => a + b, 0));
     app.querySelector("[data-cash-result]").textContent = money(income.reduce((a, b) => a + b, 0) - expense.reduce((a, b) => a + b, 0));
+  }
+
+  function updateCashflowModeLabels(isForecast) {
+    const labels = isForecast
+      ? {
+        income: "Entradas previstas",
+        expense: "Saídas previstas",
+        result: "Resultado previsto",
+        evolution: "Evolução prevista",
+      }
+      : {
+        income: "Entradas realizadas",
+        expense: "Saídas realizadas",
+        result: "Resultado realizado",
+        evolution: "Evolução realizada",
+      };
+    app.querySelector("[data-cash-income-label]").textContent = labels.income;
+    app.querySelector("[data-cash-expense-label]").textContent = labels.expense;
+    app.querySelector("[data-cash-result-label]").textContent = labels.result;
+    app.querySelector("[data-cash-evolution-label]").textContent = labels.evolution;
+  }
+
+  function updateCashflowModeNote(profile, month, isForecast) {
+    const note = app.querySelector("[data-cashflow-mode-note]");
+    if (!note) return;
+    if (isForecast) {
+      note.textContent = "Mês atual ou futuro: considera movimentos pagos, recebidos, pendentes e atrasados.";
+      return;
+    }
+    const monthTransactions = profile.transactions.filter((transaction) => toMonthInput(parseLocalDate(transaction.date)) === month);
+    const open = monthTransactions.filter(isOpenTransaction);
+    const pendingIncome = sum(open.filter((transaction) => transaction.type === "income"), "amount");
+    const pendingExpense = sum(open.filter((transaction) => transaction.type === "expense"), "amount");
+    note.textContent = open.length
+      ? `Mês histórico: mostra apenas Pago/Recebido. Pendências fora do gráfico: a receber ${money(pendingIncome)} · a pagar ${money(pendingExpense)}.`
+      : "Mês histórico: mostra apenas movimentos pagos e recebidos.";
+  }
+
+  function isForecastCashflowMonth(month) {
+    return month >= toMonthInput(new Date());
+  }
+
+  function isCashflowTransactionIncluded(transaction) {
+    const month = toMonthInput(parseLocalDate(transaction.date));
+    return isForecastCashflowMonth(month) || isSettledTransaction(transaction);
   }
 
   function drawGroupedBarChart(ctx, canvas, config) {
@@ -2391,8 +2439,9 @@
       }
     });
 
-    config.series.forEach((series, index) => {
-      const x = padding.left + index * 120;
+    let legendX = padding.left;
+    config.series.forEach((series) => {
+      const x = legendX;
       ctx.fillStyle = series.color;
       roundRect(ctx, x, 14, 12, 12, 3);
       ctx.fill();
@@ -2400,6 +2449,7 @@
       ctx.font = "12px Poppins, sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(series.label, x + 18, 24);
+      legendX += Math.max(ctx.measureText(series.label).width + 48, 92);
     });
   }
 
@@ -2510,6 +2560,21 @@
   function calculateBalance(transactions) {
     return transactions.reduce((total, transaction) => {
       if (!isSettledTransaction(transaction)) return total;
+      const amount = Number(transaction.amount || 0);
+      return total + (transaction.type === "income" ? amount : -amount);
+    }, 0);
+  }
+
+  function calculateProjectedBalance(transactions) {
+    return transactions.reduce((total, transaction) => {
+      const amount = Number(transaction.amount || 0);
+      return total + (transaction.type === "income" ? amount : -amount);
+    }, 0);
+  }
+
+  function calculateCashflowBalance(transactions) {
+    return transactions.reduce((total, transaction) => {
+      if (!isCashflowTransactionIncluded(transaction)) return total;
       const amount = Number(transaction.amount || 0);
       return total + (transaction.type === "income" ? amount : -amount);
     }, 0);

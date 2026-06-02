@@ -684,6 +684,13 @@ h3 {
   min-height: 0;
 }
 
+.cashflow-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .recent-list,
 .category-list,
 .insight-list,

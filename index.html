@@ -365,15 +365,15 @@
           <section id="view-cashflow" class="view" data-view-panel="cashflow">
             <div class="metric-grid compact-metrics">
               <article class="metric-card">
-                <span>Entradas no mês</span>
+                <span data-cash-income-label>Entradas previstas</span>
                 <strong data-cash-income>R$ 0,00</strong>
               </article>
               <article class="metric-card">
-                <span>Saídas no mês</span>
+                <span data-cash-expense-label>Saídas previstas</span>
                 <strong data-cash-expense>R$ 0,00</strong>
               </article>
               <article class="metric-card">
-                <span>Resultado do mês</span>
+                <span data-cash-result-label>Resultado previsto</span>
                 <strong data-cash-result>R$ 0,00</strong>
               </article>
             </div>
@@ -387,12 +387,13 @@
                   <input class="month-input" id="cashflowMonth" type="month" />
                 </div>
                 <canvas id="dailyFlowChart" class="chart-canvas tall" height="320"></canvas>
+                <p class="cashflow-note" data-cashflow-mode-note></p>
               </section>
               <section class="panel">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Saldo</p>
-                    <h2>Evolução no mês</h2>
+                    <h2 data-cash-evolution-label>Evolução prevista</h2>
                   </div>
                 </div>
                 <canvas id="balanceEvolutionChart" class="chart-canvas tall" height="320"></canvas>
