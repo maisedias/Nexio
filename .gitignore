@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Android / Capacitor
+android/.gradle/
+android/**/build/
+android/local.properties
+*.jks
+*.keystore

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Nexio Financeiro</string>
+    <string name="title_activity_main">Nexio Financeiro</string>
+    <string name="package_name">br.com.nexiofinanceiro.app</string>
+    <string name="custom_url_scheme">br.com.nexiofinanceiro.app</string>
+</resources>

@@ -2,6 +2,8 @@
   "use strict";
 
   const STORAGE_KEY = "nexio-finance-state-v1";
+  const SESSION_KEY = "nexio-session-email";
+  const LOCAL_USER_EMAIL = "sem-login@nexio.local";
   const incomeStatuses = ["Recebido", "Pendente", "Atrasado"];
   const expenseStatuses = ["Pago", "Pendente", "Atrasado"];
   const categoryIconOptions = [
@@ -40,7 +42,7 @@
 
   const state = {
     store: loadStore(),
-    sessionEmail: localStorage.getItem("nexio-session-email") || "",
+    sessionEmail: localStorage.getItem(SESSION_KEY) || "",
     authMode: "login",
     view: "overview",
     editingTransactionId: "",
@@ -125,9 +127,15 @@
       if (data.session?.user) {
         await loadCloudUserData(data.session.user);
       } else {
-        state.sessionEmail = "";
-        localStorage.removeItem("nexio-session-email");
-        cloud.lastStatus = "Entre para sincronizar";
+        cloud.ready = false;
+        cloud.userId = "";
+        if (isLocalSession()) {
+          cloud.lastStatus = "Sem login: salvo neste aparelho";
+        } else {
+          state.sessionEmail = "";
+          localStorage.removeItem(SESSION_KEY);
+          cloud.lastStatus = "Entre para sincronizar";
+        }
       }
     } catch (error) {
       cloud.lastStatus = "Falha na sincronização";
@@ -137,7 +145,8 @@
   }
 
   function queueCloudSave() {
-    if (!cloud.enabled || !cloud.ready || !cloud.userId || !currentUser()) return;
+    const user = currentUser();
+    if (!cloud.enabled || !cloud.ready || !cloud.userId || !user || isLocalOnlyUser(user)) return;
     clearTimeout(cloud.syncTimer);
     cloud.syncTimer = setTimeout(() => {
       syncCurrentUserToCloud();
@@ -147,7 +156,7 @@
   async function syncCurrentUserToCloud() {
     if (!cloud.enabled || !cloud.client || !cloud.userId) return;
     const user = currentUser();
-    if (!user) return;
+    if (!user || isLocalOnlyUser(user)) return;
     try {
       cloud.lastStatus = "Sincronizando";
       updateSyncStatus();
@@ -229,14 +238,14 @@
       state.store.users.push(user);
     }
     state.sessionEmail = user.email;
-    localStorage.setItem("nexio-session-email", user.email);
+    localStorage.setItem(SESSION_KEY, user.email);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.store));
   }
 
   function updateSyncStatus() {
     const status = app.querySelector("[data-sync-status]");
     if (!status) return;
-    status.textContent = cloud.lastStatus;
+    status.textContent = isLocalOnlyUser() ? "Sem login: salvo neste aparelho" : cloud.lastStatus;
   }
 
   function uid(prefix) {
@@ -245,6 +254,14 @@
 
   function currentUser() {
     return state.store.users.find((user) => normalizeEmail(user.email || "") === normalizeEmail(state.sessionEmail || "")) || null;
+  }
+
+  function isLocalSession() {
+    return normalizeEmail(state.sessionEmail || "") === LOCAL_USER_EMAIL;
+  }
+
+  function isLocalOnlyUser(user = currentUser()) {
+    return Boolean(user?.localOnly || normalizeEmail(user?.email || "") === LOCAL_USER_EMAIL);
   }
 
   function currentProfile() {
@@ -295,6 +312,44 @@
     };
   }
 
+  function localUser() {
+    let user = state.store.users.find((item) => normalizeEmail(item.email || "") === LOCAL_USER_EMAIL);
+    if (!user) {
+      const profile = createProfile("Finanças");
+      user = {
+        id: uid("local-user"),
+        name: "Sem login",
+        email: LOCAL_USER_EMAIL,
+        localOnly: true,
+        theme: "dark",
+        currency: "BRL",
+        activeProfileId: profile.id,
+        profiles: [profile],
+      };
+      state.store.users.push(user);
+    }
+    user.localOnly = true;
+    ensureUserShape(user);
+    return user;
+  }
+
+  async function enterLocalMode() {
+    try {
+      if (cloud.enabled && cloud.client) await cloud.client.auth.signOut();
+    } catch (error) {
+      console.debug("Sessão Supabase não precisava ser encerrada.", error);
+    }
+    cloud.ready = false;
+    cloud.userId = "";
+    cloud.lastStatus = "Sem login: salvo neste aparelho";
+    const user = localUser();
+    state.sessionEmail = user.email;
+    localStorage.setItem(SESSION_KEY, user.email);
+    saveStore();
+    showToast("Modo sem login ativado.");
+    render();
+  }
+
   function render() {
     const user = currentUser();
     if (!user) {
@@ -322,6 +377,7 @@
     });
     app.querySelector("[data-auth-submit]").textContent = state.authMode === "login" ? "Entrar" : "Criar conta";
     app.querySelector("#authForm").addEventListener("submit", handleAuth);
+    app.querySelector("[data-use-without-login]").addEventListener("click", enterLocalMode);
     drawAuthChart();
   }
 
@@ -364,7 +420,7 @@
         profiles: [profile],
       });
       state.sessionEmail = email;
-      localStorage.setItem("nexio-session-email", email);
+      localStorage.setItem(SESSION_KEY, email);
       saveStore();
       showToast("Conta criada.");
       render();
@@ -377,7 +433,7 @@
       return;
     }
     state.sessionEmail = email;
-    localStorage.setItem("nexio-session-email", email);
+    localStorage.setItem(SESSION_KEY, email);
     showToast("Login realizado.");
     render();
   }
@@ -464,7 +520,7 @@
         cloud.lastStatus = "Sessão encerrada";
       }
       state.sessionEmail = "";
-      localStorage.removeItem("nexio-session-email");
+      localStorage.removeItem(SESSION_KEY);
       state.view = "overview";
       showToast("Sessão encerrada.");
       render();
@@ -944,7 +1000,12 @@
     if (!imported.email || !Array.isArray(imported.profiles)) {
       throw new Error("Arquivo de dados inválido.");
     }
-    imported.email = cloud.enabled && state.sessionEmail ? state.sessionEmail : normalizeEmail(imported.email);
+    if (isLocalOnlyUser()) {
+      imported.email = LOCAL_USER_EMAIL;
+      imported.localOnly = true;
+    } else {
+      imported.email = cloud.enabled && state.sessionEmail ? state.sessionEmail : normalizeEmail(imported.email);
+    }
     const existingIndex = state.store.users.findIndex((user) => normalizeEmail(user.email || "") === imported.email);
     ensureUserShape(imported);
     if (existingIndex >= 0) {
@@ -953,7 +1014,7 @@
       state.store.users.push(imported);
     }
     state.sessionEmail = imported.email;
-    localStorage.setItem("nexio-session-email", imported.email);
+    localStorage.setItem(SESSION_KEY, imported.email);
     saveStore();
     showToast("Dados JSON mesclados.");
     render();

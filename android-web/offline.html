@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#EEF7FF" />
+    <title>Nexio Financeiro offline</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell" aria-live="polite">
+      <img class="logo" src="nexio-logo.png" alt="Nexio Financeiro" />
+      <h1>Sem conexão</h1>
+      <p id="message">Não foi possível carregar o Nexio Financeiro. Verifique sua internet e tente novamente.</p>
+      <button id="retryButton" class="button" type="button">Tentar novamente</button>
+    </main>
+
+    <script>
+      const appUrl = "https://nexiofinanceiro.vercel.app";
+      const message = document.getElementById("message");
+
+      document.getElementById("retryButton").addEventListener("click", () => {
+        if (!navigator.onLine) {
+          message.textContent = "Você ainda parece estar sem internet.";
+          return;
+        }
+        message.textContent = "Conexão encontrada. Abrindo o Nexio Financeiro...";
+        window.location.replace(appUrl);
+      });
+    </script>
+  </body>
+</html>

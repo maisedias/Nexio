@@ -1,0 +1,25 @@
+ext {
+    minSdkVersion = 24
+    compileSdkVersion = 36
+    targetSdkVersion = 36
+    androidActivityVersion = '1.11.0'
+    androidAppCompatVersion = '1.7.1'
+    androidxAppCompatVersion = androidAppCompatVersion
+    androidXAppCompatVersion = androidAppCompatVersion
+    androidXCoordinatorLayoutVersion = '1.3.0'
+    androidxCoordinatorLayoutVersion = androidXCoordinatorLayoutVersion
+    androidXCoreVersion = '1.17.0'
+    androidxCoreVersion = androidXCoreVersion
+    androidXFragmentVersion = '1.8.9'
+    androidxFragmentVersion = androidXFragmentVersion
+    coreSplashScreenVersion = '1.2.0'
+    androidXWebkitVersion = '1.14.0'
+    androidxWebkitVersion = androidXWebkitVersion
+    junitVersion = '4.13.2'
+    androidXJunitVersion = '1.3.0'
+    androidxJunitVersion = androidXJunitVersion
+    androidXEspressoCoreVersion = '3.7.0'
+    androidxEspressoCoreVersion = androidXEspressoCoreVersion
+    cordovaAndroidVersion = '14.0.1'
+}
+
