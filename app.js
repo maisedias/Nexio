@@ -2508,10 +2508,11 @@
   }
 
   function drawGroupedBarChart(ctx, canvas, config) {
-    resizeCanvas(canvas);
-    const width = canvas.width;
-    const height = canvas.height;
-    const padding = { top: 34, right: 24, bottom: 42, left: 58 };
+    const size = resizeCanvas(canvas);
+    ctx = size.ctx;
+    const width = size.width;
+    const height = size.height;
+    const padding = { top: 34, right: 24, bottom: 42, left: 62 };
     ctx.clearRect(0, 0, width, height);
     const allValues = config.series.flatMap((series) => series.values);
     const max = Math.max(...allValues, 1);
@@ -2555,10 +2556,11 @@
   }
 
   function drawLineChart(ctx, canvas, values, options) {
-    resizeCanvas(canvas);
-    const width = canvas.width;
-    const height = canvas.height;
-    const padding = { top: 30, right: 24, bottom: 42, left: 58 };
+    const size = resizeCanvas(canvas);
+    ctx = size.ctx;
+    const width = size.width;
+    const height = size.height;
+    const padding = { top: 30, right: 24, bottom: 42, left: options.moneyLabels ? 82 : 62 };
     ctx.clearRect(0, 0, width, height);
     const min = Math.min(...values, 0);
     const max = Math.max(...values, 1);
@@ -2635,10 +2637,16 @@
     const rect = canvas.getBoundingClientRect();
     const width = Math.max(Math.round(rect.width || canvas.clientWidth || 640), 300);
     const height = Math.max(Math.round(rect.height || Number(canvas.getAttribute("height") || 280)), 180);
-    canvas.width = width;
-    canvas.height = height;
+    const ratio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
+    const pixelWidth = Math.round(width * ratio);
+    const pixelHeight = Math.round(height * ratio);
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
     const ctx = canvas.getContext("2d");
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    return { ctx, width, height, ratio };
   }
 
   function roundRect(ctx, x, y, width, height, radius) {

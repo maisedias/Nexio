@@ -99,10 +99,7 @@ html.is-native-app .app-shell {
 
 @supports (padding: env(safe-area-inset-top)) {
   body.capacitor-android {
-    padding-top: var(--safe-area-top);
-    padding-right: var(--safe-area-right);
-    padding-bottom: var(--safe-area-bottom);
-    padding-left: var(--safe-area-left);
+    padding: 0;
   }
 }
 
@@ -534,14 +531,6 @@ h3 {
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 24px;
-}
-
-body.capacitor-android .header,
-body.capacitor-android .topbar,
-body.capacitor-android .mobile-header,
-body.capacitor-android .app-header,
-body.capacitor-android .dashboard-header {
-  padding-top: max(16px, var(--safe-area-top));
 }
 
 .topbar h1 {
@@ -1459,15 +1448,12 @@ button:disabled {
   }
 
   body.capacitor-android .workspace {
-    padding-top: max(18px, var(--safe-area-top));
-    padding-right: max(18px, var(--safe-area-right));
-    padding-bottom: max(18px, var(--safe-area-bottom));
-    padding-left: max(18px, var(--safe-area-left));
+    padding: 18px;
   }
 
   body.capacitor-android .sidebar {
-    padding-top: max(24px, var(--safe-area-top));
-    padding-bottom: max(24px, var(--safe-area-bottom));
+    padding-top: 24px;
+    padding-bottom: 24px;
   }
 
   .topbar {
@@ -1476,14 +1462,6 @@ button:disabled {
     grid-template-columns: 1fr;
     gap: 14px;
     margin-bottom: 18px;
-  }
-
-  body.capacitor-android .topbar,
-  body.capacitor-android .header,
-  body.capacitor-android .mobile-header,
-  body.capacitor-android .app-header,
-  body.capacitor-android .dashboard-header {
-    padding-top: max(16px, var(--safe-area-top));
   }
 
   .topbar > div:not(.topbar-actions) {
@@ -1499,10 +1477,6 @@ button:disabled {
     top: 0;
     left: 0;
     margin-top: 0;
-  }
-
-  body.capacitor-android .mobile-menu {
-    top: max(8px, var(--safe-area-top));
   }
 
   .topbar-actions {
