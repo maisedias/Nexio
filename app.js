@@ -499,19 +499,28 @@
   }
 
   function bindNavigation() {
+    const menuButton = app.querySelector("[data-mobile-menu]");
+    const menuBackdrop = app.querySelector("[data-menu-backdrop]");
+    const closeMobileMenu = () => {
+      document.body.classList.remove("menu-open");
+      menuButton.setAttribute("aria-expanded", "false");
+    };
+
     app.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", () => {
         setView(button.dataset.view);
-        document.body.classList.remove("menu-open");
+        closeMobileMenu();
       });
     });
     app.querySelectorAll("[data-view-shortcut]").forEach((button) => {
       button.addEventListener("click", () => setView(button.dataset.viewShortcut));
     });
     app.querySelector("[data-view-pendencies]").addEventListener("click", showCurrentMonthPendencies);
-    app.querySelector("[data-mobile-menu]").addEventListener("click", () => {
-      document.body.classList.toggle("menu-open");
+    menuButton.addEventListener("click", () => {
+      const isOpen = document.body.classList.toggle("menu-open");
+      menuButton.setAttribute("aria-expanded", String(isOpen));
     });
+    menuBackdrop.addEventListener("click", closeMobileMenu);
     app.querySelector("[data-logout]").addEventListener("click", async () => {
       if (cloud.enabled) {
         await cloud.client.auth.signOut();

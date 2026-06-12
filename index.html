@@ -68,7 +68,9 @@
 
           <p class="auth-legal">
             Ao utilizar a plataforma, você declara estar ciente da
-            <a href="politica-de-privacidade.html">Política de Privacidade</a>.
+            <a href="politica-de-privacidade.html">Política de Privacidade</a>
+            e pode consultar como solicitar a
+            <a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a>.
           </p>
         </section>
       </main>
@@ -76,7 +78,8 @@
 
     <template id="dashboard-template">
       <div class="app-shell">
-        <aside class="sidebar">
+        <button class="menu-backdrop" data-menu-backdrop type="button" aria-label="Fechar menu"></button>
+        <aside class="sidebar" id="mainSidebar">
           <div class="sidebar-brand">
             <img class="brand-symbol" src="assets/nexio-symbol.png" alt="" />
             <div>
@@ -101,7 +104,7 @@
 
         <main class="workspace">
           <header class="topbar">
-            <button class="icon-button mobile-menu" data-mobile-menu type="button" aria-label="Abrir menu">☰</button>
+            <button class="icon-button mobile-menu" data-mobile-menu type="button" aria-label="Abrir menu" aria-controls="mainSidebar" aria-expanded="false">☰</button>
             <div>
               <p class="eyebrow" data-today-label>Hoje</p>
               <h1 data-view-title>Visão geral</h1>
@@ -139,7 +142,7 @@
                   <span class="metric-icon" aria-hidden="true"><i data-lucide="receipt-text">▤</i></span>
                   <span class="metric-label">Despesas do mês</span>
                 </div>
-                <strong data-month-expense>R$ 0,00</strong>
+                <strong class="overview-expense-value" data-month-expense>R$ 0,00</strong>
                 <small data-expense-count>0 lançamentos</small>
               </article>
               <article class="metric-card overview-metric">
@@ -612,7 +615,10 @@
 
           <footer class="app-footer">
             <p>© 2026 Ise Dias. Nexio Gestão Financeira Inteligente. Plataforma desenvolvida para otimizar o controle, a análise e a organização financeira.</p>
-            <a href="politica-de-privacidade.html">Política de Privacidade</a>
+            <div class="footer-links">
+              <a href="politica-de-privacidade.html">Política de Privacidade</a>
+              <a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a>
+            </div>
           </footer>
         </main>
       </div>

@@ -349,6 +349,20 @@ h3 {
   text-decoration: none;
 }
 
+.deletion-link,
+.auth-legal .deletion-link,
+.app-footer .deletion-link,
+.privacy-link.deletion-link {
+  color: #dc2626;
+}
+
+body.theme-dark .deletion-link,
+body.theme-dark .auth-legal .deletion-link,
+body.theme-dark .app-footer .deletion-link,
+body.theme-dark .privacy-link.deletion-link {
+  color: #ff6b6b;
+}
+
 .auth-legal a:hover,
 .app-footer a:hover,
 .privacy-link:hover {
@@ -476,6 +490,10 @@ h3 {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
+}
+
+.menu-backdrop {
+  display: none;
 }
 
 .sidebar {
@@ -642,6 +660,81 @@ body.theme-dark .nav-icon svg {
 .app-footer p {
   max-width: 880px;
   margin: 0;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+}
+
+.deletion-contact {
+  display: grid;
+  gap: 16px;
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--line));
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--panel-soft);
+  padding: 20px;
+}
+
+.deletion-contact p {
+  margin: 0;
+}
+
+.deletion-email {
+  display: inline-flex;
+  width: fit-content;
+  color: var(--primary);
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.deletion-email:hover {
+  text-decoration: underline;
+}
+
+.deletion-subject {
+  display: grid;
+  gap: 5px;
+  width: fit-content;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 12px 14px;
+}
+
+.deletion-subject span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.deletion-subject strong {
+  color: var(--text);
+}
+
+.deletion-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 44px;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 800;
+  padding: 0 18px;
+  text-decoration: none;
+}
+
+.deletion-action:hover {
+  background: var(--primary-strong);
 }
 
 .privacy-page {
@@ -843,6 +936,14 @@ body.theme-dark .nav-icon svg {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1.04;
+}
+
+.overview-expense-value {
+  color: #dc2626;
+}
+
+body.theme-dark .overview-expense-value {
+  color: #ff6b6b;
 }
 
 .metric-card small {
@@ -1746,14 +1847,36 @@ button:disabled {
   .sidebar {
     position: fixed;
     inset: 0 auto 0 0;
-    z-index: 15;
+    z-index: 30;
     width: min(84vw, 310px);
     transform: translateX(-105%);
     transition: transform 0.2s ease;
   }
 
+  .menu-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: block;
+    border: 0;
+    border-radius: 0;
+    background: rgba(5, 14, 22, 0.46);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+
+  body.menu-open {
+    overflow: hidden;
+  }
+
   body.menu-open .sidebar {
     transform: translateX(0);
+  }
+
+  body.menu-open .menu-backdrop {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .workspace {
@@ -1786,10 +1909,12 @@ button:disabled {
 
   .mobile-menu {
     display: inline-grid;
-    position: absolute;
-    top: 0;
-    left: 0;
+    position: fixed;
+    top: calc(18px + var(--safe-area-top));
+    left: calc(18px + var(--safe-area-left));
+    z-index: 20;
     margin-top: 0;
+    box-shadow: 0 8px 22px rgba(13, 30, 48, 0.14);
   }
 
   .topbar-actions {
