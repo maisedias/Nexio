@@ -8,7 +8,7 @@
     "android:add": "npx cap add android",
     "android:assets": "npx capacitor-assets generate --android",
     "android:overrides": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/apply-capacitor-android-overrides.ps1",
-    "android:sync": "npx cap sync android",
+    "android:sync": "npx cap sync android && npm run android:overrides",
     "android:open": "npx cap open android",
     "android:setup": "npm run android:assets:source && npx cap add android && npx capacitor-assets generate --android && npm run android:overrides && npx cap sync android",
     "android:debug": "npx cap run android",

@@ -8,7 +8,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16x16.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -65,6 +65,11 @@
             <button class="ghost-action full" data-use-without-login type="button">Usar sem login</button>
             <p>Os dados ficam salvos apenas neste aparelho e podem ser exportados depois.</p>
           </div>
+
+          <p class="auth-legal">
+            Ao utilizar a plataforma, você declara estar ciente da
+            <a href="politica-de-privacidade.html">Política de Privacidade</a>.
+          </p>
         </section>
       </main>
     </template>
@@ -83,9 +88,9 @@
           <nav class="nav-list" aria-label="Navegação principal">
             <button class="nav-item is-active" data-view="overview" type="button"><span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true">▦</i></span><span>Visão geral</span></button>
             <button class="nav-item" data-view="transactions" type="button"><span class="nav-icon"><i data-lucide="wallet-cards" aria-hidden="true">▤</i></span><span>Transações</span></button>
-            <button class="nav-item" data-view="cashflow" type="button"><span class="nav-icon"><i data-lucide="chart-spline" aria-hidden="true">≋</i></span><span>Fluxo de caixa</span></button>
+            <button class="nav-item" data-view="cashflow" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
-            <button class="nav-item" data-view="profiles" type="button"><span class="nav-icon"><i data-lucide="users-round" aria-hidden="true">☷</i></span><span>Perfis</span></button>
+            <button class="nav-item" data-view="profiles" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
             <button class="nav-item" data-view="settings" type="button"><span class="nav-icon"><i data-lucide="settings" aria-hidden="true">⚙</i></span><span>Configurações</span></button>
           </nav>
 
@@ -113,23 +118,35 @@
 
           <section id="view-overview" class="view is-visible" data-view-panel="overview">
             <div class="metric-grid">
-              <article class="metric-card balance-card">
-                <span>Saldo atual</span>
+              <article class="metric-card balance-card overview-metric">
+                <div class="metric-card-head">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="wallet">▣</i></span>
+                  <span class="metric-label">Saldo atual</span>
+                </div>
                 <strong data-balance-total>R$ 0,00</strong>
                 <small data-balance-trend>Pronto para acompanhar seu mês.</small>
               </article>
-              <article class="metric-card">
-                <span>Receitas do mês</span>
+              <article class="metric-card overview-metric">
+                <div class="metric-card-head">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="arrow-up-right">↗</i></span>
+                  <span class="metric-label">Receitas do mês</span>
+                </div>
                 <strong data-month-income>R$ 0,00</strong>
                 <small data-income-count>0 lançamentos</small>
               </article>
-              <article class="metric-card">
-                <span>Despesas do mês</span>
+              <article class="metric-card overview-metric">
+                <div class="metric-card-head">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="receipt-text">▤</i></span>
+                  <span class="metric-label">Despesas do mês</span>
+                </div>
                 <strong data-month-expense>R$ 0,00</strong>
                 <small data-expense-count>0 lançamentos</small>
               </article>
-              <article class="metric-card">
-                <span>Metas ativas</span>
+              <article class="metric-card overview-metric">
+                <div class="metric-card-head">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="target">◎</i></span>
+                  <span class="metric-label">Metas ativas</span>
+                </div>
                 <strong data-active-goals>0</strong>
                 <small data-goals-progress>0% guardado</small>
               </article>
@@ -593,7 +610,10 @@
             </div>
           </section>
 
-          <footer class="app-footer">@2026 Maíse Dias</footer>
+          <footer class="app-footer">
+            <p>© 2026 Ise Dias. Nexio Gestão Financeira Inteligente. Plataforma desenvolvida para otimizar o controle, a análise e a organização financeira.</p>
+            <a href="politica-de-privacidade.html">Política de Privacidade</a>
+          </footer>
         </main>
       </div>
     </template>

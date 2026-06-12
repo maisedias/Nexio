@@ -28,6 +28,11 @@ if (Test-Path $SplashSource) {
   Copy-Item -LiteralPath $SplashSource -Destination (Join-Path $Drawable "splash.png") -Force
 }
 
+$SplashIconSource = Join-Path $Root "assets/splash-icon.png"
+if (Test-Path $SplashIconSource) {
+  Copy-Item -LiteralPath $SplashIconSource -Destination (Join-Path $Drawable "splash_icon.png") -Force
+}
+
 $Variables = Join-Path $Android "variables.gradle"
 if (Test-Path $Variables) {
   $content = Get-Content -LiteralPath $Variables -Raw

@@ -1,9 +1,9 @@
 :root {
-  color-scheme: light;
-  --bg: #eef7ff;
-  --panel: #ffffff;
-  --text: #111b24;
-  --muted: #60707f;
+  color-scheme: dark;
+  --bg: #0d1411;
+  --panel: #13211c;
+  --text: #ffffff;
+  --muted: #b6c6d8;
   --primary: #0084ff;
   --cyan: #21d8ff;
 }
@@ -23,11 +23,9 @@ body {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at 50% 22%, rgba(0, 132, 255, 0.14), transparent 32%),
-    linear-gradient(135deg, #eef7ff 0%, #f7fbff 52%, #dcecff 100%);
+  background: linear-gradient(180deg, #0d1411 0%, #07100d 55%, #030706 100%);
   color: var(--text);
-  font-family: Poppins, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   padding:
     max(24px, env(safe-area-inset-top))
     max(20px, env(safe-area-inset-right))
@@ -39,18 +37,18 @@ body {
   width: min(100%, 420px);
   display: grid;
   justify-items: center;
-  gap: 16px;
+  gap: 18px;
   text-align: center;
 }
 
 .logo {
-  width: min(76vw, 280px);
+  width: min(48vw, 190px);
   height: auto;
 }
 
 h1 {
   margin: 4px 0 0;
-  font-size: clamp(1.8rem, 8vw, 2.6rem);
+  font-size: clamp(1.7rem, 7vw, 2.35rem);
   line-height: 1;
 }
 
@@ -74,7 +72,7 @@ p {
 .loader {
   width: 34px;
   height: 34px;
-  border: 3px solid rgba(255, 255, 255, 0.16);
+  border: 3px solid rgba(255, 255, 255, 0.18);
   border-top-color: var(--cyan);
   border-radius: 999px;
   animation: spin 0.85s linear infinite;

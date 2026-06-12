@@ -60,10 +60,10 @@ function Save-IconAsset {
     [string]$Path
   )
 
-  $canvas = New-BitmapCanvas -Size $Size -ColorHex "#EEF7FF"
+  $canvas = New-BitmapCanvas -Size $Size -ColorHex "#000000"
   $logoSource = if (Test-Path $AppLogoPath) { $AppLogoPath } else { $SymbolPath }
   $logo = [System.Drawing.Image]::FromFile($logoSource)
-  Draw-ContainedImage -Graphics $canvas.Graphics -Image $logo -CanvasSize $Size -MaxWidth ($Size * 0.92) -MaxHeight ($Size * 0.84) -CenterY 0.5
+  Draw-ContainedImage -Graphics $canvas.Graphics -Image $logo -CanvasSize $Size -MaxWidth ($Size * 0.86) -MaxHeight ($Size * 0.86) -CenterY 0.5
 
   $canvas.Bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
   $logo.Dispose()
@@ -80,23 +80,24 @@ function Save-SplashAsset {
 
   $size = 2732
   $canvas = New-BitmapCanvas -Size $size -ColorHex $Background
-  if (Test-Path $AppLogoPath) {
-    $logo = [System.Drawing.Image]::FromFile($AppLogoPath)
-    Draw-ContainedImage -Graphics $canvas.Graphics -Image $logo -CanvasSize $size -MaxWidth 1850 -MaxHeight 1480 -CenterY 0.48
-  } else {
-    $logo = [System.Drawing.Image]::FromFile($SymbolPath)
-    Draw-ContainedImage -Graphics $canvas.Graphics -Image $logo -CanvasSize $size -MaxWidth 860 -MaxHeight 1260 -CenterY 0.42
+  $logo = [System.Drawing.Image]::FromFile($SymbolPath)
+  Draw-ContainedImage -Graphics $canvas.Graphics -Image $logo -CanvasSize $size -MaxWidth 760 -MaxHeight 1040 -CenterY 0.42
 
-    $font = New-Object System.Drawing.Font "Arial", 118, ([System.Drawing.FontStyle]::Bold)
-    $brush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml($TextColor))
-    $format = New-Object System.Drawing.StringFormat
-    $format.Alignment = [System.Drawing.StringAlignment]::Center
-    $rect = New-Object System.Drawing.RectangleF 0, 1840, $size, 180
-    $canvas.Graphics.DrawString("Nexio Financeiro", $font, $brush, $rect, $format)
-    $font.Dispose()
-    $brush.Dispose()
-    $format.Dispose()
-  }
+  $font = New-Object System.Drawing.Font "Arial", 118, ([System.Drawing.FontStyle]::Bold)
+  $smallFont = New-Object System.Drawing.Font "Arial", 48, ([System.Drawing.FontStyle]::Bold)
+  $brush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml($TextColor))
+  $mutedBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml("#6BD9FF"))
+  $format = New-Object System.Drawing.StringFormat
+  $format.Alignment = [System.Drawing.StringAlignment]::Center
+  $titleRect = New-Object System.Drawing.RectangleF 0, 1700, $size, 180
+  $subtitleRect = New-Object System.Drawing.RectangleF 0, 1840, $size, 90
+  $canvas.Graphics.DrawString("Nexio Financeiro", $font, $brush, $titleRect, $format)
+  $canvas.Graphics.DrawString("GESTÃO FINANCEIRA E INTELIGÊNCIA", $smallFont, $mutedBrush, $subtitleRect, $format)
+  $font.Dispose()
+  $smallFont.Dispose()
+  $brush.Dispose()
+  $mutedBrush.Dispose()
+  $format.Dispose()
 
   $canvas.Bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
   $logo.Dispose()
@@ -104,27 +105,41 @@ function Save-SplashAsset {
   $canvas.Bitmap.Dispose()
 }
 
+function Save-SplashIconAsset {
+  param(
+    [string]$Path
+  )
+
+  $size = 512
+  $bitmap = New-Object System.Drawing.Bitmap $size, $size, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+  $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+  $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
+  $graphics.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+  $graphics.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+  $graphics.Clear([System.Drawing.Color]::Transparent)
+
+  $logo = [System.Drawing.Image]::FromFile($SymbolPath)
+  Draw-ContainedImage -Graphics $graphics -Image $logo -CanvasSize $size -MaxWidth 300 -MaxHeight 430 -CenterY 0.5
+
+  $bitmap.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+  $logo.Dispose()
+  $graphics.Dispose()
+  $bitmap.Dispose()
+}
+
 Save-IconAsset -Size 1024 -Path (Join-Path $Assets "icon-only.png")
 Save-IconAsset -Size 1024 -Path (Join-Path $Assets "icon-foreground.png")
 Save-IconAsset -Size 512 -Path (Join-Path $Assets "play-store-icon-512.png")
 
-$background = New-BitmapCanvas -Size 1024 -ColorHex "#121c18"
+$background = New-BitmapCanvas -Size 1024 -ColorHex "#000000"
 $background.Bitmap.Save((Join-Path $Assets "icon-background.png"), [System.Drawing.Imaging.ImageFormat]::Png)
 $background.Graphics.Dispose()
 $background.Bitmap.Dispose()
 
-if (Test-Path $LightLogoPath) {
-  Save-SplashAsset -Path (Join-Path $Assets "splash.png") -Background "#EEF7FF" -TextColor "#111b24"
-}
+Save-SplashAsset -Path (Join-Path $Assets "splash.png") -Background "#0D1411" -TextColor "#FFFFFF"
+Save-SplashAsset -Path (Join-Path $Assets "splash-dark.png") -Background "#0D1411" -TextColor "#FFFFFF"
+Save-SplashIconAsset -Path (Join-Path $Assets "splash-icon.png")
 
-if (Test-Path $DarkLogoPath) {
-  Save-SplashAsset -Path (Join-Path $Assets "splash-dark.png") -Background "#EEF7FF" -TextColor "#111b24"
-}
-
-if (Test-Path $AppLogoPath) {
-  Copy-Item -LiteralPath $AppLogoPath -Destination (Join-Path $AndroidWeb "nexio-logo.png") -Force
-} elseif (Test-Path $DarkLogoPath) {
-  Copy-Item -LiteralPath $DarkLogoPath -Destination (Join-Path $AndroidWeb "nexio-logo.png") -Force
-}
+Copy-Item -LiteralPath $SymbolPath -Destination (Join-Path $AndroidWeb "nexio-logo.png") -Force
 
 Write-Host "Assets Android gerados em assets/ e android-web/."

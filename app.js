@@ -562,7 +562,7 @@
       overview: "Visão geral",
       transactions: "Transações",
       cashflow: "Fluxo de caixa",
-      goals: "Metas e objetivos",
+      goals: "Metas e Objetivos",
       profiles: "Perfis",
       settings: "Configurações",
     };

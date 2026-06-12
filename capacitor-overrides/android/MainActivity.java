@@ -28,7 +28,7 @@ import com.getcapacitor.BridgeWebViewClient;
 public class MainActivity extends BridgeActivity {
     private static final String HOME_HOST = "nexiofinanceiro.vercel.app";
     private static final String OFFLINE_URL = "file:///android_asset/public/offline.html";
-    private static final int SYSTEM_BAR_COLOR = Color.parseColor("#EEF7FF");
+    private static final int SYSTEM_BAR_COLOR = Color.parseColor("#0D1411");
     private WebView webView;
 
     @Override
@@ -42,8 +42,8 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-        controller.setAppearanceLightStatusBars(true);
-        controller.setAppearanceLightNavigationBars(true);
+        controller.setAppearanceLightStatusBars(false);
+        controller.setAppearanceLightNavigationBars(false);
 
         applySystemBarInsets();
 
