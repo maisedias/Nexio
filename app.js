@@ -897,6 +897,7 @@
   }
 
   function setView(view) {
+    const enteringTransactions = view === "transactions" && state.view !== "transactions";
     state.view = view;
     const titleMap = {
       overview: "Visão geral",
@@ -920,6 +921,20 @@
     });
     if (view === "cashflow") drawCashflowCharts();
     if (view === "overview") drawMonthlyFlowChart();
+    if (enteringTransactions) resetTransactionsMonthToCurrent();
+  }
+
+  function resetTransactionsMonthToCurrent() {
+    const month = currentCalendarMonth();
+    state.filters.dateFrom = month.start;
+    state.filters.dateTo = month.end;
+    state.transactionPage = 1;
+    state.selectedTransactionIds.clear();
+
+    const bulkMonth = app.querySelector("#bulkStatusMonth");
+    if (bulkMonth) bulkMonth.value = month.value;
+    syncFilterInputs();
+    renderTransactionsTable();
   }
 
   function refreshAll() {
