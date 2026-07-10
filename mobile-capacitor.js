@@ -33,8 +33,8 @@
 
     try {
       await StatusBar?.setOverlaysWebView?.({ overlay: false });
-      await StatusBar?.setBackgroundColor?.({ color: "#eef7ff" });
-      await StatusBar?.setStyle?.({ style: "LIGHT" });
+      await StatusBar?.setBackgroundColor?.({ color: "#0B1020" });
+      await StatusBar?.setStyle?.({ style: "DARK" });
     } catch (error) {
       console.debug("StatusBar indisponivel", error);
     }

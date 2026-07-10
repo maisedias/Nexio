@@ -4,7 +4,7 @@ const config: CapacitorConfig = {
   appId: "br.com.nexiofinanceiro.app",
   appName: "Nexio Financeiro",
   webDir: "android-web",
-  backgroundColor: "#0d1411",
+  backgroundColor: "#0B1020",
   appendUserAgent: " NexioFinanceiroAndroid/1.0",
   server: {
     cleartext: false,
@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
   },
   android: {
     path: "android",
-    backgroundColor: "#0d1411",
+    backgroundColor: "#0B1020",
     allowMixedContent: false,
     captureInput: true
   },
@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 800,
-      backgroundColor: "#0D1411",
+      backgroundColor: "#0B1020",
       androidSplashResourceName: "splash",
       androidScaleType: "CENTER_CROP",
       showSpinner: false,
@@ -31,7 +31,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#0d1411",
+      backgroundColor: "#0B1020",
       overlaysWebView: false
     }
   }

@@ -136,8 +136,8 @@ $background.Bitmap.Save((Join-Path $Assets "icon-background.png"), [System.Drawi
 $background.Graphics.Dispose()
 $background.Bitmap.Dispose()
 
-Save-SplashAsset -Path (Join-Path $Assets "splash.png") -Background "#0D1411" -TextColor "#FFFFFF"
-Save-SplashAsset -Path (Join-Path $Assets "splash-dark.png") -Background "#0D1411" -TextColor "#FFFFFF"
+Save-SplashAsset -Path (Join-Path $Assets "splash.png") -Background "#0B1020" -TextColor "#FFFFFF"
+Save-SplashAsset -Path (Join-Path $Assets "splash-dark.png") -Background "#0B1020" -TextColor "#FFFFFF"
 Save-SplashIconAsset -Path (Join-Path $Assets "splash-icon.png")
 
 Copy-Item -LiteralPath $SymbolPath -Destination (Join-Path $AndroidWeb "nexio-logo.png") -Force

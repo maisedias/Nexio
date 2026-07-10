@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#0084FF</color>
-    <color name="colorPrimaryDark">#0D1411</color>
-    <color name="colorAccent">#21D8FF</color>
-    <color name="nexio_background">#0D1411</color>
-    <color name="nexio_status_bar">#0D1411</color>
+    <color name="colorPrimary">#1677FF</color>
+    <color name="colorPrimaryDark">#0B1020</color>
+    <color name="colorAccent">#18A957</color>
+    <color name="nexio_background">#0B1020</color>
+    <color name="nexio_status_bar">#0B1020</color>
 </resources>

@@ -28,7 +28,7 @@ import com.getcapacitor.BridgeWebViewClient;
 public class MainActivity extends BridgeActivity {
     private static final String HOME_HOST = "nexiofinanceiro.vercel.app";
     private static final String OFFLINE_URL = "file:///android_asset/public/offline.html";
-    private static final int SYSTEM_BAR_COLOR = Color.parseColor("#0D1411");
+    private static final int SYSTEM_BAR_COLOR = Color.parseColor("#0B1020");
     private WebView webView;
 
     @Override
