@@ -4,6 +4,7 @@
   const STORAGE_KEY = "nexio-finance-state-v1";
   const SESSION_KEY = "nexio-session-email";
   const ONBOARDING_KEY = "nexio-onboarding-complete-v1";
+  const LANGUAGE_KEY = "nexio-interface-language-v1";
   const LOCAL_USER_EMAIL = "sem-login@nexio.local";
   const incomeStatuses = ["Recebido", "Pendente", "Atrasado"];
   const expenseStatuses = ["Pago", "Pendente", "Atrasado"];
@@ -95,6 +96,10 @@
   let authMessageTimer = 0;
   let authChartAnimation = 0;
   let dashboardEntranceTimers = [];
+  let languageObserver = null;
+  let activeLanguage = "";
+  const translatedTextNodes = new WeakMap();
+  const translatedAttributes = new WeakMap();
 
   function loadStore() {
     try {
@@ -190,7 +195,7 @@
           updated_at: new Date().toISOString(),
         }, { onConflict: "user_id" });
       if (error) throw error;
-      cloud.lastStatus = `Sincronizado às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+      cloud.lastStatus = `Sincronizado às ${new Date().toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" })}`;
       updateSyncStatus();
     } catch (error) {
       cloud.lastStatus = "Erro ao sincronizar";
@@ -235,6 +240,7 @@
       email,
       theme: "dark",
       currency: "BRL",
+      language: preferredLanguage(),
       activeProfileId: profile.id,
       profiles: [profile],
     };
@@ -294,6 +300,7 @@
     user.name = user.name || "Usuário Nexio";
     user.theme = user.theme || "dark";
     user.currency = user.currency || "BRL";
+    user.language = supportedLanguage(user.language || localStorage.getItem(LANGUAGE_KEY) || preferredBrowserLanguage());
     user.primaryColor = user.primaryColor || "#5b9cff";
     user.avatar = user.avatar || "";
     user.settings = {
@@ -371,7 +378,7 @@
       tipo,
       valor,
       data: entry.data || toDateInput(safeDate),
-      hora: entry.hora || safeDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      hora: entry.hora || safeDate.toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" }),
       meta_origem: entry.meta_origem || goal.id,
       meta_destino: entry.meta_destino || "",
       perfil_destino: entry.perfil_destino || "",
@@ -416,7 +423,7 @@
       tipo: movementType,
       valor: Number(valor || 0),
       data: toDateInput(timestamp),
-      hora: timestamp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      hora: timestamp.toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" }),
       meta_origem: goal?.id || "",
       meta_destino: metaDestino || "",
       perfil_destino: perfilDestino || "",
@@ -454,6 +461,7 @@
         localOnly: true,
         theme: "dark",
         currency: "BRL",
+        language: preferredLanguage(),
         activeProfileId: profile.id,
         profiles: [profile],
       };
@@ -512,7 +520,7 @@
         if (!balance.isConnected) return;
         const progress = Math.min((now - startedAt) / 1500, 1);
         const eased = 1 - Math.pow(1 - progress, 4);
-        balance.textContent = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(target * eased);
+        balance.textContent = new Intl.NumberFormat(languageLocale(), { style: "currency", currency: "BRL" }).format(target * eased);
         if (progress < 1) requestAnimationFrame(animate);
       };
       requestAnimationFrame(animate);
@@ -565,10 +573,10 @@
     balanceInput?.addEventListener("input", () => {
       const digits = balanceInput.value.replace(/\D/g, "").slice(0, 14);
       const amount = Number(digits || 0) / 100;
-      balanceInput.value = amount ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) : "";
+      balanceInput.value = amount ? new Intl.NumberFormat(languageLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) : "";
       const preview = app.querySelector("[data-wallet-preview]");
       if (preview) {
-        preview.textContent = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amount);
+        preview.textContent = new Intl.NumberFormat(languageLocale(), { style: "currency", currency: "BRL" }).format(amount);
         preview.classList.remove("is-updating");
         void preview.offsetWidth;
         preview.classList.add("is-updating");
@@ -620,8 +628,8 @@
       const completeness = [Boolean(firstGoalName?.value.trim()), amount > 0, Boolean(firstGoalDeadline?.value)].filter(Boolean).length;
       const percent = completeness === 3 ? 18 : completeness * 5;
       if (namePreview) namePreview.textContent = firstGoalName?.value.trim() || "Minha primeira meta";
-      if (valuePreview) valuePreview.textContent = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(amount);
-      if (deadlinePreview) deadlinePreview.textContent = firstGoalDeadline?.value ? new Date(`${firstGoalDeadline.value}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "") : "Defina um prazo";
+      if (valuePreview) valuePreview.textContent = new Intl.NumberFormat(languageLocale(), { style: "currency", currency: "BRL" }).format(amount);
+      if (deadlinePreview) deadlinePreview.textContent = firstGoalDeadline?.value ? new Date(`${firstGoalDeadline.value}T12:00:00`).toLocaleDateString(languageLocale(), { day: "2-digit", month: "short", year: "numeric" }).replace(".", "") : "Defina um prazo";
       if (fill) fill.style.width = `${percent}%`;
       if (marker) marker.style.left = `${percent}%`;
       if (percentLabel) percentLabel.textContent = `${percent}%`;
@@ -631,7 +639,7 @@
     firstGoalValue?.addEventListener("input", () => {
       const digits = firstGoalValue.value.replace(/\D/g, "").slice(0, 14);
       const amount = Number(digits || 0) / 100;
-      firstGoalValue.value = amount ? new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) : "";
+      firstGoalValue.value = amount ? new Intl.NumberFormat(languageLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) : "";
       updateFirstGoalPreview();
     });
 
@@ -666,6 +674,7 @@
         render();
       }, prefersReducedMotion() ? 0 : 720);
     });
+    applyLanguage(preferredLanguage());
   }
 
   function renderAuth() {
@@ -693,6 +702,7 @@
     bindInlineValidation();
     bindFormFeedbackStates();
     drawAuthChart();
+    applyLanguage(preferredLanguage());
   }
 
   function bindAuthExperience() {
@@ -909,6 +919,7 @@
         password,
         theme: "dark",
         currency: "BRL",
+        language: preferredLanguage(),
         activeProfileId: profile.id,
         profiles: [profile],
       });
@@ -996,6 +1007,7 @@
     playDashboardEntrance();
     bindInlineValidation();
     bindFormFeedbackStates();
+    applyLanguage(user.language);
   }
 
   function prepareDashboardEntrance() {
@@ -1445,6 +1457,7 @@
     drawCashflowCharts();
     setView(state.view);
     renderIcons();
+    applyLanguage(user.language);
   }
 
   function updateOverdueTransactions(profile) {
@@ -1939,10 +1952,13 @@
       user.name = app.querySelector("#settingsUserName").value.trim() || user.name;
       user.theme = app.querySelector("#settingsTheme").value;
       user.currency = app.querySelector("#settingsCurrency").value;
+      user.language = supportedLanguage(app.querySelector("#settingsLanguage")?.value);
       user.primaryColor = app.querySelector("#settingsPrimaryColor")?.value || user.primaryColor;
       app.querySelectorAll("[data-setting-toggle]").forEach((toggle) => {
         user.settings[toggle.dataset.settingToggle] = toggle.checked;
       });
+      localStorage.setItem(LANGUAGE_KEY, user.language);
+      applyLanguage(user.language);
       saveStore();
       showToast("Configurações salvas.");
       renderDashboard();
@@ -1965,6 +1981,10 @@
     const previewPrimaryColor = (event) => applyPrimaryColor(event.currentTarget.value);
     primaryColorInput?.addEventListener("input", previewPrimaryColor);
     primaryColorInput?.addEventListener("change", previewPrimaryColor);
+
+    app.querySelector("#settingsLanguage")?.addEventListener("change", (event) => {
+      applyLanguage(supportedLanguage(event.currentTarget.value));
+    });
 
     app.querySelector("#settingsAvatar")?.addEventListener("change", (event) => {
       const file = event.currentTarget.files?.[0];
@@ -2851,7 +2871,7 @@
   function transactionShortDate(value) {
     const date = parseLocalDate(value);
     if (Number.isNaN(date.valueOf())) return "Sem data";
-    return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+    return date.toLocaleDateString(languageLocale(), { day: "2-digit", month: "short" }).replace(".", "");
   }
 
   function statusBadge(transaction) {
@@ -2930,7 +2950,7 @@
     if (difference === 0) return "Hoje";
     if (difference === 1) return "Ontem";
     if (difference > 1 && difference < 7) {
-      const weekday = date.toLocaleDateString("pt-BR", { weekday: "long" });
+      const weekday = date.toLocaleDateString(languageLocale(), { weekday: "long" });
       return weekday.charAt(0).toUpperCase() + weekday.slice(1);
     }
     return formatDate(value);
@@ -3951,7 +3971,7 @@
     return (a, b) => {
       const progressA = goalProgressPercent(a);
       const progressB = goalProgressPercent(b);
-      if (sort === "name-asc") return a.name.localeCompare(b.name, "pt-BR");
+      if (sort === "name-asc") return a.name.localeCompare(b.name, languageLocale());
       if (sort === "deadline-asc") return String(a.deadline).localeCompare(String(b.deadline));
       if (sort === "target-desc") return Number(b.target || 0) - Number(a.target || 0);
       if (sort === "progress-desc") return progressB - progressA;
@@ -5174,7 +5194,7 @@
   function profileComparator(sort) {
     return (a, b) => {
       if (sort === "balance-desc") return calculateBalance(b.transactions) - calculateBalance(a.transactions);
-      if (sort === "name-asc") return a.name.localeCompare(b.name, "pt-BR");
+      if (sort === "name-asc") return a.name.localeCompare(b.name, languageLocale());
       if (sort === "used-desc") return profileUsageScore(b) - profileUsageScore(a);
       return (latestProfileActivityDate(b)?.getTime() || 0) - (latestProfileActivityDate(a)?.getTime() || 0);
     };
@@ -5340,7 +5360,7 @@
   function profileActivityLabel(profile) {
     const latest = latestProfileActivityDate(profile);
     if (!latest) return "Sem atividade recente";
-    return `Último acesso ${latest.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "")}`;
+    return `Último acesso ${latest.toLocaleDateString(languageLocale(), { day: "2-digit", month: "short", year: "numeric" }).replace(".", "")}`;
   }
 
   function latestProfileActivityDate(profile) {
@@ -5358,7 +5378,7 @@
   function profileLastAccessShort(profile) {
     const latest = latestProfileActivityDate(profile);
     if (!latest) return "Sem registro";
-    return latest.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }).replace(".", "");
+    return latest.toLocaleDateString(languageLocale(), { day: "2-digit", month: "short" }).replace(".", "");
   }
 
   function profileCardCode(profile) {
@@ -5374,6 +5394,8 @@
     app.querySelector("#settingsUserName").value = user.name;
     app.querySelector("#settingsTheme").value = user.theme;
     app.querySelector("#settingsCurrency").value = user.currency;
+    const languageSelect = app.querySelector("#settingsLanguage");
+    if (languageSelect) languageSelect.value = supportedLanguage(user.language);
     const colorInput = app.querySelector("#settingsPrimaryColor");
     if (colorInput) colorInput.value = user.primaryColor || "#5b9cff";
     syncSettingsThemePreview(user.theme);
@@ -5444,7 +5466,7 @@
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const values = [32, 48, 38, 64, 58, 80, 72];
-    const labels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul"];
+    const labels = Array.from({ length: 7 }, (_, index) => new Date(2026, index, 1).toLocaleDateString(languageLocale(), { month: "short" }).replace(".", ""));
     const balance = app.querySelector("[data-auth-balance]");
     const goals = app.querySelector("[data-auth-goals]");
     cancelAnimationFrame(authChartAnimation);
@@ -5935,7 +5957,7 @@
 
   function monthLabel(month) {
     const [year, monthIndex] = month.split("-").map(Number);
-    return new Date(year, monthIndex - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+    return new Date(year, monthIndex - 1, 1).toLocaleDateString(languageLocale(), { month: "long" });
   }
 
   function updateCashflowAnalytics(profile, month, income, expense, evolution, isForecast) {
@@ -6486,7 +6508,7 @@
       const date = new Date(now.getFullYear(), now.getMonth() - (count - 1 - index), 1);
       return {
         value: toMonthInput(date),
-        label: date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+        label: date.toLocaleDateString(languageLocale(), { month: "short" }).replace(".", ""),
       };
     });
   }
@@ -6524,11 +6546,11 @@
   }
 
   function formatDate(value) {
-    return parseLocalDate(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return parseLocalDate(value).toLocaleDateString(languageLocale(), { day: "2-digit", month: "2-digit", year: "numeric" });
   }
 
   function formatLongDate(value) {
-    return value.toLocaleDateString("pt-BR", {
+    return value.toLocaleDateString(languageLocale(), {
       weekday: "long",
       day: "2-digit",
       month: "long",
@@ -6538,7 +6560,7 @@
 
   function formatMonthYear(value) {
     const date = parseLocalDate(`${value}-01`);
-    const month = date.toLocaleDateString("pt-BR", { month: "long" });
+    const month = date.toLocaleDateString(languageLocale(), { month: "long" });
     return `${month.charAt(0).toUpperCase() + month.slice(1)}/${date.getFullYear()}`;
   }
 
@@ -6655,6 +6677,219 @@
     return getComputedStyle(document.body).getPropertyValue(name).trim();
   }
 
+  function supportedLanguage(language) {
+    const languages = window.NEXIO_I18N?.languages || {};
+    return Object.prototype.hasOwnProperty.call(languages, language) ? language : "pt-BR";
+  }
+
+  function preferredBrowserLanguage() {
+    const browserLanguage = String(navigator.language || "pt-BR").toLowerCase();
+    if (browserLanguage.startsWith("en")) return "en";
+    if (browserLanguage.startsWith("es")) return "es";
+    if (browserLanguage.startsWith("fr")) return "fr";
+    if (browserLanguage.startsWith("de")) return "de";
+    return "pt-BR";
+  }
+
+  function preferredLanguage() {
+    return supportedLanguage(currentUser()?.language || localStorage.getItem(LANGUAGE_KEY) || preferredBrowserLanguage());
+  }
+
+  function languageLocale(language = activeLanguage || preferredLanguage()) {
+    const code = supportedLanguage(language);
+    return window.NEXIO_I18N?.languages?.[code]?.locale || "pt-BR";
+  }
+
+  function translatePhrase(source, language = activeLanguage || preferredLanguage()) {
+    const text = String(source ?? "");
+    const code = supportedLanguage(language);
+    if (code === "pt-BR" || !text) return text;
+    const dictionary = window.NEXIO_I18N?.dictionaries?.[code] || {};
+    if (dictionary[text]) return dictionary[text];
+
+    const greeting = text.match(/^(Bom dia|Boa tarde|Boa noite),\s*(.+)$/);
+    if (greeting) {
+      const greetings = {
+        en: { "Bom dia": "Good morning", "Boa tarde": "Good afternoon", "Boa noite": "Good evening" },
+        es: { "Bom dia": "Buenos días", "Boa tarde": "Buenas tardes", "Boa noite": "Buenas noches" },
+        fr: { "Bom dia": "Bonjour", "Boa tarde": "Bonjour", "Boa noite": "Bonsoir" },
+        de: { "Bom dia": "Guten Morgen", "Boa tarde": "Guten Tag", "Boa noite": "Guten Abend" },
+      };
+      return `${greetings[code]?.[greeting[1]] || greeting[1]}, ${greeting[2]}`;
+    }
+
+    const synced = text.match(/^Sincronizado às (.+)$/);
+    if (synced) {
+      const labels = { en: "Synced at", es: "Sincronizado a las", fr: "Synchronisé à", de: "Synchronisiert um" };
+      return `${labels[code]} ${synced[1]}`;
+    }
+
+    const count = text.match(/^(\d+)\s+(transação|transações|categoria|categorias|meta|metas|ativa|ativas)$/);
+    if (count) {
+      const amount = Number(count[1]);
+      const singular = amount === 1;
+      const nouns = {
+        en: { transação: "transaction", transações: singular ? "transaction" : "transactions", categoria: "category", categorias: singular ? "category" : "categories", meta: "goal", metas: singular ? "goal" : "goals", ativa: "active", ativas: "active" },
+        es: { transação: "transacción", transações: singular ? "transacción" : "transacciones", categoria: "categoría", categorias: singular ? "categoría" : "categorías", meta: "meta", metas: "metas", ativa: "activa", ativas: singular ? "activa" : "activas" },
+        fr: { transação: "transaction", transações: "transactions", categoria: "catégorie", categorias: "catégories", meta: "objectif", metas: "objectifs", ativa: "actif", ativas: singular ? "actif" : "actifs" },
+        de: { transação: "Transaktion", transações: "Transaktionen", categoria: "Kategorie", categorias: "Kategorien", meta: "Ziel", metas: "Ziele", ativa: "aktiv", ativas: "aktiv" },
+      };
+      return `${amount} ${nouns[code]?.[count[2]] || count[2]}`;
+    }
+
+    const storage = text.match(/^(\d+) KB de 5 MB$/);
+    if (storage) {
+      const connectors = { en: "of", es: "de", fr: "sur", de: "von" };
+      return `${storage[1]} KB ${connectors[code]} 5 MB`;
+    }
+
+    const lastAccess = text.match(/^Último acesso (.+)$/);
+    if (lastAccess) {
+      const labels = { en: "Last accessed", es: "Último acceso", fr: "Dernier accès", de: "Letzter Zugriff" };
+      return `${labels[code]} ${lastAccess[1]}`;
+    }
+
+    const entries = text.match(/^(\d+) lançamentos?$/);
+    if (entries) {
+      const labels = { en: Number(entries[1]) === 1 ? "entry" : "entries", es: Number(entries[1]) === 1 ? "registro" : "registros", fr: Number(entries[1]) === 1 ? "opération" : "opérations", de: Number(entries[1]) === 1 ? "Eintrag" : "Einträge" };
+      return `${entries[1]} ${labels[code]}`;
+    }
+
+    const selected = text.match(/^(\d+) transações selecionadas$/);
+    if (selected) {
+      const labels = { en: "transactions selected", es: "transacciones seleccionadas", fr: "transactions sélectionnées", de: "Transaktionen ausgewählt" };
+      return `${selected[1]} ${labels[code]}`;
+    }
+
+    const shown = text.match(/^Mostrando (\d+) transações$/);
+    if (shown) {
+      const labels = { en: "Showing", es: "Mostrando", fr: "Affichage de", de: "Angezeigt:" };
+      return `${labels[code]} ${shown[1]} ${translatePhrase(`${shown[1]} transações`, code).replace(`${shown[1]} `, "")}`;
+    }
+
+    const daysLeft = text.match(/^Faltam (\d+) dias$/);
+    if (daysLeft) {
+      const labels = { en: "days left", es: "días restantes", fr: "jours restants", de: "Tage verbleibend" };
+      return `${daysLeft[1]} ${labels[code]}`;
+    }
+
+    const days = text.match(/^(\d+) dias$/);
+    if (days) {
+      const labels = { en: "days", es: "días", fr: "jours", de: "Tage" };
+      return `${days[1]} ${labels[code]}`;
+    }
+
+    const saved = text.match(/^(\d+(?:[.,]\d+)?)% guardado$/);
+    if (saved) {
+      const labels = { en: "saved", es: "ahorrado", fr: "épargné", de: "gespart" };
+      return `${saved[1]}% ${labels[code]}`;
+    }
+
+    const page = text.match(/^Página (\d+)$/);
+    if (page) {
+      const labels = { en: "Page", es: "Página", fr: "Page", de: "Seite" };
+      return `${labels[code]} ${page[1]}`;
+    }
+
+    const notifications = text.match(/^Abrir central de notificações, (\d+) alerta(?:s)? pendente(?:s)?$/);
+    if (notifications) {
+      const labels = {
+        en: `Open notifications, ${notifications[1]} pending alert${notifications[1] === "1" ? "" : "s"}`,
+        es: `Abrir notificaciones, ${notifications[1]} alerta${notifications[1] === "1" ? "" : "s"} pendiente${notifications[1] === "1" ? "" : "s"}`,
+        fr: `Ouvrir les notifications, ${notifications[1]} alerte${notifications[1] === "1" ? "" : "s"} en attente`,
+        de: `Benachrichtigungen öffnen, ${notifications[1]} ausstehende Warnung${notifications[1] === "1" ? "" : "en"}`,
+      };
+      return labels[code];
+    }
+
+    const pendingSummary = text.match(/^Resumo de pendências - (.+)$/);
+    if (pendingSummary) {
+      const labels = { en: "Pending summary", es: "Resumen de pendientes", fr: "Résumé des éléments en attente", de: "Übersicht offener Posten" };
+      return `${labels[code]} - ${pendingSummary[1]}`;
+    }
+
+    const pendingValue = text.match(/^(.+) em pendências$/);
+    if (pendingValue) {
+      const labels = { en: "pending", es: "pendientes", fr: "en attente", de: "offen" };
+      return `${pendingValue[1]} ${labels[code]}`;
+    }
+
+    const chartSummary = text.match(/^Nos últimos 6 meses, receitas somam (.+) e despesas somam (.+)\.$/);
+    if (chartSummary) {
+      if (code === "en") return `Over the last 6 months, income totals ${chartSummary[1]} and expenses total ${chartSummary[2]}.`;
+      if (code === "es") return `En los últimos 6 meses, los ingresos suman ${chartSummary[1]} y los gastos ${chartSummary[2]}.`;
+      if (code === "fr") return `Sur les 6 derniers mois, les revenus totalisent ${chartSummary[1]} et les dépenses ${chartSummary[2]}.`;
+      return `In den letzten 6 Monaten betrugen die Einnahmen ${chartSummary[1]} und die Ausgaben ${chartSummary[2]}.`;
+    }
+
+    return text;
+  }
+
+  function translateTextNode(node, language) {
+    const current = node.nodeValue || "";
+    const trimmed = current.trim();
+    if (!trimmed) return;
+    const existing = translatedTextNodes.get(node);
+    let source = trimmed;
+    let leading = current.slice(0, current.indexOf(trimmed));
+    let trailing = current.slice(current.indexOf(trimmed) + trimmed.length);
+    if (existing && current === existing.rendered) {
+      ({ source, leading, trailing } = existing);
+    }
+    const rendered = `${leading}${translatePhrase(source, language)}${trailing}`;
+    translatedTextNodes.set(node, { source, leading, trailing, rendered });
+    if (current !== rendered) node.nodeValue = rendered;
+  }
+
+  function translateElementAttributes(element, language) {
+    const attributeNames = ["placeholder", "title", "aria-label"];
+    const records = translatedAttributes.get(element) || {};
+    attributeNames.forEach((name) => {
+      if (!element.hasAttribute(name)) return;
+      const current = element.getAttribute(name) || "";
+      const source = records[name] && current === records[name].rendered ? records[name].source : current;
+      const rendered = translatePhrase(source, language);
+      records[name] = { source, rendered };
+      if (current !== rendered) element.setAttribute(name, rendered);
+    });
+    translatedAttributes.set(element, records);
+  }
+
+  function translateSubtree(root, language) {
+    if (!root) return;
+    if (root.nodeType === Node.TEXT_NODE) {
+      translateTextNode(root, language);
+      return;
+    }
+    if (root.nodeType !== Node.ELEMENT_NODE) return;
+    translateElementAttributes(root, language);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      if (!node.parentElement?.matches("script, style, textarea")) translateTextNode(node, language);
+      node = walker.nextNode();
+    }
+    root.querySelectorAll("[placeholder], [title], [aria-label]").forEach((element) => translateElementAttributes(element, language));
+  }
+
+  function ensureLanguageObserver() {
+    if (languageObserver) return;
+    languageObserver = new MutationObserver((mutations) => {
+      const language = activeLanguage || preferredLanguage();
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => translateSubtree(node, language));
+      });
+    });
+    languageObserver.observe(app, { childList: true, subtree: true });
+  }
+
+  function applyLanguage(language = preferredLanguage()) {
+    activeLanguage = supportedLanguage(language);
+    document.documentElement.lang = languageLocale(activeLanguage);
+    translateSubtree(app, activeLanguage);
+    ensureLanguageObserver();
+  }
+
   function applyTheme(theme) {
     document.body.classList.toggle("theme-dark", theme === "dark");
     document.body.classList.toggle("theme-light", theme !== "dark");
@@ -6676,7 +6911,7 @@
 
   function showToast(message) {
     clearTimeout(toastTimer);
-    toast.textContent = message;
+    toast.textContent = translatePhrase(message);
     toast.classList.add("is-visible");
     toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 3200);
   }
