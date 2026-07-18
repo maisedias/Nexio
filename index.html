@@ -9,10 +9,174 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260707-goal-modal-contrast" />
+    <link rel="stylesheet" href="styles.css?v=20260717-onboarding-complete" />
+    <link rel="stylesheet" href="docs/design-system/tokens.css?v=20260717-nexio-v2" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260717-nexio-v2" />
   </head>
   <body>
     <div id="app"></div>
+
+    <template id="onboarding-template">
+      <main class="onboarding-shell" aria-labelledby="onboarding-title">
+        <div class="onboarding-ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+        <header class="onboarding-brand" aria-label="Nexio">
+          <img src="assets/nexio-symbol.png" alt="" />
+          <strong>Nexio</strong>
+        </header>
+
+        <section class="onboarding-content onboarding-screen-one" data-onboarding-screen="welcome">
+          <div class="onboarding-copy">
+            <span class="onboarding-step"><i></i> Sua vida financeira em movimento</span>
+            <h1 id="onboarding-title">Bem-vindo à <span>Nexio</span></h1>
+            <p>Organize suas finanças de forma simples, inteligente e segura.</p>
+            <button class="onboarding-start" data-onboarding-start type="button">
+              <span>Começar</span><i data-lucide="arrow-right" aria-hidden="true">→</i>
+            </button>
+            <div class="onboarding-trust" aria-label="Benefícios da Nexio">
+              <span><i data-lucide="shield-check" aria-hidden="true">✓</i> Seguro</span>
+              <span><i data-lucide="sparkles" aria-hidden="true">✦</i> Inteligente</span>
+              <span><i data-lucide="zap" aria-hidden="true">ϟ</i> Simples</span>
+            </div>
+          </div>
+
+          <div class="onboarding-illustration" aria-label="Dashboard financeiro crescendo">
+            <div class="onboarding-orbit orbit-one"></div><div class="onboarding-orbit orbit-two"></div>
+            <div class="onboarding-dashboard">
+              <div class="onboarding-dashboard-top">
+                <span class="onboarding-mini-brand"><img src="assets/nexio-symbol.png" alt="" /> Visão geral</span>
+                <span class="onboarding-avatar">MD</span>
+              </div>
+              <div class="onboarding-balance-card">
+                <span>Saldo disponível</span>
+                <strong data-onboarding-balance>R$ 0,00</strong>
+                <small><i>↑</i> 18,4% este mês</small>
+              </div>
+              <div class="onboarding-chart-card">
+                <div><span>Evolução financeira</span><strong>Últimos 6 meses</strong></div>
+                <svg viewBox="0 0 520 190" role="img" aria-label="Gráfico financeiro ascendente">
+                  <defs><linearGradient id="onboardingArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5b9cff" stop-opacity=".34"/><stop offset="1" stop-color="#5b9cff" stop-opacity="0"/></linearGradient></defs>
+                  <g class="onboarding-grid"><path d="M20 35H500M20 80H500M20 125H500M20 170H500"/></g>
+                  <path class="onboarding-area" d="M20 153 C75 147 92 128 140 133 S214 112 260 117 S333 76 382 88 S452 41 500 28 L500 180 L20 180Z"/>
+                  <path class="onboarding-line" d="M20 153 C75 147 92 128 140 133 S214 112 260 117 S333 76 382 88 S452 41 500 28"/>
+                  <g class="onboarding-points"><circle cx="20" cy="153" r="5"/><circle cx="140" cy="133" r="5"/><circle cx="260" cy="117" r="5"/><circle cx="382" cy="88" r="5"/><circle cx="500" cy="28" r="6"/></g>
+                </svg>
+              </div>
+              <div class="onboarding-kpis">
+                <div><i data-lucide="arrow-down-left" aria-hidden="true">↙</i><span>Receitas<strong>R$ 8.420</strong></span></div>
+                <div><i data-lucide="target" aria-hidden="true">◎</i><span>Meta<strong>74%</strong></span></div>
+              </div>
+            </div>
+            <div class="onboarding-float-card float-income"><i data-lucide="trending-up" aria-hidden="true">↗</i><span><small>Economia</small><strong>+ R$ 1.280</strong></span></div>
+            <div class="onboarding-float-card float-goal"><i data-lucide="check" aria-hidden="true">✓</i><span><small>Meta do mês</small><strong>Alcançada</strong></span></div>
+          </div>
+        </section>
+
+        <section class="onboarding-goal-screen" data-onboarding-screen="goal" aria-labelledby="onboarding-goal-title" hidden>
+          <div class="onboarding-goal-heading">
+            <button class="onboarding-back" data-onboarding-back type="button" aria-label="Voltar"><i data-lucide="arrow-left" aria-hidden="true">←</i></button>
+            <span class="onboarding-step"><i></i> Vamos personalizar sua jornada</span>
+            <h2 id="onboarding-goal-title">Qual seu <span>objetivo?</span></h2>
+            <p>Escolha o que mais importa para você agora.</p>
+          </div>
+          <div class="onboarding-goal-grid" role="radiogroup" aria-label="Objetivo financeiro principal">
+            <button class="onboarding-goal-card goal-save" data-onboarding-goal="Economizar" role="radio" aria-checked="false" type="button"><span class="goal-card-icon"><i data-lucide="piggy-bank" aria-hidden="true">◇</i></span><strong>Economizar</strong><small>Construa sua reserva com constância.</small><i class="goal-selected-check" data-lucide="check" aria-hidden="true">✓</i></button>
+            <button class="onboarding-goal-card goal-debt" data-onboarding-goal="Sair das dívidas" role="radio" aria-checked="false" type="button"><span class="goal-card-icon"><i data-lucide="unplug" aria-hidden="true">⌁</i></span><strong>Sair das dívidas</strong><small>Retome o controle da sua tranquilidade.</small><i class="goal-selected-check" data-lucide="check" aria-hidden="true">✓</i></button>
+            <button class="onboarding-goal-card goal-control" data-onboarding-goal="Controlar gastos" role="radio" aria-checked="false" type="button"><span class="goal-card-icon"><i data-lucide="chart-no-axes-combined" aria-hidden="true">⌁</i></span><strong>Controlar gastos</strong><small>Entenda para onde seu dinheiro vai.</small><i class="goal-selected-check" data-lucide="check" aria-hidden="true">✓</i></button>
+            <button class="onboarding-goal-card goal-invest" data-onboarding-goal="Investir" role="radio" aria-checked="false" type="button"><span class="goal-card-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><strong>Investir</strong><small>Faça seu patrimônio crescer.</small><i class="goal-selected-check" data-lucide="check" aria-hidden="true">✓</i></button>
+            <button class="onboarding-goal-card goal-other" data-onboarding-goal="Outro" role="radio" aria-checked="false" type="button"><span class="goal-card-icon"><i data-lucide="sparkles" aria-hidden="true">✦</i></span><strong>Outro</strong><small>Crie uma jornada do seu jeito.</small><i class="goal-selected-check" data-lucide="check" aria-hidden="true">✓</i></button>
+          </div>
+          <button class="onboarding-continue" data-onboarding-continue type="button" disabled><span>Continuar</span><i data-lucide="arrow-right" aria-hidden="true">→</i></button>
+        </section>
+
+        <section class="onboarding-balance-screen" data-onboarding-screen="balance" aria-labelledby="onboarding-balance-title" hidden>
+          <button class="onboarding-back balance-back" data-onboarding-balance-back type="button" aria-label="Voltar"><i data-lucide="arrow-left" aria-hidden="true">←</i></button>
+          <div class="onboarding-wallet-visual" aria-label="Ilustração de carteira digital">
+            <div class="wallet-halo"></div>
+            <div class="digital-wallet">
+              <div class="digital-wallet-head"><span><img src="assets/nexio-symbol.png" alt="" /> Nexio Wallet</span><i data-lucide="wifi" aria-hidden="true">)))</i></div>
+              <div class="digital-wallet-chip"><i></i><i></i><i></i></div>
+              <div class="digital-wallet-value"><small>Saldo disponível</small><strong data-wallet-preview>R$ 0,00</strong></div>
+              <div class="digital-wallet-footer"><span>•••• 2026</span><i data-lucide="shield-check" aria-hidden="true">✓</i></div>
+            </div>
+            <div class="wallet-float wallet-secure"><i data-lucide="lock-keyhole" aria-hidden="true">◈</i><span><strong>Protegido</strong><small>Seus dados estão seguros</small></span></div>
+            <div class="wallet-float wallet-sync"><i data-lucide="refresh-cw" aria-hidden="true">↻</i><span><strong>Sincronizado</strong><small>Atualização instantânea</small></span></div>
+          </div>
+          <div class="onboarding-balance-form">
+            <span class="onboarding-step"><i></i> Seu ponto de partida</span>
+            <h2 id="onboarding-balance-title">Quanto você possui <span>atualmente?</span></h2>
+            <p>Use seu saldo disponível hoje. Você poderá ajustar esse valor quando quiser.</p>
+            <label class="onboarding-money-field">
+              <span>Saldo inicial</span>
+              <div><small>R$</small><input id="onboardingInitialBalance" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-describedby="balance-field-hint" /></div>
+              <em id="balance-field-hint"><i data-lucide="info" aria-hidden="true">i</i> Considere contas, carteira e dinheiro disponível.</em>
+            </label>
+            <button class="onboarding-continue balance-continue" data-onboarding-balance-continue type="button"><span>Continuar</span><i data-lucide="arrow-right" aria-hidden="true">→</i></button>
+          </div>
+        </section>
+
+        <section class="onboarding-import-screen" data-onboarding-screen="import" aria-labelledby="onboarding-import-title" hidden>
+          <div class="onboarding-import-heading">
+            <button class="onboarding-back" data-onboarding-import-back type="button" aria-label="Voltar"><i data-lucide="arrow-left" aria-hidden="true">←</i></button>
+            <span class="onboarding-step"><i></i> Traga sua história financeira</span>
+            <h2 id="onboarding-import-title">Deseja importar <span>seus dados?</span></h2>
+            <p>Escolha como prefere começar. A Nexio organiza tudo para você.</p>
+          </div>
+          <div class="onboarding-import-grid" role="radiogroup" aria-label="Origem dos dados financeiros">
+            <button class="onboarding-import-card import-drive" data-onboarding-import="Google Drive" role="radio" aria-checked="false" type="button"><span class="import-card-icon"><i data-lucide="cloud" aria-hidden="true">☁</i><b class="drive-mark"><i></i><i></i><i></i></b></span><span><strong>Google Drive</strong><small>Busque seus arquivos salvos na nuvem.</small></span><i class="import-card-arrow" data-lucide="chevron-right" aria-hidden="true">›</i></button>
+            <button class="onboarding-import-card import-excel" data-onboarding-import="Arquivo Excel" role="radio" aria-checked="false" type="button"><span class="import-card-icon"><i data-lucide="sheet" aria-hidden="true">▦</i></span><span><strong>Arquivo Excel</strong><small>Importe planilhas nos formatos XLS ou XLSX.</small></span><i class="import-card-arrow" data-lucide="chevron-right" aria-hidden="true">›</i></button>
+            <button class="onboarding-import-card import-csv" data-onboarding-import="CSV" role="radio" aria-checked="false" type="button"><span class="import-card-icon"><i data-lucide="file-spreadsheet" aria-hidden="true">▤</i></span><span><strong>CSV</strong><small>Use um arquivo de movimentações separado por colunas.</small></span><i class="import-card-arrow" data-lucide="chevron-right" aria-hidden="true">›</i></button>
+            <button class="onboarding-import-card import-device" data-onboarding-import="Usar apenas neste dispositivo" role="radio" aria-checked="false" type="button"><span class="import-card-icon"><i data-lucide="smartphone" aria-hidden="true">▯</i></span><span><strong>Usar apenas neste dispositivo</strong><small>Mantenha seus dados armazenados localmente.</small></span><i class="import-card-arrow" data-lucide="chevron-right" aria-hidden="true">›</i></button>
+            <button class="onboarding-import-card import-later" data-onboarding-import="Importar depois" role="radio" aria-checked="false" type="button"><span class="import-card-icon"><i data-lucide="clock-3" aria-hidden="true">◷</i></span><span><strong>Importar depois</strong><small>Comece agora e faça isso quando quiser.</small></span><i class="import-card-arrow" data-lucide="chevron-right" aria-hidden="true">›</i></button>
+          </div>
+          <button class="onboarding-continue import-continue" data-onboarding-import-continue type="button" disabled><span>Continuar</span><i data-lucide="arrow-right" aria-hidden="true">→</i></button>
+        </section>
+
+        <section class="onboarding-first-goal-screen" data-onboarding-screen="first-goal" aria-labelledby="onboarding-first-goal-title" hidden>
+          <div class="first-goal-form-column">
+            <button class="onboarding-back first-goal-back" data-onboarding-first-goal-back type="button" aria-label="Voltar"><i data-lucide="arrow-left" aria-hidden="true">←</i></button>
+            <span class="onboarding-step"><i></i> Transforme intenção em conquista</span>
+            <h2 id="onboarding-first-goal-title">Vamos criar sua <span>primeira meta.</span></h2>
+            <p>Defina um objetivo possível. A Nexio acompanha cada avanço com você.</p>
+            <form class="first-goal-form" data-onboarding-first-goal-form>
+              <label><span>Nome</span><div><i data-lucide="target" aria-hidden="true">◎</i><input id="onboardingGoalName" type="text" maxlength="48" autocomplete="off" placeholder="Ex.: Reserva de emergência" required /></div></label>
+              <div class="first-goal-fields-row">
+                <label><span>Valor</span><div><b>R$</b><input id="onboardingGoalValue" inputmode="decimal" autocomplete="off" placeholder="0,00" required /></div></label>
+                <label><span>Prazo</span><div><i data-lucide="calendar-days" aria-hidden="true">□</i><input id="onboardingGoalDeadline" type="date" required /></div></label>
+              </div>
+              <button class="onboarding-create-goal" type="submit"><span>Criar Meta</span><i data-lucide="arrow-right" aria-hidden="true">→</i></button>
+            </form>
+          </div>
+          <div class="first-goal-preview" aria-label="Prévia da primeira meta">
+            <div class="goal-preview-orbit"></div>
+            <article class="goal-preview-card">
+              <header><span class="goal-preview-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span class="goal-preview-badge"><i></i> Nova meta</span></header>
+              <div class="goal-preview-copy"><small>Sua próxima conquista</small><h3 data-goal-preview-name>Minha primeira meta</h3></div>
+              <div class="goal-preview-values"><span><small>Objetivo</small><strong data-goal-preview-value>R$ 0,00</strong></span><span><small>Progresso</small><strong data-goal-preview-percent>0%</strong></span></div>
+              <div class="goal-preview-track"><i data-goal-preview-fill></i><b data-goal-preview-marker></b></div>
+              <footer><span><i data-lucide="calendar-check" aria-hidden="true">□</i><b data-goal-preview-deadline>Defina um prazo</b></span><small>Você consegue.</small></footer>
+            </article>
+            <div class="goal-preview-celebration"><i data-lucide="sparkles" aria-hidden="true">✦</i><span><strong>Um passo de cada vez</strong><small>Consistência cria resultados.</small></span></div>
+          </div>
+        </section>
+
+        <section class="onboarding-complete-screen" data-onboarding-screen="complete" aria-labelledby="onboarding-complete-title" hidden>
+          <div class="complete-confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="complete-success-mark" aria-hidden="true"><span><i data-lucide="check" aria-hidden="true">✓</i></span><b></b><b></b></div>
+          <span class="onboarding-step"><i></i> Sua jornada começa agora</span>
+          <h2 id="onboarding-complete-title">Tudo <span>pronto!</span></h2>
+          <p>Sua vida financeira acaba de ficar mais organizada.</p>
+          <div class="complete-summary" aria-label="Configuração concluída">
+            <span><i data-lucide="target" aria-hidden="true">◎</i><b>Objetivo definido</b></span>
+            <span><i data-lucide="wallet-cards" aria-hidden="true">▣</i><b>Saldo configurado</b></span>
+            <span><i data-lucide="shield-check" aria-hidden="true">✓</i><b>Dados protegidos</b></span>
+          </div>
+          <button class="onboarding-enter-nexio" data-enter-nexio type="button"><span>Entrar na Nexio</span><i data-lucide="arrow-right" aria-hidden="true">→</i></button>
+          <small class="complete-caption"><i data-lucide="sparkles" aria-hidden="true">✦</i> Prepare-se para enxergar seu dinheiro de um novo jeito.</small>
+        </section>
+
+        <footer class="onboarding-footer"><span><i class="is-active" data-onboarding-dot="welcome"></i><i data-onboarding-dot="goal"></i><i data-onboarding-dot="balance"></i><i data-onboarding-dot="import"></i><i data-onboarding-dot="first-goal"></i><i data-onboarding-dot="complete"></i></span><small data-onboarding-footer-copy>Comece uma nova relação com seu dinheiro.</small></footer>
+      </main>
+    </template>
 
     <template id="auth-template">
       <main class="auth-shell">
@@ -27,6 +191,7 @@
               <strong data-auth-goals>0 ativas</strong>
             </div>
             <canvas id="authMiniChart" width="520" height="360" role="img" aria-label="Linha ilustrativa de evolução financeira"></canvas>
+            <p class="auth-visual-message" data-auth-message aria-live="polite">Economize sem esforço.</p>
           </div>
         </section>
         <section class="auth-panel" aria-label="Acesso">
@@ -125,9 +290,9 @@
               <input data-global-search type="search" placeholder="Buscar transações, categorias ou status" aria-label="Pesquisar transações" />
             </label>
             <div class="topbar-actions">
-              <button class="icon-button notification-button" data-notification-button type="button" aria-label="Abrir pendências do mês" title="Pendências">
+              <button class="icon-button notification-button" data-notification-button type="button" aria-label="Abrir central de notificações" aria-controls="notificationCenter" aria-expanded="false" title="Notificações">
                 <i data-lucide="bell" aria-hidden="true">!</i>
-                <span class="notification-text">Pendências</span>
+                <span class="notification-text">Notificações</span>
                 <span class="notification-badge" data-notification-count>0</span>
               </button>
               <label class="select-shell profile-switcher">
@@ -141,6 +306,17 @@
               <button class="primary-action compact" data-quick-transaction type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Nova transação</span></button>
             </div>
           </header>
+
+          <button class="notification-center-backdrop" data-notification-close type="button" aria-label="Fechar central de notificações" hidden></button>
+          <aside class="notification-center" id="notificationCenter" data-notification-center aria-labelledby="notificationCenterTitle" aria-hidden="true" hidden>
+            <header>
+              <div><span class="notification-center-kicker">Central</span><h2 id="notificationCenterTitle">Notificações</h2><p>O que merece sua atenção agora.</p></div>
+              <button class="icon-button" data-notification-close type="button" aria-label="Fechar notificações"><i data-lucide="x" aria-hidden="true">×</i></button>
+            </header>
+            <div class="notification-center-toolbar"><span><i></i> Atualizações em tempo real</span><button class="ghost-action" data-notification-read-all type="button">Marcar como lidas</button></div>
+            <div class="notification-center-list" data-notification-list></div>
+            <footer><i data-lucide="shield-check" aria-hidden="true">✓</i><span>Seus dados e alertas permanecem protegidos.</span></footer>
+          </aside>
 
           <section id="view-overview" class="view is-visible overview-dashboard" data-view-panel="overview">
             <div class="dashboard-primary-grid">
@@ -158,6 +334,7 @@
                   <span class="metric-label">Receitas</span>
                 </div>
                 <strong data-month-income>R$ 0,00</strong>
+                <span class="dashboard-positive-indicator"><i aria-hidden="true">↑</i> Economia</span>
                 <small data-income-count>0 lançamentos</small>
               </article>
               <article class="metric-card overview-metric dashboard-kpi">
@@ -166,6 +343,7 @@
                   <span class="metric-label">Despesas</span>
                 </div>
                 <strong class="overview-expense-value" data-month-expense>R$ 0,00</strong>
+                <span class="dashboard-positive-indicator dashboard-positive-indicator-expense"><i aria-hidden="true">↓</i> Gastos</span>
                 <small data-expense-count>0 lançamentos</small>
               </article>
               <article class="metric-card overview-metric dashboard-kpi">
@@ -254,6 +432,7 @@
                   <div>
                     <span>Principal</span>
                     <strong data-main-goal-progress>0%</strong>
+                    <span class="dashboard-positive-indicator" data-goal-achieved-indicator hidden><i aria-hidden="true">✓</i> Meta alcançada</span>
                     <small data-main-goal-label>Nenhuma meta ativa</small>
                   </div>
                 </div>
@@ -271,59 +450,82 @@
             </div>
           </section>
 
-          <section id="view-transactions" class="view" data-view-panel="transactions">
-            <div class="content-grid form-and-list">
-              <section class="panel">
+          <section id="view-transactions" class="view transactions-experience" data-view-panel="transactions">
+            <div class="transactions-workspace">
+              <section class="panel transaction-composer-panel">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow" data-transaction-form-mode>Novo lançamento</p>
-                    <h2>Transação</h2>
+                    <h2>Nova transação</h2>
                   </div>
-                  <button class="ghost-action" data-reset-transaction-form type="button">Limpar</button>
                 </div>
 
-                <form id="transactionForm" class="stacked-form">
+                <form id="transactionForm" class="stacked-form transaction-form-modern">
                   <input id="transactionId" type="hidden" />
-                  <div class="segmented" role="radiogroup" aria-label="Tipo da transação">
-                    <label><input type="radio" name="type" value="income" checked /><span>Receita</span></label>
-                    <label><input type="radio" name="type" value="expense" /><span>Despesa</span></label>
-                  </div>
-                  <label class="field">
-                    <span>Descrição</span>
-                    <input id="transactionDescription" type="text" placeholder="Ex.: Salário, aluguel, mercado" required />
-                  </label>
-                  <div class="split-fields">
+                  <section class="transaction-form-section">
+                    <div class="form-section-heading">
+                      <span class="form-section-icon" aria-hidden="true"><i data-lucide="wallet-cards"></i></span>
+                      <div>
+                        <strong>Dados básicos</strong>
+                        <small>Tipo, descrição e valor do lançamento.</small>
+                      </div>
+                    </div>
+                    <div class="segmented transaction-type-segment" role="radiogroup" aria-label="Tipo da transação">
+                      <label><input type="radio" name="type" value="income" checked /><span>Receita</span></label>
+                      <label><input type="radio" name="type" value="expense" /><span>Despesa</span></label>
+                    </div>
+                    <label class="field">
+                      <span>Descrição</span>
+                      <input id="transactionDescription" type="text" placeholder="Ex.: Salário, aluguel, mercado" required />
+                    </label>
                     <label class="field">
                       <span>Valor</span>
                       <input id="transactionAmount" type="number" min="0.01" step="0.01" placeholder="0,00" required />
                     </label>
-                    <label class="field">
-                      <span>Data limite</span>
-                      <input id="transactionDate" type="date" required />
-                    </label>
-                  </div>
-                  <div class="installment-box">
-                    <label class="checkbox-line">
-                      <input id="transactionInstallmentsEnabled" type="checkbox" />
-                      <span>Lançar em parcelas mensais</span>
-                    </label>
-                    <label class="field installment-count-field">
-                      <span>Quantidade de parcelas</span>
-                      <input id="transactionInstallmentCount" type="number" min="2" max="120" step="1" value="2" />
-                    </label>
-                  </div>
-                  <div class="split-fields">
+                  </section>
+
+                  <section class="transaction-form-section">
+                    <div class="form-section-heading">
+                      <span class="form-section-icon" aria-hidden="true"><i data-lucide="sliders-horizontal"></i></span>
+                      <div>
+                        <strong>Detalhes</strong>
+                        <small>Categoria, data e status financeiro.</small>
+                      </div>
+                    </div>
                     <label class="field">
                       <span>Categoria</span>
                       <select id="transactionCategory" required></select>
                     </label>
-                    <label class="field">
-                      <span>Status</span>
-                      <select id="transactionStatus" required></select>
-                    </label>
+                    <div class="split-fields">
+                      <label class="field">
+                        <span>Data limite</span>
+                        <input id="transactionDate" type="date" required />
+                      </label>
+                      <label class="field">
+                        <span>Status</span>
+                        <select id="transactionStatus" required></select>
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="transaction-form-section transaction-installment-section">
+                    <div class="installment-box">
+                      <label class="checkbox-line">
+                        <input id="transactionInstallmentsEnabled" type="checkbox" />
+                        <span>Lançar em parcelas</span>
+                      </label>
+                      <label class="field installment-count-field">
+                        <span>Quantidade de parcelas</span>
+                        <input id="transactionInstallmentCount" type="number" min="2" max="120" step="1" value="2" />
+                      </label>
+                    </div>
+                    <p class="form-hint">Ao parcelar, o valor informado é o valor de cada parcela. Parcelas pendentes mudam automaticamente para Atrasado quando a data limite passa.</p>
+                  </section>
+
+                  <div class="transaction-form-actions">
+                    <button class="primary-action" type="submit" data-save-transaction><i data-lucide="save" aria-hidden="true"></i><span>Salvar transação</span></button>
+                    <button class="ghost-action compact" data-reset-transaction-form type="button">Limpar</button>
                   </div>
-                  <p class="form-hint">Ao parcelar, o valor informado é o valor de cada parcela. Parcelas pendentes mudam automaticamente para Atrasado quando a data limite passa; depois você pode editar valor e marcar como Pago ou Recebido.</p>
-                  <button class="primary-action" type="submit" data-save-transaction>Salvar transação</button>
                 </form>
               </section>
 
@@ -331,10 +533,10 @@
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Categorias</p>
-                    <h2>Ícones e nomes</h2>
+                    <h2>Criar categoria</h2>
                   </div>
                 </div>
-                <form id="categoryForm" class="inline-form">
+                <form id="categoryForm" class="category-create-form">
                   <input id="categoryId" type="hidden" />
                   <label class="field icon-field">
                     <span>Ícone</span>
@@ -344,8 +546,10 @@
                     <span>Nome</span>
                     <input id="categoryName" type="text" placeholder="Nova categoria" required />
                   </label>
-                  <button class="primary-action square" data-save-category type="submit">+</button>
-                  <button class="ghost-action square" data-reset-category-form type="button">×</button>
+                  <div class="category-create-actions">
+                    <button class="primary-action compact" data-save-category type="submit"><i data-lucide="plus" aria-hidden="true"></i><span>Adicionar</span></button>
+                    <button class="ghost-action compact" data-reset-category-form type="button">Limpar</button>
+                  </div>
                 </form>
                 <div class="icon-picker" data-category-icon-picker aria-label="Ícones disponíveis"></div>
                 <div class="category-list" data-category-list></div>
@@ -353,155 +557,255 @@
             </div>
 
             <section class="panel transaction-list-panel">
-              <div class="panel-heading wrap-heading">
+              <div class="transaction-list-header">
                 <div>
                   <p class="eyebrow">Controle</p>
                   <h2>Transações</h2>
                   <span class="transaction-results-summary" data-transaction-results-summary>0 transações</span>
                 </div>
-                <div class="filter-grid">
+              </div>
+
+              <div class="transaction-summary-grid" data-transaction-summary-grid>
+                <article class="transaction-summary-card summary-income">
+                  <span>Receitas</span>
+                  <strong data-transactions-summary-income>R$ 0,00</strong>
+                </article>
+                <article class="transaction-summary-card summary-expense">
+                  <span>Despesas</span>
+                  <strong data-transactions-summary-expense>R$ 0,00</strong>
+                </article>
+                <article class="transaction-summary-card summary-balance">
+                  <span>Saldo</span>
+                  <strong data-transactions-summary-balance>R$ 0,00</strong>
+                </article>
+                <article class="transaction-summary-card">
+                  <span>Quantidade</span>
+                  <strong data-transactions-summary-count>0 lançamentos</strong>
+                </article>
+              </div>
+
+              <div class="transaction-filters-card">
+                <div class="filter-grid primary-filters">
                   <label class="field compact-field transaction-search-field">
-                    <span>Descrição</span>
-                    <input id="filterDescription" type="search" placeholder="Buscar" />
+                    <span>Buscar</span>
+                    <input id="filterDescription" type="search" placeholder="Descrição, categoria, valor ou parcela" />
                   </label>
                   <label class="field compact-field">
                     <span>Categoria</span>
                     <select id="filterCategory"></select>
                   </label>
-                  <label class="field compact-field">
-                    <span>De</span>
-                    <input id="filterDateFrom" type="date" />
-                  </label>
-                  <label class="field compact-field">
-                    <span>Até</span>
-                    <input id="filterDateTo" type="date" />
-                  </label>
-                  <label class="field compact-field">
-                    <span>Valor mín.</span>
-                    <input id="filterValueMin" type="number" min="0" step="0.01" />
-                  </label>
-                  <label class="field compact-field">
-                    <span>Valor máx.</span>
-                    <input id="filterValueMax" type="number" min="0" step="0.01" />
-                  </label>
+                  <div class="period-filter">
+                    <span>Período</span>
+                    <div>
+                      <input id="filterDateFrom" type="date" aria-label="Data inicial" />
+                      <input id="filterDateTo" type="date" aria-label="Data final" />
+                    </div>
+                  </div>
                   <label class="field compact-field">
                     <span>Status</span>
                     <select id="filterStatus"></select>
                   </label>
-                  <label class="field compact-field">
-                    <span>Ordenar</span>
-                    <select id="sortTransactions">
-                      <option value="date-desc">Data recente</option>
-                      <option value="date-asc">Data antiga</option>
-                      <option value="amount-desc">Maior valor</option>
-                      <option value="amount-asc">Menor valor</option>
-                      <option value="description-asc">Descrição A-Z</option>
-                      <option value="description-desc">Descrição Z-A</option>
-                      <option value="category-asc">Categoria A-Z</option>
-                      <option value="category-desc">Categoria Z-A</option>
-                      <option value="status-asc">Status A-Z</option>
-                      <option value="status-desc">Status Z-A</option>
-                    </select>
-                  </label>
                 </div>
+
+                <details class="advanced-filters">
+                  <summary><span>Mais filtros</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+                  <div class="advanced-filter-grid">
+                    <label class="field compact-field">
+                      <span>Valor mín.</span>
+                      <input id="filterValueMin" type="number" min="0" step="0.01" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Valor máx.</span>
+                      <input id="filterValueMax" type="number" min="0" step="0.01" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Ordenar</span>
+                      <select id="sortTransactions">
+                        <option value="date-desc">Data recente</option>
+                        <option value="date-asc">Data antiga</option>
+                        <option value="amount-desc">Maior valor</option>
+                        <option value="amount-asc">Menor valor</option>
+                        <option value="description-asc">Descrição A-Z</option>
+                        <option value="description-desc">Descrição Z-A</option>
+                        <option value="category-asc">Categoria A-Z</option>
+                        <option value="category-desc">Categoria Z-A</option>
+                        <option value="status-asc">Status A-Z</option>
+                        <option value="status-desc">Status Z-A</option>
+                      </select>
+                    </label>
+                    <label class="field compact-field">
+                      <span>Mês</span>
+                      <input id="bulkStatusMonth" type="month" />
+                    </label>
+                    <label class="field compact-field">
+                      <span>Status atual</span>
+                      <select id="bulkStatusFrom">
+                        <option value="Pendente">Pendente</option>
+                        <option value="Atrasado">Atrasado</option>
+                        <option value="Pago">Pago</option>
+                        <option value="Recebido">Recebido</option>
+                      </select>
+                    </label>
+                    <label class="field compact-field">
+                      <span>Mudar para</span>
+                      <select id="bulkStatusTo">
+                        <option value="settled">Pago / Recebido</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Atrasado">Atrasado</option>
+                      </select>
+                    </label>
+                    <button class="primary-action compact" data-bulk-status-apply type="button">Atualizar mês</button>
+                    <button class="danger-action compact" data-delete-filtered-transactions type="button">Excluir filtradas</button>
+                  </div>
+                </details>
               </div>
-              <div class="bulk-status-bar">
+
+              <div class="bulk-status-bar" data-selection-bar hidden>
                 <div class="bulk-status-title">
-                  <span>Status em lote</span>
-                  <strong>Atualizar mês</strong>
+                  <span>Selecionadas</span>
+                  <strong data-selected-transactions-label>0 transações selecionadas</strong>
                 </div>
-                <label class="field compact-field">
-                  <span>Mês</span>
-                  <input id="bulkStatusMonth" type="month" />
-                </label>
-                <label class="field compact-field">
-                  <span>Status atual</span>
-                  <select id="bulkStatusFrom">
-                    <option value="Pendente">Pendente</option>
-                    <option value="Atrasado">Atrasado</option>
-                    <option value="Pago">Pago</option>
-                    <option value="Recebido">Recebido</option>
-                  </select>
-                </label>
-                <label class="field compact-field">
-                  <span>Mudar para</span>
-                  <select id="bulkStatusTo">
-                    <option value="settled">Pago / Recebido</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Atrasado">Atrasado</option>
-                  </select>
-                </label>
-                <button class="primary-action compact" data-bulk-status-apply type="button">Aplicar</button>
-                <button class="danger-action compact" data-delete-selected-transactions type="button" disabled>Excluir selecionadas</button>
-                <button class="danger-action compact" data-delete-filtered-transactions type="button">Excluir filtradas</button>
+                <button class="ghost-action compact" data-selected-status="Pago" type="button"><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Marcar como pago</span></button>
+                <button class="ghost-action compact" data-selected-status="Recebido" type="button"><i data-lucide="badge-check" aria-hidden="true"></i><span>Marcar como recebido</span></button>
+                <button class="ghost-action compact" data-duplicate-selected-transactions type="button"><i data-lucide="copy" aria-hidden="true"></i><span>Duplicar</span></button>
+                <button class="danger-action compact" data-delete-selected-transactions type="button" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Excluir</span></button>
               </div>
-              <div class="table-shell">
-                <table>
-                  <thead>
-                    <tr>
-                      <th class="select-column"><input data-select-all-transactions type="checkbox" aria-label="Selecionar transações visíveis" /></th>
-                      <th><button class="table-sort" data-table-sort="description-asc" type="button">Descrição</button></th>
-                      <th><button class="table-sort" data-table-sort="category-asc" type="button">Categoria</button></th>
-                      <th><button class="table-sort" data-table-sort="date-desc" type="button">Data</button></th>
-                      <th><button class="table-sort" data-table-sort="amount-desc" type="button">Valor</button></th>
-                      <th><button class="table-sort" data-table-sort="status-asc" type="button">Status</button></th>
-                      <th>Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody data-transactions-table></tbody>
-                </table>
-              </div>
-              <div class="transaction-table-footer">
+
+              <div class="transaction-list-toolbar">
+                <label class="select-visible-control">
+                  <input data-select-all-transactions type="checkbox" aria-label="Selecionar transações visíveis" />
+                  <span>Selecionar visíveis</span>
+                </label>
                 <span data-transaction-page-summary>Mostrando 0 transações</span>
+              </div>
+
+              <div class="transaction-card-grid" data-transactions-cards></div>
+
+              <details class="transaction-table-details">
+                <summary><span>Ver tabela</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="select-column"></th>
+                        <th><button class="table-sort" data-table-sort="description-asc" type="button">Descrição</button></th>
+                        <th><button class="table-sort" data-table-sort="category-asc" type="button">Categoria</button></th>
+                        <th><button class="table-sort" data-table-sort="date-desc" type="button">Data</button></th>
+                        <th><button class="table-sort" data-table-sort="amount-desc" type="button">Valor</button></th>
+                        <th><button class="table-sort" data-table-sort="status-asc" type="button">Status</button></th>
+                        <th>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody data-transactions-table></tbody>
+                  </table>
+                </div>
+              </details>
+
+              <div class="transaction-table-footer">
+                <span data-transaction-page-summary-secondary>Mostrando 0 transações</span>
                 <div class="pagination-controls" aria-label="Paginação de transações">
-                  <button class="ghost-action compact" data-transactions-prev-page type="button">Anterior</button>
+                  <button class="ghost-action compact" data-transactions-prev-page type="button"><i data-lucide="chevron-left" aria-hidden="true"></i><span>Anterior</span></button>
                   <span class="pagination-current" data-transactions-page-label>Página 1</span>
-                  <button class="ghost-action compact" data-transactions-next-page type="button">Próxima</button>
+                  <button class="ghost-action compact" data-transactions-next-page type="button"><span>Próxima</span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
                 </div>
               </div>
             </section>
           </section>
-
-          <section id="view-cashflow" class="view cashflow-analytics" data-view-panel="cashflow">
-            <section class="panel cashflow-hero-panel">
+          <section id="view-cashflow" class="view cashflow-analytics cashflow-premium" data-view-panel="cashflow">
+            <section class="panel cashflow-hero-panel cashflow-premium-hero">
               <div class="cashflow-hero">
                 <div class="cashflow-hero-main">
                   <p class="eyebrow">Fluxo de caixa</p>
-                  <h2 data-cash-evolution-label>Evolução prevista</h2>
-                  <span class="cashflow-result-label" data-cash-result-label>Resultado previsto</span>
+                  <h2 data-cash-evolution-label>Saldo previsto</h2>
+                  <span class="cashflow-result-label" data-cash-result-label>Saldo previsto</span>
                   <strong data-cash-result>R$ 0,00</strong>
-                  <span data-cashflow-trend>Selecione um mês para analisar entradas, saídas e saldo.</span>
+                  <div class="cashflow-risk-line">
+                    <span class="cashflow-risk-pill" data-cashflow-risk-label>Atenção</span>
+                    <span data-cashflow-trend>Selecione um mês para analisar entradas, saídas e saldo.</span>
+                  </div>
                 </div>
                 <div class="cashflow-hero-side">
+                  <div class="cashflow-comparison-card">
+                    <span>Comparativo</span>
+                    <strong data-cashflow-comparison-badge>Estável</strong>
+                    <p data-cashflow-comparison>Comparando com o mês anterior.</p>
+                  </div>
                   <label class="cashflow-month-field" for="cashflowMonth">
                     <span>Mês analisado</span>
                     <input class="month-input" id="cashflowMonth" type="month" />
                   </label>
-                  <p data-cashflow-comparison>Comparando com o mês anterior.</p>
                 </div>
               </div>
+
+              <div class="cashflow-quick-filters" data-cashflow-range-group aria-label="Filtros rápidos de fluxo de caixa">
+                <button class="cashflow-range-button" data-cashflow-range="today" type="button">Hoje</button>
+                <button class="cashflow-range-button" data-cashflow-range="7" type="button">7 dias</button>
+                <button class="cashflow-range-button" data-cashflow-range="15" type="button">15 dias</button>
+                <button class="cashflow-range-button" data-cashflow-range="30" type="button">30 dias</button>
+                <button class="cashflow-range-button is-active" data-cashflow-range="month" type="button">Este mês</button>
+                <button class="cashflow-range-button" data-cashflow-range="next-month" type="button">Próximo mês</button>
+                <button class="cashflow-range-button" data-cashflow-range="custom" type="button">Personalizado</button>
+              </div>
+
               <div class="cashflow-summary-grid">
-                <article class="metric-card cashflow-summary-card">
+                <article class="metric-card cashflow-summary-card cashflow-income-card">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="arrow-down-left"></i></span>
                   <span data-cash-income-label>Entradas previstas</span>
                   <strong data-cash-income>R$ 0,00</strong>
                 </article>
-                <article class="metric-card cashflow-summary-card">
+                <article class="metric-card cashflow-summary-card cashflow-expense-card">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="arrow-up-right"></i></span>
                   <span data-cash-expense-label>Saídas previstas</span>
                   <strong data-cash-expense>R$ 0,00</strong>
                 </article>
-                <article class="metric-card cashflow-summary-card">
-                  <span>Faixa de saldo</span>
-                  <strong data-cashflow-balance-trend>R$ 0,00</strong>
+                <article class="metric-card cashflow-summary-card cashflow-min-card">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="arrow-down-to-line"></i></span>
+                  <span>Saldo mínimo</span>
+                  <strong data-cashflow-min-balance>R$ 0,00</strong>
+                </article>
+                <article class="metric-card cashflow-summary-card cashflow-max-card">
+                  <span class="metric-icon" aria-hidden="true"><i data-lucide="arrow-up-to-line"></i></span>
+                  <span>Saldo máximo</span>
+                  <strong data-cashflow-max-balance>R$ 0,00</strong>
                 </article>
               </div>
             </section>
+
+            <div class="cashflow-intelligence-grid">
+              <section class="panel cashflow-semaphore-card" data-cashflow-semaphore>
+                <div>
+                  <p class="eyebrow">Semáforo financeiro</p>
+                  <h2 data-cashflow-semaphore-title>Saldo confortável</h2>
+                  <p data-cashflow-semaphore-message>Seu saldo previsto está sob controle.</p>
+                </div>
+                <span class="cashflow-semaphore-light" aria-hidden="true"></span>
+              </section>
+              <section class="panel cashflow-alert-card">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Alertas</p>
+                    <h2>Atenção do mês</h2>
+                  </div>
+                </div>
+                <div class="cashflow-alert-list" data-cashflow-alerts></div>
+              </section>
+              <section class="panel cashflow-insight-card">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Insights</p>
+                    <h2>Leitura inteligente</h2>
+                  </div>
+                </div>
+                <div class="cashflow-insight-list" data-cashflow-insights></div>
+              </section>
+            </div>
 
             <div class="cashflow-chart-grid">
               <section class="panel cashflow-chart-panel cashflow-main-chart-panel">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Dia a dia</p>
-                    <h2>Entrada vs saída</h2>
+                    <h2>Entradas vs saídas</h2>
                   </div>
                   <div class="chart-legend" aria-label="Legenda do gráfico">
                     <span><i class="legend-dot legend-income" aria-hidden="true"></i>Entradas</span>
@@ -510,14 +814,15 @@
                 </div>
                 <canvas id="dailyFlowChart" class="chart-canvas tall" height="300" role="img" aria-label="Entradas e saídas por dia"></canvas>
                 <p class="sr-only" data-chart-summary="dailyFlowChart">Entradas e saídas por dia.</p>
+                <div class="cashflow-chart-highlights" data-cashflow-daily-highlights></div>
                 <p class="cashflow-note" data-cashflow-mode-note></p>
               </section>
 
               <section class="panel cashflow-chart-panel">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Saldo previsto</p>
-                    <h2>Tendência do mês</h2>
+                    <p class="eyebrow">Tendência</p>
+                    <h2>Saldo acumulado</h2>
                   </div>
                   <div class="chart-legend" aria-label="Legenda do gráfico">
                     <span><i class="legend-dot legend-balance" aria-hidden="true"></i>Saldo</span>
@@ -528,11 +833,23 @@
               </section>
             </div>
 
+            <section class="panel cashflow-chart-panel cashflow-forecast-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Próximos dias</p>
+                  <h2>Previsão diária</h2>
+                </div>
+                <span class="calendar-caption">Hoje até os próximos dias</span>
+              </div>
+              <canvas id="cashflowForecastChart" class="chart-canvas" height="240" role="img" aria-label="Previsão de saldo dos próximos dias"></canvas>
+              <p class="sr-only" data-chart-summary="cashflowForecastChart">Previsão de saldo dos próximos dias.</p>
+            </section>
+
             <section class="panel cashflow-planner-panel">
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Calendário financeiro</p>
-                  <h2>Agenda de saldo diário</h2>
+                  <h2>Agenda inteligente</h2>
                 </div>
                 <span class="calendar-caption">Eventos do mês</span>
               </div>
@@ -541,37 +858,122 @@
                 <aside class="cashflow-agenda" aria-label="Próximos eventos do fluxo de caixa">
                   <div class="agenda-heading">
                     <span>Próximos movimentos</span>
-                    <strong>Prioridade visual</strong>
+                    <strong>Prioridade automática</strong>
                   </div>
                   <div class="cashflow-timeline" data-cashflow-timeline></div>
                 </aside>
               </div>
             </section>
+
+            <section class="panel cashflow-tips-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Dicas</p>
+                  <h2>Dicas para melhorar seu fluxo de caixa</h2>
+                </div>
+              </div>
+              <div class="cashflow-tip-list" data-cashflow-tips></div>
+            </section>
           </section>
 
-          <section id="view-goals" class="view goals-experience" data-view-panel="goals">
-            <div class="metric-grid compact-metrics goals-summary-grid">
-              <article class="metric-card goals-summary-card">
-                <span>Total guardado</span>
-                <strong data-goals-saved>R$ 0,00</strong>
-              </article>
-              <article class="metric-card goals-summary-card">
-                <span>Progresso geral</span>
-                <strong data-goals-overall>0%</strong>
-              </article>
-              <article class="metric-card goals-summary-card">
-                <span>Metas ativas</span>
-                <strong data-goals-active-count>0</strong>
-              </article>
-            </div>
+          <section id="view-goals" class="view goals-experience goals-premium" data-view-panel="goals">
+            <section class="panel goals-hero-panel" data-goals-hero-tone="warning">
+              <div class="goals-hero-copy">
+                <p class="eyebrow">Metas financeiras</p>
+                <h2>Total guardado</h2>
+                <strong data-goals-hero-saved>R$ 0,00</strong>
+                <div class="goals-hero-progress" role="progressbar" aria-label="Progresso geral das metas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-goals-hero-progress>
+                  <span data-goals-hero-fill></span>
+                </div>
+                <div class="goals-hero-meta">
+                  <span><strong data-goals-hero-percent>0%</strong> concluído</span>
+                  <span><strong data-goals-hero-active>0</strong> metas ativas</span>
+                  <span>Faltam <strong data-goals-hero-remaining>R$ 0,00</strong></span>
+                </div>
+              </div>
+              <div class="goals-hero-side">
+                <span class="goals-hero-status" data-goals-hero-status>Aguardando metas</span>
+                <button class="primary-action goals-create-button" data-open-goal-composer type="button">
+                  <i data-lucide="plus" aria-hidden="true"></i>
+                  <span>Nova Meta</span>
+                </button>
+              </div>
+            </section>
 
-            <div class="content-grid form-and-list goals-workspace">
-              <section class="panel goal-form-panel">
+            <section class="panel goals-control-panel">
+              <div class="goals-search-field">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input data-goal-search type="search" placeholder="Pesquisar metas" aria-label="Pesquisar metas por nome" />
+              </div>
+              <div class="goals-filter-tabs" aria-label="Filtrar metas">
+                <button class="goal-filter-tab is-active" data-goal-filter="all" type="button">Todas</button>
+                <button class="goal-filter-tab" data-goal-filter="active" type="button">Ativas</button>
+                <button class="goal-filter-tab" data-goal-filter="complete" type="button">Concluídas</button>
+                <button class="goal-filter-tab" data-goal-filter="late" type="button">Atrasadas</button>
+                <button class="goal-filter-tab" data-goal-filter="on-track" type="button">No prazo</button>
+              </div>
+              <label class="goals-sort-field">
+                <span>Ordenar</span>
+                <select data-goal-sort aria-label="Ordenar metas">
+                  <option value="updated-desc">Última atualização</option>
+                  <option value="name-asc">Nome</option>
+                  <option value="deadline-asc">Prazo</option>
+                  <option value="target-desc">Valor</option>
+                  <option value="progress-desc">Maior progresso</option>
+                  <option value="progress-asc">Menor progresso</option>
+                  <option value="saved-desc">Saldo</option>
+                  <option value="created-desc">Mais recente</option>
+                  <option value="created-asc">Mais antiga</option>
+                </select>
+              </label>
+            </section>
+
+            <div class="goals-intelligence-grid">
+              <section class="panel goals-month-panel">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Objetivos</p>
-                    <h2>Nova meta</h2>
+                    <p class="eyebrow">Este mês</p>
+                    <h2>Resumo mensal</h2>
                   </div>
+                </div>
+                <div class="goals-month-grid">
+                  <span><small>Guardou</small><strong data-goals-month-saved>R$ 0,00</strong></span>
+                  <span><small>Retirou</small><strong data-goals-month-withdrawn>R$ 0,00</strong></span>
+                  <span><small>Saldo líquido</small><strong data-goals-month-net>R$ 0,00</strong></span>
+                  <span><small>Mais evoluiu</small><strong data-goals-month-top>Sem dados</strong></span>
+                  <span><small>Menos evoluiu</small><strong data-goals-month-low>Sem dados</strong></span>
+                </div>
+              </section>
+              <section class="panel goals-achievements-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Conquistas</p>
+                    <h2>Medalhas</h2>
+                  </div>
+                </div>
+                <div class="goals-achievement-list" data-goal-achievements></div>
+              </section>
+              <section class="panel goal-insights-panel">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Insights Inteligentes</p>
+                    <h2>Leitura inteligente</h2>
+                  </div>
+                </div>
+                <div class="insight-list" data-insight-list></div>
+              </section>
+            </div>
+
+            <section class="goal-grid" data-goal-list></section>
+
+            <div class="goal-composer-modal-backdrop" data-goal-composer hidden>
+              <section class="goal-composer-modal" role="dialog" aria-modal="true" aria-labelledby="goalComposerTitle">
+                <div class="goal-modal-header">
+                  <div>
+                    <span>Objetivos</span>
+                    <h3 id="goalComposerTitle" data-goal-composer-title>Nova meta</h3>
+                  </div>
+                  <button class="icon-button" data-close-goal-composer type="button" aria-label="Fechar">x</button>
                 </div>
                 <form id="goalForm" class="stacked-form goal-form">
                   <input id="goalId" type="hidden" />
@@ -615,33 +1017,85 @@
                       </select>
                     </label>
                   </div>
-                  <button class="primary-action" type="submit">Salvar objetivo</button>
+                  <div class="goal-modal-actions">
+                    <button class="ghost-action" data-close-goal-composer type="button">Cancelar</button>
+                    <button class="primary-action" type="submit">Salvar objetivo</button>
+                  </div>
                 </form>
               </section>
-
-              <section class="panel goal-insights-panel">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">Insights Inteligentes</p>
-                    <h2>Leitura inteligente</h2>
-                  </div>
-                </div>
-                <div class="insight-list" data-insight-list></div>
-              </section>
             </div>
-
-            <section class="goal-grid" data-goal-list></section>
           </section>
 
-          <section id="view-profiles" class="view profiles-experience" data-view-panel="profiles">
-            <div class="content-grid form-and-list profiles-workspace">
-              <section class="panel profile-create-panel">
-                <div class="panel-heading">
+          <section id="view-profiles" class="view profiles-experience profiles-premium" data-view-panel="profiles">
+            <section class="panel profiles-hero-panel">
+              <div class="profiles-hero-copy">
+                <p class="eyebrow">Central financeira</p>
+                <h2>Perfis Financeiros</h2>
+                <div class="profiles-hero-meta">
+                  <span><strong data-profiles-count>0</strong> Perfis</span>
+                  <span>Perfil ativo: <strong data-profiles-active-name>Principal</strong></span>
+                </div>
+                <span class="profiles-hero-label">Saldo consolidado</span>
+                <strong class="profiles-hero-balance" data-profiles-total-balance>R$ 0,00</strong>
+              </div>
+              <div class="profiles-hero-actions">
+                <button class="primary-action" data-open-profile-composer type="button">
+                  <i data-lucide="user-plus" aria-hidden="true"></i>
+                  <span>Novo Perfil</span>
+                </button>
+                <button class="ghost-action" data-profile-import type="button">
+                  <i data-lucide="upload" aria-hidden="true"></i>
+                  <span>Importar</span>
+                </button>
+                <button class="ghost-action" data-profile-export-all type="button">
+                  <i data-lucide="download" aria-hidden="true"></i>
+                  <span>Exportar</span>
+                </button>
+              </div>
+            </section>
+
+            <section class="panel profiles-stats-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Últimos 6 meses</p>
+                  <h2>Estatísticas consolidadas</h2>
+                </div>
+                <div class="profiles-stats-summary">
+                  <span><small>Receitas</small><strong data-profiles-stats-income>R$ 0,00</strong></span>
+                  <span><small>Despesas</small><strong data-profiles-stats-expense>R$ 0,00</strong></span>
+                  <span><small>Saldo</small><strong data-profiles-stats-balance>R$ 0,00</strong></span>
+                </div>
+              </div>
+              <canvas id="profileStatsChart" class="chart-canvas" height="220" role="img" aria-label="Receitas, despesas e saldo dos perfis nos últimos 6 meses"></canvas>
+              <p class="sr-only" data-chart-summary="profileStatsChart">Estatísticas dos perfis.</p>
+            </section>
+
+            <section class="panel profiles-control-panel">
+              <div class="profiles-search-field">
+                <i data-lucide="search" aria-hidden="true"></i>
+                <input data-profile-search type="search" placeholder="Buscar perfil" aria-label="Buscar perfil" />
+              </div>
+              <label class="profiles-sort-field">
+                <span>Ordenar</span>
+                <select data-profile-sort aria-label="Ordenar perfis">
+                  <option value="recent">Mais recente</option>
+                  <option value="balance-desc">Maior saldo</option>
+                  <option value="name-asc">Nome</option>
+                  <option value="used-desc">Mais utilizado</option>
+                </select>
+              </label>
+            </section>
+
+            <section class="profile-list" data-profile-list></section>
+
+            <div class="profile-composer-modal-backdrop" data-profile-composer hidden>
+              <section class="profile-composer-modal" role="dialog" aria-modal="true" aria-labelledby="profileComposerTitle">
+                <div class="goal-modal-header">
                   <div>
-                    <p class="eyebrow">Perfis</p>
-                    <h2>Nova conta</h2>
+                    <span>Perfis</span>
+                    <h3 id="profileComposerTitle" data-profile-composer-title>Novo perfil</h3>
                   </div>
-                  <button class="ghost-action compact" data-reset-profile-form type="button">Novo</button>
+                  <button class="icon-button" data-close-profile-composer type="button" aria-label="Fechar">x</button>
                 </div>
                 <form id="profileForm" class="stacked-form profile-form">
                   <input id="profileId" type="hidden" />
@@ -649,22 +1103,16 @@
                     <span>Nome do perfil</span>
                     <input id="profileName" type="text" placeholder="Casa, Empresa, Viagem" required />
                   </label>
-                  <button class="primary-action" data-save-profile type="submit">Criar perfil</button>
-                </form>
-              </section>
-              <section class="panel profile-list-panel">
-                <div class="panel-heading">
-                  <div>
-                    <p class="eyebrow">Contas</p>
-                    <h2>Perfis financeiros</h2>
+                  <div class="goal-modal-actions">
+                    <button class="ghost-action" data-close-profile-composer type="button">Cancelar</button>
+                    <button class="primary-action" data-save-profile type="submit">Criar perfil</button>
                   </div>
-                </div>
-                <div class="profile-list" data-profile-list></div>
+                </form>
               </section>
             </div>
           </section>
 
-          <section id="view-settings" class="view settings-experience" data-view-panel="settings">
+          <section id="view-settings" class="view settings-experience settings-premium" data-view-panel="settings">
             <form id="settingsForm" class="settings-layout">
               <section class="panel settings-card settings-account-card">
                 <div class="panel-heading">
@@ -673,6 +1121,11 @@
                     <h2>Identidade</h2>
                   </div>
                 </div>
+                <label class="settings-avatar-control">
+                  <span class="settings-avatar" data-settings-avatar>NX</span>
+                  <span>Alterar avatar</span>
+                  <input id="settingsAvatar" type="file" accept="image/png,image/jpeg,image/webp" />
+                </label>
                 <div class="stacked-form">
                   <label class="field">
                     <span>Nome do perfil atual</span>
@@ -685,11 +1138,11 @@
                 </div>
               </section>
 
-              <section class="panel settings-card settings-preferences-card">
+              <section class="panel settings-card settings-theme-card">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Preferências</p>
-                    <h2>Aparência e moeda</h2>
+                    <p class="eyebrow">Tema</p>
+                    <h2>Personalização visual</h2>
                   </div>
                 </div>
                 <div class="settings-options">
@@ -718,11 +1171,30 @@
                     </label>
                   </div>
                 </div>
+                <div class="settings-theme-options" role="radiogroup" aria-label="Escolha do tema">
+                  <button class="settings-theme-preview" data-theme-choice="dark" type="button"><span class="theme-preview-window is-dark"><i></i><b></b><em></em></span><strong>Escuro</strong></button>
+                  <button class="settings-theme-preview" data-theme-choice="light" type="button"><span class="theme-preview-window is-light"><i></i><b></b><em></em></span><strong>Claro</strong></button>
+                </div>
+                <label class="settings-color-control"><span><strong>Cor principal</strong><small>Personalize os destaques da interface.</small></span><input id="settingsPrimaryColor" type="color" value="#5b9cff" /></label>
                 <div class="sync-card settings-sync-card">
                   <span>Sincronização</span>
                   <strong data-sync-status>Salvamento local</strong>
                 </div>
                 <button class="primary-action settings-save-action" type="submit">Salvar configurações</button>
+              </section>
+
+              <section class="panel settings-card settings-security-card">
+                <div class="panel-heading"><div><p class="eyebrow">Segurança</p><h2>Proteção da conta</h2></div></div>
+                <label class="settings-switch-row"><span><strong>Confirmação para ações críticas</strong><small>Solicitar confirmação antes de excluir dados.</small></span><input data-setting-toggle="confirmCriticalActions" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Bloqueio automático</strong><small>Protege a sessão após inatividade.</small></span><input data-setting-toggle="autoLock" type="checkbox" /><i aria-hidden="true"></i></label>
+                <div class="settings-security-status"><i data-lucide="shield-check"></i><span><strong>Sessão protegida</strong><small data-settings-session-type>Dados locais</small></span></div>
+              </section>
+
+              <section class="panel settings-card settings-notifications-card">
+                <div class="panel-heading"><div><p class="eyebrow">Notificações</p><h2>Alertas financeiros</h2></div></div>
+                <label class="settings-switch-row"><span><strong>Vencimentos</strong><small>Avisar sobre contas próximas do prazo.</small></span><input data-setting-toggle="dueDateAlerts" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Metas e conquistas</strong><small>Alertas de progresso e conclusão.</small></span><input data-setting-toggle="goalAlerts" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Resumo mensal</strong><small>Balanço financeiro ao fechar o mês.</small></span><input data-setting-toggle="monthlySummary" type="checkbox" checked /><i aria-hidden="true"></i></label>
               </section>
             </form>
 
@@ -730,10 +1202,11 @@
               <section class="panel settings-card settings-import-card">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Importação</p>
-                    <h2>Entrada de dados</h2>
+                    <p class="eyebrow">Backup</p>
+                    <h2>Armazenamento em nuvem</h2>
                   </div>
                 </div>
+                <div class="settings-cloud-storage"><div><span>Uso estimado</span><strong data-cloud-storage-label>0 KB de 5 MB</strong></div><div class="settings-storage-track"><i data-cloud-storage-fill></i></div><small data-cloud-storage-status>Salvamento local</small></div>
                 <label class="ghost-action file-action settings-file-action">
                   Importar CSV, Excel, PDF ou JSON
                   <input id="importDataInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,application/pdf,.json,application/json" />
@@ -745,21 +1218,23 @@
               <section class="panel settings-card settings-export-card">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Exportação</p>
-                    <h2>Backup</h2>
+                    <p class="eyebrow">Exportações</p>
+                    <h2>Portabilidade dos dados</h2>
                   </div>
                 </div>
                 <button class="ghost-action" data-export-data type="button">Exportar dados</button>
                 <pre class="export-box" data-export-box></pre>
               </section>
 
-              <section class="panel settings-card settings-danger-card">
+              <section class="panel settings-card settings-about-card">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Ações perigosas</p>
-                    <h2>Zona de risco</h2>
+                    <p class="eyebrow">Sobre</p>
+                    <h2>Nexio Financeiro</h2>
                   </div>
                 </div>
+                <div class="settings-about-brand"><img src="assets/nexio-symbol.png" alt="" /><div><strong>Gestão financeira inteligente</strong><span>Versão 1.0.0</span></div></div>
+                <div class="settings-about-links"><a href="politica-de-privacidade.html">Política de Privacidade</a><a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a></div>
                 <div class="danger-zone">
                   <div>
                     <strong>Limpar perfil atual</strong>
@@ -778,6 +1253,30 @@
               <a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a>
             </div>
           </footer>
+
+          <div class="fab-speed-dial" data-fab-dial hidden>
+            <div class="fab-menu" id="quickActionMenu" data-fab-menu role="menu" aria-label="A&ccedil;&otilde;es r&aacute;pidas" aria-hidden="true">
+              <button class="fab-option" data-fab-action="income" role="menuitem" type="button">
+                <span class="fab-option-icon" aria-hidden="true"><i data-lucide="plus"></i></span>
+                <span>Receita</span>
+              </button>
+              <button class="fab-option" data-fab-action="expense" role="menuitem" type="button">
+                <span class="fab-option-icon" aria-hidden="true"><i data-lucide="minus"></i></span>
+                <span>Despesa</span>
+              </button>
+              <button class="fab-option" data-fab-action="transfer" role="menuitem" type="button">
+                <span class="fab-option-icon" aria-hidden="true"><i data-lucide="repeat-2"></i></span>
+                <span>Transfer&ecirc;ncia</span>
+              </button>
+              <button class="fab-option" data-fab-action="goal" role="menuitem" type="button">
+                <span class="fab-option-icon" aria-hidden="true"><i data-lucide="target"></i></span>
+                <span>Meta</span>
+              </button>
+            </div>
+            <button class="fab-trigger" data-fab-trigger type="button" aria-label="Abrir a&ccedil;&otilde;es r&aacute;pidas" aria-controls="quickActionMenu" aria-expanded="false">
+              <i data-lucide="plus" aria-hidden="true"></i>
+            </button>
+          </div>
         </main>
       </div>
     </template>
@@ -788,6 +1287,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="mobile-capacitor.js"></script>
-    <script src="app.js?v=20260707-goal-modal-contrast"></script>
+    <script src="app.js?v=20260718-primary-color-fix"></script>
   </body>
 </html>
