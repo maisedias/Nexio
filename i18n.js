@@ -291,6 +291,7 @@
     "Transferência": ["Transfer", "Transferencia", "Virement", "Überweisung"],
     "Meta": ["Goal", "Meta", "Objectif", "Ziel"],
     "Abrir ações rápidas": ["Open quick actions", "Abrir acciones rápidas", "Ouvrir les actions rapides", "Schnellaktionen öffnen"],
+    "Pular por enquanto": ["Skip for now", "Omitir por ahora", "Passer pour l’instant", "Vorerst überspringen"],
     "© 2026 Ise Dias. Nexio Gestão Financeira Inteligente. Plataforma desenvolvida para otimizar o controle, a análise e a organização financeira.": ["© 2026 Ise Dias. Nexio Smart Financial Management. A platform built to optimize financial control, analysis and organization.", "© 2026 Ise Dias. Nexio Gestión Financiera Inteligente. Plataforma creada para optimizar el control, el análisis y la organización financiera.", "© 2026 Ise Dias. Nexio Gestion Financière Intelligente. Plateforme conçue pour optimiser le contrôle, l’analyse et l’organisation financière.", "© 2026 Ise Dias. Nexio Intelligentes Finanzmanagement. Entwickelt zur Optimierung von Finanzkontrolle, Analyse und Organisation."],
   };
 

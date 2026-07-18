@@ -531,6 +531,7 @@
     const showOnboardingScreen = (name) => {
       const shell = app.querySelector(".onboarding-shell");
       shell?.classList.toggle("is-goal-step", name === "goal");
+      shell?.classList.toggle("is-complete-step", name === "complete");
       app.querySelectorAll("[data-onboarding-screen]").forEach((screen) => {
         const active = screen.dataset.onboardingScreen === name;
         screen.hidden = !active;
@@ -651,29 +652,43 @@
       showOnboardingScreen("complete");
     });
 
-    app.querySelector("[data-enter-nexio]")?.addEventListener("click", () => {
+    const finishOnboarding = ({ includeDraftData = false } = {}) => {
+      const shell = app.querySelector(".onboarding-shell");
+      if (shell?.classList.contains("is-entering-dashboard")) return;
       const user = localUser();
       const profile = user.profiles.find((item) => item.id === user.activeProfileId) || user.profiles[0];
-      const initialBalance = Number(localStorage.getItem("nexio-onboarding-balance-v1") || 0);
-      const firstGoal = JSON.parse(localStorage.getItem("nexio-onboarding-first-goal-v1") || "null");
-      if (initialBalance > 0 && !profile.transactions.some((item) => item.onboardingOpeningBalance)) {
-        const incomeCategory = profile.categories.find((category) => normalizeText(category.name).includes("salario")) || profile.categories[0];
-        profile.transactions.push({ id: uid("trx"), type: "income", description: "Saldo inicial", amount: initialBalance, date: toDateInput(new Date()), categoryId: incomeCategory?.id || "", status: "Recebido", onboardingOpeningBalance: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+      if (includeDraftData) {
+        const initialBalance = Number(localStorage.getItem("nexio-onboarding-balance-v1") || 0);
+        let firstGoal = null;
+        try {
+          firstGoal = JSON.parse(localStorage.getItem("nexio-onboarding-first-goal-v1") || "null");
+        } catch (error) {
+          console.debug("A meta temporária do onboarding não pôde ser recuperada.", error);
+        }
+        if (initialBalance > 0 && !profile.transactions.some((item) => item.onboardingOpeningBalance)) {
+          const incomeCategory = profile.categories.find((category) => normalizeText(category.name).includes("salario")) || profile.categories[0];
+          profile.transactions.push({ id: uid("trx"), type: "income", description: "Saldo inicial", amount: initialBalance, date: toDateInput(new Date()), categoryId: incomeCategory?.id || "", status: "Recebido", onboardingOpeningBalance: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        }
+        if (firstGoal?.name && firstGoal?.target && firstGoal?.deadline && !profile.goals.some((goal) => goal.onboardingFirstGoal)) {
+          profile.goals.push({ id: uid("goal"), name: firstGoal.name, target: Number(firstGoal.target), saved: 0, deadline: firstGoal.deadline, theme: "blue", reminders: [], history: [], onboardingFirstGoal: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        }
       }
-      if (firstGoal?.name && firstGoal?.target && firstGoal?.deadline && !profile.goals.some((goal) => goal.onboardingFirstGoal)) {
-        profile.goals.push({ id: uid("goal"), name: firstGoal.name, target: Number(firstGoal.target), saved: 0, deadline: firstGoal.deadline, theme: "blue", reminders: [], history: [], onboardingFirstGoal: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-      }
+      ["nexio-onboarding-goal-v1", "nexio-onboarding-balance-v1", "nexio-onboarding-import-v1", "nexio-onboarding-first-goal-v1"].forEach((key) => localStorage.removeItem(key));
       localStorage.setItem(ONBOARDING_KEY, "true");
       state.onboardingVisible = false;
       state.sessionEmail = user.email;
       localStorage.setItem(SESSION_KEY, user.email);
       saveStore();
-      app.querySelector(".onboarding-shell")?.classList.add("is-entering-dashboard");
+      shell?.classList.add("is-entering-dashboard");
+      shell?.setAttribute("aria-busy", "true");
       window.setTimeout(() => {
         document.body.classList.remove("onboarding-active");
         render();
       }, prefersReducedMotion() ? 0 : 720);
-    });
+    };
+
+    app.querySelector("[data-onboarding-skip]")?.addEventListener("click", () => finishOnboarding());
+    app.querySelector("[data-enter-nexio]")?.addEventListener("click", () => finishOnboarding({ includeDraftData: true }));
     applyLanguage(preferredLanguage());
   }
 
