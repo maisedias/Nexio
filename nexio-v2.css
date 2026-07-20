@@ -381,6 +381,8 @@ body.has-notification-center { overflow: hidden; }
   .dashboard-flow-panel .chart-comparison-indicator { grid-column: 1 / -1; justify-self: start; margin-left: 0; }
   .dashboard-pending-list { grid-template-columns: 1fr; }
   .app-shell :where(.panel, .pending-summary, .transaction-card, .category-card, .cashflow-summary-card, .cashflow-chart-panel, .cashflow-semaphore-card, .cashflow-alert-card, .cashflow-insight-card, .cashflow-tips-panel, .cashflow-movement-card, .goal-card, .profile-item, .settings-card) { padding: var(--nx-space-3) !important; }
+  .app-shell .transaction-card { padding: 12px !important; }
+  .app-shell .transaction-card-title-group h3 { font: 700 14px/17px Inter, sans-serif; }
   .transaction-form-modern, .first-goal-fields-row { grid-template-columns: 1fr; }
   .transaction-form-modern .transaction-type-segment,
   .transaction-form-modern .transaction-form-section:first-of-type > .field:last-child,

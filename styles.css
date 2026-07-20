@@ -10870,8 +10870,9 @@ body.theme-dark .fab-option {
 
 .transaction-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(390px, 1fr));
   gap: var(--space-3);
+  align-items: stretch;
 }
 
 .transaction-card {
@@ -10911,18 +10912,27 @@ body.theme-dark .fab-option {
 }
 
 .transaction-card-title-group h3 {
+  display: -webkit-box;
+  min-height: 2.4em;
   margin: 6px 0 3px;
   overflow-wrap: anywhere;
+  overflow: hidden;
   color: var(--text);
   font-size: 1rem;
   line-height: 1.2;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .transaction-card-title-group p {
+  min-height: 1.2em;
   margin: 0;
+  overflow: hidden;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .transaction-type-badge {
@@ -10965,7 +10975,7 @@ body.theme-dark .fab-option {
 
 .transaction-card-body {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(82px, 0.55fr) minmax(112px, 0.7fr);
+  grid-template-columns: minmax(110px, 1.15fr) minmax(104px, 0.72fr) minmax(120px, 0.82fr);
   gap: var(--space-2);
   align-items: stretch;
 }
@@ -11003,9 +11013,22 @@ body.theme-dark .fab-option {
   font-size: 0.98rem;
 }
 
+.transaction-card-body > span:nth-child(2) strong,
+.transaction-card-amount strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.transaction-card-body > span:nth-child(2) strong {
+  overflow: visible;
+  font-size: 0.8rem;
+  text-overflow: clip;
+}
+
 .status-quick-menu {
   position: relative;
   width: fit-content;
+  border: 0;
+  background: transparent;
 }
 
 .status-quick-menu > summary {
@@ -11038,6 +11061,33 @@ body.theme-dark .fab-option {
 
 .status-pending {
   color: var(--warning);
+}
+
+.status-quick-menu.status-paid,
+.status-quick-menu.status-received,
+.status-quick-menu.status-pending,
+.status-quick-menu.status-overdue {
+  border: 0;
+  background: transparent;
+}
+
+.status-quick-menu.status-paid > summary,
+.status-quick-menu.status-received > summary {
+  border-color: color-mix(in srgb, var(--income) 25%, var(--line));
+  background: color-mix(in srgb, var(--income) 9%, var(--surface-1));
+  color: var(--income);
+}
+
+.status-quick-menu.status-pending > summary {
+  border-color: color-mix(in srgb, var(--warning) 26%, var(--line));
+  background: color-mix(in srgb, var(--warning) 9%, var(--surface-1));
+  color: color-mix(in srgb, var(--warning) 78%, var(--text));
+}
+
+.status-quick-menu.status-overdue > summary {
+  border-color: color-mix(in srgb, var(--expense) 26%, var(--line));
+  background: color-mix(in srgb, var(--expense) 9%, var(--surface-1));
+  color: var(--expense);
 }
 
 .status-overdue {
@@ -11175,16 +11225,29 @@ body.theme-dark .fab-option {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .period-filter > div,
-  .transaction-card-body {
+  .period-filter > div {
     grid-template-columns: 1fr;
   }
 
+  .transaction-card-body {
+    grid-template-columns: minmax(0, 1fr) minmax(102px, .65fr);
+    gap: 6px;
+  }
+
+  .transaction-card-body > span:nth-child(2) {
+    display: none;
+  }
+
   .transaction-list-toolbar,
-  .transaction-table-footer,
-  .transaction-card-footer {
+  .transaction-table-footer {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .transaction-card-footer {
+    gap: 6px;
+    align-items: center;
+    flex-direction: row;
   }
 
   .select-visible-control,
@@ -11194,15 +11257,98 @@ body.theme-dark .fab-option {
   }
 
   .transaction-card-grid {
+    align-content: start;
     grid-template-columns: 1fr;
+    grid-auto-rows: max-content;
   }
 
   .transaction-card {
+    gap: 8px;
     padding: var(--space-3);
+    animation-duration: 180ms;
+    animation-delay: 0ms !important;
+  }
+
+  .transaction-card-title-group {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 7px;
+    row-gap: 3px;
+    width: 100%;
+  }
+
+  .transaction-card-visuals {
+    grid-column: 1;
+    grid-row: 1;
+    flex-wrap: nowrap;
+  }
+
+  .transaction-card-title-group h3 {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 0;
+    margin: 0;
+    font-size: .85rem;
+    line-height: 1.18;
+  }
+
+  .transaction-card-title-group p {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    font-size: .68rem;
+    line-height: 1.25;
+  }
+
+  .transaction-card-body > span {
+    gap: 3px;
+    padding: 7px 8px;
+  }
+
+  .transaction-card-body > span:first-child .category-dot {
+    display: none;
+  }
+
+  .transaction-card-body small {
+    font-size: .58rem;
+  }
+
+  .transaction-card-body strong {
+    font-size: .76rem;
+  }
+
+  .transaction-card-amount strong {
+    font-size: .88rem;
   }
 
   .transaction-card-header {
     align-items: start;
+  }
+
+  .transaction-card-visuals {
+    gap: 5px;
+  }
+
+  .transaction-card-visuals .category-dot {
+    width: 31px;
+    height: 31px;
+    border-radius: 10px;
+  }
+
+  .transaction-type-badge {
+    min-height: 20px;
+    padding-inline: 7px;
+    font-size: .58rem;
+  }
+
+  .transaction-card-check {
+    width: 30px;
+    height: 30px;
+  }
+
+  .transaction-card-check input {
+    width: 15px;
+    height: 15px;
   }
 
   .transaction-card-amount strong {
@@ -11212,16 +11358,36 @@ body.theme-dark .fab-option {
   .status-quick-menu,
   .status-quick-menu > summary,
   .transaction-card-footer .row-actions {
-    width: 100%;
+    width: auto;
   }
 
   .status-quick-menu > summary {
     justify-content: center;
+    min-height: 30px;
+    padding-inline: 9px;
+    font-size: .66rem;
+  }
+
+  .transaction-card-footer .row-actions {
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .transaction-card-footer .row-actions .icon-button {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
   }
 
   .status-options {
     left: 0;
-    right: 0;
+    right: auto;
+  }
+
+  .transaction-list-panel {
+    align-content: start;
+    min-height: 0;
   }
 }
 
