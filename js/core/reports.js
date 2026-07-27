@@ -208,7 +208,8 @@
   }
 
   function buildExportUser(user, options) {
-    const exported = JSON.parse(JSON.stringify(user));
+    const sanitized = core.storage.sanitizeSensitiveData(user);
+    const exported = JSON.parse(JSON.stringify(sanitized));
     options.ensureUserShape(exported);
     exported.profiles.forEach((profile) => {
       options.ensureProfileShape(profile);
@@ -223,13 +224,23 @@
     });
     exported.exportedAt = (options.now || new Date()).toISOString();
     exported.exportVersion = "nexio-goals-history-v1";
-    return exported;
+    return core.storage.sanitizeSensitiveData(exported);
+  }
+
+  function buildExportProfile(profile, options = {}) {
+    const sanitized = core.storage.sanitizeSensitiveData(profile);
+    return core.storage.sanitizeSensitiveData({
+      exportedAt: (options.now || new Date()).toISOString(),
+      exportVersion: "nexio-profile-v1",
+      profile: JSON.parse(JSON.stringify(sanitized)),
+    });
   }
 
   core.reports = Object.freeze({
     canonicalHeader,
     bestExtraGoalContribution,
     bestSavingMonth,
+    buildExportProfile,
     buildExportUser,
     categorySpendingComparison,
     detectDelimiter,

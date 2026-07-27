@@ -16,6 +16,7 @@
   const ONBOARDING_KEY = "nexio-onboarding-complete-v1";
   const LANGUAGE_KEY = "nexio-interface-language-v1";
   const LOCAL_USER_EMAIL = "sem-login@nexio.local";
+  const AUTH_SERVICE_UNAVAILABLE_MESSAGE = "O serviço de autenticação está indisponível no momento. Tente novamente mais tarde.";
   const readStorage = (key, fallback = "") => core.storage.getValue(localStorage, key, fallback);
   const writeStorage = (key, value) => core.storage.setValue(localStorage, key, value);
   const removeStorage = (key) => core.storage.removeValue(localStorage, key);
@@ -26,7 +27,7 @@
 
   const state = {
     store: loadStore(),
-    sessionEmail: core.storage.getSession(localStorage, SESSION_KEY),
+    sessionEmail: core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL }),
     authMode: "login",
     onboardingVisible: core.storage.getValue(localStorage, ONBOARDING_KEY) !== "true",
     view: "overview",
@@ -87,7 +88,7 @@
   }
 
   function saveStore() {
-    core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
+    state.store = core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
     queueCloudSave();
   }
 
@@ -109,7 +110,14 @@
       cloud.lastStatus = "Supabase não carregado";
       return false;
     }
-    cloud.client = window.supabase.createClient(config.url, config.anonKey);
+    try {
+      cloud.client = window.supabase.createClient(config.url, config.anonKey);
+    } catch (error) {
+      cloud.client = null;
+      cloud.enabled = false;
+      cloud.lastStatus = "Supabase indisponível";
+      return false;
+    }
     cloud.enabled = true;
     cloud.lastStatus = "Conectando ao Supabase";
     return true;
@@ -117,6 +125,7 @@
 
   async function bootstrap() {
     if (!setupCloudClient()) {
+      state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
       render();
       return;
     }
@@ -128,17 +137,17 @@
       } else {
         cloud.ready = false;
         cloud.userId = "";
+        state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
         if (isLocalSession()) {
           cloud.lastStatus = "Sem login: salvo neste aparelho";
         } else {
-          state.sessionEmail = "";
-          core.storage.clearSession(localStorage, SESSION_KEY);
           cloud.lastStatus = "Entre para sincronizar";
         }
       }
     } catch (error) {
+      state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
       cloud.lastStatus = "Falha na sincronização";
-      showToast(error.message || "Não foi possível conectar ao Supabase.");
+      showToast(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
     }
     render();
   }
@@ -191,7 +200,7 @@
       .maybeSingle();
     if (error) throw error;
 
-    let nextUser = data?.data?.email ? data.data : null;
+    let nextUser = data?.data?.email ? core.storage.sanitizeSensitiveData(data.data) : null;
     if (nextUser) {
       nextUser.email = email;
       ensureUserShape(nextUser);
@@ -229,6 +238,7 @@
   }
 
   function upsertStoreUser(user) {
+    user = core.storage.sanitizeSensitiveData(user);
     user.email = normalizeEmail(user.email || state.sessionEmail);
     ensureUserShape(user);
     const index = state.store.users.findIndex((item) => normalizeEmail(item.email || "") === user.email);
@@ -239,7 +249,7 @@
     }
     state.sessionEmail = user.email;
     core.storage.setSession(localStorage, SESSION_KEY, user.email);
-    core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
+    state.store = core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
   }
 
   function updateSyncStatus() {
@@ -333,13 +343,20 @@
   }
 
   async function enterLocalMode() {
-    try {
-      if (cloud.enabled && cloud.client) await cloud.client.auth.signOut();
-    } catch (error) {
-      console.debug("Sessão Supabase não precisava ser encerrada.", error);
-    }
+    const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
+      localStorage,
+      SESSION_KEY,
+      cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
+    );
     cloud.ready = false;
     cloud.userId = "";
+    if (!remoteSignOutSucceeded) {
+      state.sessionEmail = "";
+      cloud.lastStatus = "Falha ao encerrar sessão remota";
+      showToast("Não foi possível ativar o modo sem login. Tente novamente.");
+      render();
+      return;
+    }
     cloud.lastStatus = "Sem login: salvo neste aparelho";
     const user = localUser();
     state.sessionEmail = user.email;
@@ -786,41 +803,9 @@
       await handleCloudAuth(email, password, name);
       return;
     }
-
-    if (state.authMode === "register") {
-      if (state.store.users.some((user) => user.email === email)) {
-        showToast("Já existe uma conta com esse e-mail.");
-        return;
-      }
-      const profile = createProfile("Principal");
-      state.store.users.push({
-        id: uid("user"),
-        name: name || "Usuário Nexio",
-        email,
-        password,
-        theme: "dark",
-        currency: "BRL",
-        language: preferredLanguage(),
-        activeProfileId: profile.id,
-        profiles: [profile],
-      });
-      state.sessionEmail = email;
-      core.storage.setSession(localStorage, SESSION_KEY, email);
-      saveStore();
-      showToast("Conta criada.");
-      render();
-      return;
-    }
-
-    const user = state.store.users.find((item) => normalizeEmail(item.email || "") === email && item.password === password);
-    if (!user) {
-      showToast("E-mail ou senha não encontrados.");
-      return;
-    }
-    state.sessionEmail = email;
-    core.storage.setSession(localStorage, SESSION_KEY, email);
-    showToast("Login realizado.");
-    render();
+    core.storage.clearSession(localStorage, SESSION_KEY);
+    state.sessionEmail = "";
+    showToast(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
   }
 
   async function handleCloudAuth(email, password, name) {
@@ -855,7 +840,7 @@
       showToast("Login realizado e dados sincronizados.");
       render();
     } catch (error) {
-      showToast(error.message || "Não foi possível acessar pelo Supabase.");
+      showToast(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
     }
   }
 
@@ -1006,16 +991,19 @@
     });
     syncSidebarToggle();
     app.querySelector("[data-logout]").addEventListener("click", async () => {
-      if (cloud.enabled) {
-        await cloud.client.auth.signOut();
-        cloud.ready = false;
-        cloud.userId = "";
-        cloud.lastStatus = "Sessão encerrada";
-      }
+      const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
+        localStorage,
+        SESSION_KEY,
+        cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
+      );
+      cloud.ready = false;
+      cloud.userId = "";
       state.sessionEmail = "";
-      core.storage.clearSession(localStorage, SESSION_KEY);
       state.view = "overview";
-      showToast("Sessão encerrada.");
+      cloud.lastStatus = remoteSignOutSucceeded ? "Sessão encerrada" : "Sessão local encerrada; falha remota";
+      showToast(remoteSignOutSucceeded
+        ? "Sessão encerrada."
+        : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
       render();
     });
   }
@@ -1883,7 +1871,7 @@
   }
 
   async function importUserData(file) {
-    const imported = JSON.parse(await file.text());
+    const imported = core.storage.sanitizeSensitiveData(JSON.parse(await file.text()));
     if (!imported.email || !Array.isArray(imported.profiles)) {
       throw new Error("Arquivo de dados inválido.");
     }
@@ -4680,11 +4668,7 @@
     const user = currentUser();
     const profile = user.profiles.find((item) => item.id === id);
     if (!profile) return;
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      exportVersion: "nexio-profile-v1",
-      profile: JSON.parse(JSON.stringify(profile)),
-    };
+    const payload = core.reports.buildExportProfile(profile);
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
