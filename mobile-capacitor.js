@@ -47,9 +47,13 @@
 
     try {
       const status = await Network?.getStatus?.();
-      if (status) document.documentElement.classList.toggle("is-offline", !status.connected);
+      if (status) {
+        document.documentElement.classList.toggle("is-offline", !status.connected);
+        window.NexioApp?.handleConnectivity?.(status.connected);
+      }
       Network?.addListener?.("networkStatusChange", (nextStatus) => {
         document.documentElement.classList.toggle("is-offline", !nextStatus.connected);
+        window.NexioApp?.handleConnectivity?.(nextStatus.connected);
       });
     } catch (error) {
       console.debug("Network indisponivel", error);

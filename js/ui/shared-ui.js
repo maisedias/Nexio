@@ -11,7 +11,6 @@
     document.body.classList.add(`layout-${mode}`);
   };
 
-  const STORAGE_KEY = "nexio-finance-state-v1";
   const SESSION_KEY = "nexio-session-email";
   const ONBOARDING_KEY = "nexio-onboarding-complete-v1";
   const LANGUAGE_KEY = "nexio-interface-language-v1";
@@ -26,8 +25,8 @@
   const categoryIconByName = core.categories.iconByName;
 
   const state = {
-    store: loadStore(),
-    sessionEmail: core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL }),
+    store: { users: [] },
+    sessionEmail: "",
     authMode: "login",
     onboardingVisible: core.storage.getValue(localStorage, ONBOARDING_KEY) !== "true",
     view: "overview",
@@ -67,7 +66,6 @@
     enabled: false,
     ready: false,
     userId: "",
-    syncTimer: 0,
     lastStatus: "Local",
   };
 
@@ -83,12 +81,71 @@
   const translatedTextNodes = new WeakMap();
   const translatedAttributes = new WeakMap();
 
-  function loadStore() {
-    return core.storage.loadStore(localStorage, STORAGE_KEY);
+  const syncCoordinator = core.sync.createCoordinator({
+    debounceMs: 700,
+    retryDelays: [1000, 3000, 10000],
+    getPayload: ({ ownerId }) => {
+      const user = currentUser();
+      if (!user || isLocalOnlyUser(user) || cloud.userId !== ownerId) {
+        throw new Error("Invalid sync owner context.");
+      }
+      return sanitizeUserForCloud(user);
+    },
+    save: async ({ ownerId, payload }) => {
+      if (!cloud.enabled || !cloud.ready || !cloud.client || cloud.userId !== ownerId) {
+        throw new Error("Sync adapter is not ready.");
+      }
+      const { error } = await cloud.client
+        .from("nexio_user_data")
+        .upsert({
+          user_id: ownerId,
+          email: payload.email,
+          data: payload,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+      if (error) throw new Error("Cloud save failed.");
+    },
+    persistMeta: (meta) => {
+      core.storage.saveSyncMeta(localStorage, meta.ownerId, meta, { guest: meta.guest });
+    },
+    onStatus: (status) => {
+      cloud.lastStatus = syncStatusLabel(status);
+      updateSyncStatus();
+    },
+  });
+  const tabChannel = core.sync.createTabChannel({
+    globalObject: window,
+    storage: localStorage,
+    onMessage: handleCrossTabMessage,
+  });
+
+  function syncStatusLabel(status) {
+    const labels = {
+      idle: "Pronto para sincronizar",
+      dirty: "Alterações pendentes",
+      scheduled: "Alterações pendentes",
+      syncing: "Sincronizando",
+      synced: status.lastSuccessAt
+        ? `Sincronizado às ${new Date(status.lastSuccessAt).toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" })}`
+        : "Sincronizado",
+      retrying: "Nova tentativa agendada",
+      conflict: "Conflito: revisão necessária",
+      blocked: "Sincronização bloqueada",
+      offline: status.dirty ? "Offline: alterações pendentes" : "Offline",
+      error: "Erro ao sincronizar",
+    };
+    return status.guest ? "Sem login: salvo neste aparelho" : labels[status.status] || "Local";
   }
 
   function saveStore() {
-    state.store = core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
+    const user = currentUser();
+    const owner = syncCoordinator.getStatus();
+    if (!user || !owner.ownerId) return;
+    const guest = owner.guest || isLocalOnlyUser(user);
+    state.store = { users: [core.storage.saveOwnerUser(localStorage, owner.ownerId, user, { guest })] };
+    state.sessionEmail = state.store.users[0].email;
+    syncCoordinator.markDirty({ schedule: false });
+    tabChannel.post("state-changed", { ownerId: owner.ownerId });
     queueCloudSave();
   }
 
@@ -126,6 +183,8 @@
   async function bootstrap() {
     if (!setupCloudClient()) {
       state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
+      if (isLocalSession()) activateGuestOwner();
+      else clearVisibleOwner();
       render();
       return;
     }
@@ -135,17 +194,18 @@
       if (data.session?.user) {
         await loadCloudUserData(data.session.user);
       } else {
-        cloud.ready = false;
-        cloud.userId = "";
         state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
         if (isLocalSession()) {
-          cloud.lastStatus = "Sem login: salvo neste aparelho";
+          activateGuestOwner();
         } else {
+          clearVisibleOwner();
           cloud.lastStatus = "Entre para sincronizar";
         }
       }
     } catch (error) {
+      invalidateVisibleOwner("session-invalidated");
       state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
+      if (isLocalSession()) activateGuestOwner();
       cloud.lastStatus = "Falha na sincronização";
       showToast(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
     }
@@ -153,65 +213,83 @@
   }
 
   function queueCloudSave() {
-    const user = currentUser();
-    if (!cloud.enabled || !cloud.ready || !cloud.userId || !user || isLocalOnlyUser(user)) return;
-    clearTimeout(cloud.syncTimer);
-    cloud.syncTimer = setTimeout(() => {
-      syncCurrentUserToCloud();
-    }, 700);
-  }
-
-  async function syncCurrentUserToCloud() {
-    if (!cloud.enabled || !cloud.client || !cloud.userId) return;
-    const user = currentUser();
-    if (!user || isLocalOnlyUser(user)) return;
-    try {
-      cloud.lastStatus = "Sincronizando";
-      updateSyncStatus();
-      const payload = sanitizeUserForCloud(user);
-      const { error } = await cloud.client
-        .from("nexio_user_data")
-        .upsert({
-          user_id: cloud.userId,
-          email: payload.email,
-          data: payload,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
-      if (error) throw error;
-      cloud.lastStatus = `Sincronizado às ${new Date().toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" })}`;
-      updateSyncStatus();
-    } catch (error) {
-      cloud.lastStatus = "Erro ao sincronizar";
-      updateSyncStatus();
-      showToast(error.message || "Não consegui salvar no Supabase.");
-    }
+    syncCoordinator.scheduleSave();
   }
 
   async function loadCloudUserData(authUser) {
     const email = normalizeEmail(authUser.email || "");
-    if (!email) throw new Error("Conta Supabase sem e-mail.");
-    cloud.userId = authUser.id;
+    const ownerId = String(authUser.id || "").trim();
+    if (!email || !ownerId) throw new Error("Conta Supabase sem identidade válida.");
+    const previousOwnerId = syncCoordinator.getStatus().ownerId;
+    invalidateVisibleOwner();
+    if (previousOwnerId) {
+      tabChannel.post("owner-changed", { ownerId, previousOwnerId });
+    }
 
-    const localUser = state.store.users.find((user) => normalizeEmail(user.email || "") === email);
+    const local = core.storage.migrateLegacyOwner(localStorage, ownerId, {
+      email,
+      localOnlyEmail: LOCAL_USER_EMAIL,
+    });
+    const storedMeta = core.storage.loadSyncMeta(localStorage, ownerId);
     const { data, error } = await cloud.client
       .from("nexio_user_data")
       .select("data")
-      .eq("user_id", authUser.id)
+      .eq("user_id", ownerId)
       .maybeSingle();
     if (error) throw error;
 
-    let nextUser = data?.data?.email ? core.storage.sanitizeSensitiveData(data.data) : null;
-    if (nextUser) {
-      nextUser.email = email;
-      ensureUserShape(nextUser);
-      if (localUser) mergeImportedUser(nextUser, sanitizeUserForCloud(localUser));
-    } else {
-      nextUser = localUser ? sanitizeUserForCloud(localUser) : createUserFromCloudAuth(authUser);
+    const reconciliation = core.sync.reconcileBootstrap({
+      authUser: { id: ownerId, email },
+      localExists: local.exists,
+      localUser: local.user,
+      remoteRowExists: data !== null && data !== undefined,
+      remoteData: data?.data,
+    });
+    const needsReview = local.reviewRequired === true;
+    let nextUser = reconciliation.user;
+    if (reconciliation.localBackupCandidate) {
+      core.storage.backupOwnerUser(localStorage, ownerId, reconciliation.localBackupCandidate);
     }
+    if (!nextUser && !needsReview) nextUser = createUserFromCloudAuth(authUser);
+    if (nextUser) ensureUserShape(nextUser);
 
-    upsertStoreUser(nextUser);
-    cloud.ready = true;
-    await syncCurrentUserToCloud();
+    const pendingLocal = reconciliation.status === "local" || reconciliation.status === "empty";
+    const localGeneration = pendingLocal && !local.migrated
+      ? Math.max(Number(storedMeta.localGeneration) || 0, 1)
+      : Number(storedMeta.localGeneration) || 0;
+    const meta = {
+      ...storedMeta,
+      dirty: storedMeta.conflict || reconciliation.conflict || (pendingLocal && !local.migrated)
+        || (reconciliation.blocked && storedMeta.dirty),
+      conflict: storedMeta.conflict || reconciliation.conflict,
+      blocked: reconciliation.blocked || needsReview,
+      localGeneration,
+      lastSuccessfulGeneration: reconciliation.status === "equivalent"
+        ? localGeneration
+        : Math.min(Number(storedMeta.lastSuccessfulGeneration) || 0, localGeneration),
+    };
+
+    cloud.userId = ownerId;
+    syncCoordinator.activateOwner(ownerId, { canSync: false, meta });
+    if (nextUser) {
+      upsertStoreUser(nextUser, { ownerId });
+    } else {
+      state.store = { users: [] };
+      state.sessionEmail = email;
+      core.storage.setSession(localStorage, SESSION_KEY, email);
+    }
+    cloud.ready = !meta.conflict && !meta.blocked;
+    syncCoordinator.setCanSync(cloud.ready);
+
+    if (meta.conflict) {
+      showToast("Existem dados locais e remotos diferentes. A sincronização foi bloqueada para revisão.");
+    } else if (reconciliation.reason === "invalid-remote") {
+      showToast("Os dados remotos não puderam ser validados. A sincronização foi bloqueada.");
+    } else if (needsReview) {
+      showToast("A migração local encontrou dados ambíguos e precisa de revisão.");
+    } else if (meta.dirty && !local.migrated) {
+      syncCoordinator.scheduleSave();
+    }
   }
 
   function createUserFromCloudAuth(authUser) {
@@ -237,19 +315,15 @@
     });
   }
 
-  function upsertStoreUser(user) {
+  function upsertStoreUser(user, options = {}) {
     user = core.storage.sanitizeSensitiveData(user);
     user.email = normalizeEmail(user.email || state.sessionEmail);
     ensureUserShape(user);
-    const index = state.store.users.findIndex((item) => normalizeEmail(item.email || "") === user.email);
-    if (index >= 0) {
-      state.store.users[index] = user;
-    } else {
-      state.store.users.push(user);
-    }
+    state.store = { users: [user] };
     state.sessionEmail = user.email;
     core.storage.setSession(localStorage, SESSION_KEY, user.email);
-    state.store = core.storage.saveStore(localStorage, STORAGE_KEY, state.store);
+    const owner = syncCoordinator.getStatus();
+    core.storage.saveOwnerUser(localStorage, options.ownerId || owner.ownerId, user, { guest: owner.guest });
   }
 
   function updateSyncStatus() {
@@ -320,8 +394,76 @@
     return core.profiles.create(name, { uid });
   }
 
+  function clearVisibleOwner() {
+    syncCoordinator.invalidateOwner();
+    cloud.ready = false;
+    cloud.userId = "";
+    state.store = { users: [] };
+    state.sessionEmail = "";
+    state.view = "overview";
+    core.storage.clearSession(localStorage, SESSION_KEY);
+  }
+
+  function invalidateVisibleOwner(eventType = "") {
+    const previousOwnerId = syncCoordinator.getStatus().ownerId;
+    clearVisibleOwner();
+    if (eventType && previousOwnerId) {
+      tabChannel.post(eventType, { ownerId: previousOwnerId, previousOwnerId });
+    }
+    return previousOwnerId;
+  }
+
+  function activateGuestOwner() {
+    const active = syncCoordinator.getStatus();
+    if (active.ownerId === "guest" && active.guest) return currentUser();
+    const migrated = core.storage.migrateLegacyOwner(localStorage, "guest", {
+      guest: true,
+      localOnlyEmail: LOCAL_USER_EMAIL,
+    });
+    const meta = core.storage.loadSyncMeta(localStorage, "guest", { guest: true });
+    syncCoordinator.activateOwner("guest", {
+      guest: true,
+      canSync: false,
+      meta: { ...meta, blocked: meta.blocked || migrated.reviewRequired },
+    });
+    cloud.ready = false;
+    cloud.userId = "";
+    state.store = { users: migrated.user ? [migrated.user] : [] };
+    state.sessionEmail = LOCAL_USER_EMAIL;
+    core.storage.setSession(localStorage, SESSION_KEY, LOCAL_USER_EMAIL);
+    if (migrated.reviewRequired) {
+      showToast("A migração local encontrou dados ambíguos e precisa de revisão.");
+    }
+    return currentUser();
+  }
+
+  function handleCrossTabMessage(message) {
+    const active = syncCoordinator.getStatus();
+    if (!active.ownerId) return;
+    if (message.type === "state-changed" && message.ownerId === active.ownerId) {
+      syncCoordinator.markStale();
+      cloud.ready = false;
+      showToast("Os dados mudaram em outra aba. Recarregue antes de continuar.");
+      updateSyncStatus();
+      return;
+    }
+    const invalidatesCurrent = (
+      (message.type === "logout" || message.type === "session-invalidated") && message.ownerId === active.ownerId
+    ) || (
+      message.type === "owner-changed" && message.previousOwnerId === active.ownerId
+    );
+    if (!invalidatesCurrent) return;
+    clearVisibleOwner();
+    if (cloud.enabled && cloud.client) cloud.client.auth.signOut().catch(() => {});
+    cloud.lastStatus = "Sessão invalidada em outra aba";
+    showToast("A sessão foi encerrada ou alterada em outra aba.");
+    render();
+  }
+
   function localUser() {
+    if (syncCoordinator.getStatus().ownerId !== "guest") activateGuestOwner();
     let user = state.store.users.find((item) => normalizeEmail(item.email || "") === LOCAL_USER_EMAIL);
+    if (!user && syncCoordinator.getStatus().blocked) return null;
     if (!user) {
       const profile = createProfile("Finanças");
       user = {
@@ -343,13 +485,15 @@
   }
 
   async function enterLocalMode() {
+    const previousOwnerId = invalidateVisibleOwner();
+    if (previousOwnerId) {
+      tabChannel.post("owner-changed", { ownerId: "guest", previousOwnerId });
+    }
     const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
       localStorage,
       SESSION_KEY,
       cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
     );
-    cloud.ready = false;
-    cloud.userId = "";
     if (!remoteSignOutSucceeded) {
       state.sessionEmail = "";
       cloud.lastStatus = "Falha ao encerrar sessão remota";
@@ -358,7 +502,13 @@
       return;
     }
     cloud.lastStatus = "Sem login: salvo neste aparelho";
+    activateGuestOwner();
     const user = localUser();
+    if (!user) {
+      showToast("Os dados locais precisam de revisão antes de iniciar um novo estado.");
+      render();
+      return;
+    }
     state.sessionEmail = user.email;
     core.storage.setSession(localStorage, SESSION_KEY, user.email);
     saveStore();
@@ -375,6 +525,11 @@
   function renderShared() {
     const user = currentUser();
     if (!user) {
+      const syncStatus = syncCoordinator.getStatus();
+      if (syncStatus.ownerId && !syncStatus.guest && syncStatus.blocked) {
+        renderAuth();
+        return;
+      }
       if (state.onboardingVisible) {
         renderOnboarding();
         return;
@@ -539,6 +694,10 @@
       const shell = app.querySelector(".onboarding-shell");
       if (shell?.classList.contains("is-entering-dashboard")) return;
       const user = localUser();
+      if (!user) {
+        showToast("Os dados locais precisam de revisão antes de concluir o onboarding.");
+        return;
+      }
       const profile = user.profiles.find((item) => item.id === user.activeProfileId) || user.profiles[0];
       if (includeDraftData) {
         const initialBalance = Number(readStorage("nexio-onboarding-balance-v1") || 0);
@@ -829,7 +988,9 @@
           authUser = login.data.user;
         }
         await loadCloudUserData(authUser);
-        showToast("Conta criada e sincronizada.");
+        if (!new Set(["conflict", "blocked"]).has(syncCoordinator.getStatus().status)) {
+          showToast("Conta criada. Dados carregados com segurança.");
+        }
         render();
         return;
       }
@@ -837,7 +998,9 @@
       const { data, error } = await cloud.client.auth.signInWithPassword({ email, password });
       if (error) throw error;
       await loadCloudUserData(data.user);
-      showToast("Login realizado e dados sincronizados.");
+      if (!new Set(["conflict", "blocked"]).has(syncCoordinator.getStatus().status)) {
+        showToast("Login realizado. Dados carregados com segurança.");
+      }
       render();
     } catch (error) {
       showToast(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
@@ -991,20 +1154,19 @@
     });
     syncSidebarToggle();
     app.querySelector("[data-logout]").addEventListener("click", async () => {
+      const previousOwnerId = invalidateVisibleOwner();
+      if (previousOwnerId) tabChannel.post("logout", { ownerId: previousOwnerId });
+      render();
       const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
         localStorage,
         SESSION_KEY,
         cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
       );
-      cloud.ready = false;
-      cloud.userId = "";
-      state.sessionEmail = "";
-      state.view = "overview";
       cloud.lastStatus = remoteSignOutSucceeded ? "Sessão encerrada" : "Sessão local encerrada; falha remota";
       showToast(remoteSignOutSucceeded
         ? "Sessão encerrada."
         : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
-      render();
+      updateSyncStatus();
     });
   }
 
@@ -4768,7 +4930,16 @@
       avatar.classList.toggle("has-image", Boolean(user.avatar));
     }
     const sessionType = app.querySelector("[data-settings-session-type]");
-    if (sessionType) sessionType.textContent = isLocalOnlyUser(user) ? "Dados protegidos neste aparelho" : "Conta sincronizada com autenticação";
+    if (sessionType) {
+      const syncStatus = syncCoordinator.getStatus().status;
+      sessionType.textContent = isLocalOnlyUser(user)
+        ? "Dados protegidos neste aparelho"
+        : syncStatus === "synced"
+          ? "Conta autenticada; estado atual confirmado"
+          : new Set(["conflict", "blocked"]).has(syncStatus)
+            ? "Conta autenticada; sincronização requer revisão"
+            : "Conta autenticada; alterações podem estar pendentes";
+    }
     const bytes = new Blob([JSON.stringify(buildExportUser(user))]).size;
     const limit = 5 * 1024 * 1024;
     const percent = Math.min((bytes / limit) * 100, 100);
@@ -6222,6 +6393,13 @@
     toastTimer = setTimeout(() => toast.classList.remove("is-visible"), 3200);
   }
 
+  function handleConnectivity(online) {
+    syncCoordinator.setOnline(Boolean(online));
+  }
+
+  window.addEventListener("online", () => handleConnectivity(true));
+  window.addEventListener("offline", () => handleConnectivity(false));
+
   window.addEventListener("resize", () => {
     const renderer = ui.rendererForWidth?.(window.innerWidth);
     if (renderer) ui.applyLayoutMode(renderer.name);
@@ -6233,5 +6411,5 @@
     }
   });
 
-  window.NexioApp = Object.freeze({ bootstrap });
+  window.NexioApp = Object.freeze({ bootstrap, handleConnectivity });
 })();

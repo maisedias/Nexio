@@ -37,6 +37,14 @@
     "clientcredentials",
     "internalcredentials",
   ]);
+  const LEGACY_STATE_KEY = "nexio-finance-state-v1";
+  const OWNER_STATE_PREFIX = "nexio-finance-state-v2";
+  const SYNC_META_PREFIX = "nexio-sync-meta-v1";
+  const MIGRATION_MARKER_PREFIX = "nexio-migration-v1-to-v2";
+  const MIGRATION_REVIEW_PREFIX = "nexio-migration-v1-review";
+  const LEGACY_BACKUP_MARKER_PREFIX = "nexio-migration-v1-backup-created";
+  const BACKUP_PREFIX = "nexio-local-backup-v1";
+  const BACKUP_INDEX_PREFIX = "nexio-local-backup-index-v1";
 
   function canonicalFieldName(name) {
     return String(name || "")
@@ -123,6 +131,282 @@
     return sanitized;
   }
 
+  function ownerScope(ownerId, options = {}) {
+    if (options.guest) return "guest";
+    const normalizedOwnerId = String(ownerId || "").trim();
+    if (!normalizedOwnerId) throw new TypeError("ownerId is required for authenticated storage.");
+    if (normalizedOwnerId.length > 256) throw new TypeError("ownerId is too long for local storage.");
+    let encodedOwnerId;
+    try {
+      encodedOwnerId = encodeURIComponent(normalizedOwnerId);
+    } catch (error) {
+      throw new TypeError("ownerId contains invalid characters.");
+    }
+    return `user:${encodedOwnerId}`;
+  }
+
+  function ownerStateKey(ownerId, options = {}) {
+    return `${OWNER_STATE_PREFIX}:${ownerScope(ownerId, options)}`;
+  }
+
+  function syncMetaKey(ownerId, options = {}) {
+    return `${SYNC_META_PREFIX}:${ownerScope(ownerId, options)}`;
+  }
+
+  function parseSanitizedValue(storage, key) {
+    const raw = storage.getItem(key);
+    if (raw === null) return { exists: false, malformed: false, value: null };
+    try {
+      const parsed = JSON.parse(raw);
+      const sanitized = sanitizeValue(parsed);
+      if (sanitized.changed) storage.setItem(key, JSON.stringify(sanitized.value));
+      return { exists: true, malformed: false, value: sanitized.value };
+    } catch (error) {
+      return { exists: true, malformed: true, value: null };
+    }
+  }
+
+  function loadOwnerUser(storage, ownerId, options = {}) {
+    const key = ownerStateKey(ownerId, options);
+    const stored = parseSanitizedValue(storage, key);
+    const user = stored.value && typeof stored.value === "object" && !Array.isArray(stored.value)
+      ? stored.value
+      : null;
+    return { key, exists: stored.exists, malformed: stored.malformed || (stored.exists && !user), user };
+  }
+
+  function saveOwnerUser(storage, ownerId, user, options = {}) {
+    const key = ownerStateKey(ownerId, options);
+    const sanitized = sanitizeSensitiveData(user);
+    storage.setItem(key, JSON.stringify(sanitized));
+    return sanitized;
+  }
+
+  function safeTimestamp(value) {
+    const resolved = typeof value === "function" ? value() : value;
+    const date = resolved instanceof Date ? resolved : new Date(resolved || Date.now());
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  }
+
+  function backupIndex(storage, scope) {
+    const key = `${BACKUP_INDEX_PREFIX}:${scope}`;
+    try {
+      const parsed = JSON.parse(storage.getItem(key) || "[]");
+      return { key, entries: Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [] };
+    } catch (error) {
+      return { key, entries: [] };
+    }
+  }
+
+  function createLocalBackup(storage, scope, value, options = {}) {
+    const sanitized = sanitizeSensitiveData(value);
+    const timestamp = safeTimestamp(options.now);
+    const maxBackups = Math.max(1, Math.min(Number(options.maxBackups) || 3, 10));
+    const index = backupIndex(storage, scope);
+    let key = `${BACKUP_PREFIX}:${scope}:${timestamp}`;
+    let collision = 1;
+    while (storage.getItem(key) !== null) {
+      collision += 1;
+      key = `${BACKUP_PREFIX}:${scope}:${timestamp}:${collision}`;
+    }
+
+    storage.setItem(key, JSON.stringify(sanitized));
+    const entries = [...index.entries.filter((entry) => entry !== key), key];
+    storage.setItem(index.key, JSON.stringify(entries));
+    while (entries.length > maxBackups) {
+      const oldest = entries.shift();
+      if (oldest && oldest !== key) storage.removeItem(oldest);
+    }
+    storage.setItem(index.key, JSON.stringify(entries));
+    return key;
+  }
+
+  function backupOwnerUser(storage, ownerId, user, options = {}) {
+    return createLocalBackup(storage, ownerScope(ownerId, options), user, options);
+  }
+
+  function createLegacyBackupOnce(storage, ownerId, legacyUser, options = {}) {
+    const scope = ownerScope(ownerId, options);
+    const markerKey = `${LEGACY_BACKUP_MARKER_PREFIX}:${scope}`;
+    const existing = storage.getItem(markerKey);
+    if (existing) return { created: false, key: "" };
+    const key = createLocalBackup(storage, `legacy:${scope}`, { users: [legacyUser] }, options);
+    storage.setItem(markerKey, JSON.stringify({
+      version: 1,
+      created: true,
+      at: safeTimestamp(options.now),
+      sourceRetained: true,
+    }));
+    return { created: true, key };
+  }
+
+  function migrationMarkerKey(ownerId, options = {}) {
+    return `${MIGRATION_MARKER_PREFIX}:${ownerScope(ownerId, options)}`;
+  }
+
+  function migrationReviewKey(ownerId, options = {}) {
+    return `${MIGRATION_REVIEW_PREFIX}:${ownerScope(ownerId, options)}`;
+  }
+
+  function writeMigrationMarker(storage, key, status, options = {}) {
+    const marker = {
+      version: 1,
+      status,
+      ownerType: options.guest ? "guest" : "authenticated",
+      reviewRequired: status === "review-required",
+      sourceRetained: true,
+      at: safeTimestamp(options.now),
+    };
+    storage.setItem(key, JSON.stringify(marker));
+    return marker;
+  }
+
+  function writeMigrationReview(storage, key, status, options = {}) {
+    const marker = {
+      version: 1,
+      status,
+      ownerType: options.guest ? "guest" : "authenticated",
+      reviewRequired: status !== "no-match",
+      sourceRetained: true,
+      at: safeTimestamp(options.now),
+    };
+    storage.setItem(key, JSON.stringify(marker));
+    return marker;
+  }
+
+  function migrateLegacyOwner(storage, ownerId, options = {}) {
+    const markerKey = migrationMarkerKey(ownerId, options);
+    const reviewKey = migrationReviewKey(ownerId, options);
+    const priorReview = parseSanitizedValue(storage, reviewKey);
+    const existing = loadOwnerUser(storage, ownerId, options);
+    if (existing.exists) {
+      const reviewRequired = priorReview.value?.reviewRequired === true;
+      return {
+        ...existing,
+        migrated: false,
+        reviewRequired,
+        status: reviewRequired ? "review-required" : "existing",
+      };
+    }
+
+    const priorMarker = parseSanitizedValue(storage, markerKey);
+    if (priorMarker.exists) {
+      return {
+        ...existing,
+        migrated: false,
+        reviewRequired: true,
+        status: "review-required",
+      };
+    }
+    if (priorReview.exists) {
+      return {
+        ...existing,
+        migrated: false,
+        reviewRequired: priorReview.value?.reviewRequired === true,
+        status: String(priorReview.value?.status || "already-reviewed"),
+      };
+    }
+
+    const legacy = parseSanitizedValue(storage, options.legacyKey || LEGACY_STATE_KEY);
+    if (!legacy.exists) return { ...existing, migrated: false, reviewRequired: false, status: "no-legacy" };
+    if (legacy.malformed || !legacy.value || !Array.isArray(legacy.value.users)) {
+      writeMigrationReview(storage, reviewKey, "review-required", options);
+      return { ...existing, migrated: false, reviewRequired: true, status: "review-required" };
+    }
+
+    const localOnlyEmail = String(options.localOnlyEmail || "sem-login@nexio.local").trim().toLowerCase();
+    const email = String(options.email || "").trim().toLowerCase();
+    const candidates = legacy.value.users.filter((user) => {
+      if (!user || typeof user !== "object" || Array.isArray(user)) return false;
+      const userEmail = String(user.email || "").trim().toLowerCase();
+      if (options.guest) return user.localOnly === true || userEmail === localOnlyEmail;
+      return Boolean(email && userEmail === email);
+    });
+
+    if (candidates.length > 1) {
+      writeMigrationReview(storage, reviewKey, "review-required", options);
+      return {
+        ...existing,
+        backupCreated: false,
+        backupKey: "",
+        migrated: false,
+        reviewRequired: true,
+        status: "review-required",
+      };
+    }
+    if (candidates.length === 0) {
+      writeMigrationReview(storage, reviewKey, "no-match", options);
+      return {
+        ...existing,
+        backupCreated: false,
+        backupKey: "",
+        migrated: false,
+        reviewRequired: false,
+        status: "no-match",
+      };
+    }
+
+    let legacyBackup;
+    try {
+      legacyBackup = createLegacyBackupOnce(storage, ownerId, candidates[0], options);
+    } catch (error) {
+      try {
+        writeMigrationReview(storage, reviewKey, "backup-failed", options);
+      } catch (markerError) {}
+      return {
+        ...existing,
+        backupCreated: false,
+        backupKey: "",
+        migrated: false,
+        reviewRequired: true,
+        status: "backup-failed",
+      };
+    }
+    const user = saveOwnerUser(storage, ownerId, candidates[0], options);
+    writeMigrationMarker(storage, markerKey, "migrated", options);
+    return {
+      key: ownerStateKey(ownerId, options),
+      exists: true,
+      malformed: false,
+      user,
+      backupCreated: legacyBackup.created,
+      backupKey: legacyBackup.key,
+      migrated: true,
+      reviewRequired: false,
+      status: "migrated",
+    };
+  }
+
+  function loadSyncMeta(storage, ownerId, options = {}) {
+    const parsed = parseSanitizedValue(storage, syncMetaKey(ownerId, options));
+    if (!parsed.exists || parsed.malformed || !parsed.value || typeof parsed.value !== "object") return {};
+    return {
+      dirty: parsed.value.dirty === true,
+      conflict: parsed.value.conflict === true,
+      blocked: parsed.value.blocked === true,
+      localGeneration: Math.max(0, Number(parsed.value.localGeneration) || 0),
+      lastSuccessfulGeneration: Math.max(0, Number(parsed.value.lastSuccessfulGeneration) || 0),
+      retryCount: Math.max(0, Math.min(Number(parsed.value.retryCount) || 0, 10)),
+      lastError: parsed.value.lastError ? "Falha de sincronizacao pendente." : "",
+      updatedAt: String(parsed.value.updatedAt || ""),
+    };
+  }
+
+  function saveSyncMeta(storage, ownerId, meta, options = {}) {
+    const safeMeta = {
+      dirty: meta?.dirty === true,
+      conflict: meta?.conflict === true,
+      blocked: meta?.blocked === true,
+      localGeneration: Math.max(0, Number(meta?.localGeneration) || 0),
+      lastSuccessfulGeneration: Math.max(0, Number(meta?.lastSuccessfulGeneration) || 0),
+      retryCount: Math.max(0, Math.min(Number(meta?.retryCount) || 0, 10)),
+      lastError: meta?.lastError ? "Falha de sincronizacao pendente." : "",
+      updatedAt: safeTimestamp(options.now),
+    };
+    storage.setItem(syncMetaKey(ownerId, options), JSON.stringify(safeMeta));
+    return safeMeta;
+  }
+
   function getSession(storage, key) {
     return storage.getItem(key) || "";
   }
@@ -189,6 +473,7 @@
   }
 
   core.storage = Object.freeze({
+    backupOwnerUser,
     buildCloudPayload,
     clearSession,
     clearUnverifiedSession,
@@ -196,12 +481,19 @@
     getSession,
     getValue,
     isSensitiveField,
+    loadOwnerUser,
     loadStore,
+    loadSyncMeta,
+    migrateLegacyOwner,
+    ownerStateKey,
     sanitizeSensitiveData,
+    saveOwnerUser,
     saveStore,
+    saveSyncMeta,
     signOutAndClearSession,
     setValue,
     setSession,
+    syncMetaKey,
     removeValue,
   });
 })(globalThis);
