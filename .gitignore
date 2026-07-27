@@ -149,5 +149,38 @@ android/local.properties
 *.jks
 *.keystore
 
-.idea/
+# Build outputs and Android packages
+**/.gradle/
+**/build/
+*.apk
+*.aab
+
+# Private keys, signing material, and credential files
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+service-account*.json
+*-service-account.json
+credentials*.json
+secrets*.json
+
+# IDE and operating-system temporary files
+.vscode/
+.fleet/
+*.iml
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
 .idea/

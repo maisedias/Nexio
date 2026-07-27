@@ -1,0 +1,599 @@
+/*
+ * Nexio Design Tokens 2.0
+ * Canonical source of truth for every visual value in the application.
+ * Component CSS may consume semantic or component tokens only.
+ */
+
+:root {
+  /* Brand and semantic colors */
+  --color-primary: var(--nx-primary);
+  --color-primary-hover: var(--nx-primary-hover);
+  --color-primary-active: #3977e6;
+  --color-primary-subtle: #eaf2ff;
+  --color-primary-text: #205fbf;
+  --color-on-primary: #071120;
+
+  --color-secondary: #7c5ce5;
+  --color-secondary-hover: #6b4bd0;
+  --color-secondary-subtle: #f0ecff;
+  --color-on-secondary: #ffffff;
+
+  --color-success: #168552;
+  --color-success-hover: #116d43;
+  --color-success-subtle: #e7f7ef;
+  --color-success-text: #0f7446;
+  --color-on-success: #ffffff;
+
+  --color-warning: #9a6700;
+  --color-warning-hover: #7d5400;
+  --color-warning-subtle: #fff5d6;
+  --color-warning-text: #805400;
+  --color-on-warning: #211500;
+
+  --color-danger: #c83f4d;
+  --color-danger-hover: #ad303e;
+  --color-danger-subtle: #ffebee;
+  --color-danger-text: #a92e3b;
+  --color-on-danger: #ffffff;
+
+  --color-info: #087ca7;
+  --color-info-hover: #066786;
+  --color-info-subtle: #e4f6fc;
+  --color-info-text: #066d92;
+  --color-on-info: #ffffff;
+
+  --color-income: #168552;
+  --color-expense: #d54b59;
+  --color-transfer: #7c5ce5;
+
+  --color-background: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-soft: #f7f8fa;
+  --color-card: #ffffff;
+  --color-backdrop: rgba(7, 17, 32, 0.54);
+
+  --color-border: rgba(23, 32, 46, 0.12);
+  --color-border-strong: rgba(23, 32, 46, 0.22);
+  --color-divider: rgba(23, 32, 46, 0.08);
+
+  --color-text-primary: #17202e;
+  --color-text-secondary: #4f5d70;
+  --color-text-muted: #697586;
+  --color-text-disabled: #8993a2;
+  --color-text-inverse: #f7f9fc;
+
+  --color-focus: #205fbf;
+  --color-focus-ring: rgba(32, 95, 191, 0.24);
+  --color-selection: rgba(79, 143, 255, 0.22);
+  --color-primary-rgb: 79, 143, 255;
+
+  --brand-signature: linear-gradient(90deg, #4f8fff, #4fd18b, #f2cf5b, #f39a57, #e875a2);
+
+  /* Typography families and weights */
+  --font-family-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-medium-strong: 550;
+  --font-weight-semibold: 600;
+  --font-weight-semibold-strong: 650;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Typography size scale */
+  --font-size-display-xl: 3.5rem;
+  --font-size-display-lg: 3rem;
+  --font-size-heading-xl: 2.25rem;
+  --font-size-heading-lg: 2rem;
+  --font-size-heading-md: 1.625rem;
+  --font-size-heading-sm: 1.25rem;
+  --font-size-statistic-sm: 1.375rem;
+  --font-size-statistic-md: 1.625rem;
+  --font-size-statistic-lg: 2.25rem;
+  --font-size-statistic-xl: 2.625rem;
+  --font-size-body-lg: 1.125rem;
+  --font-size-body-md: 1rem;
+  --font-size-body-sm: 0.875rem;
+  --font-size-caption: 0.8125rem;
+  --font-size-micro: 0.6875rem;
+
+  /* Line heights */
+  --line-height-display: 1.0715;
+  --line-height-tight: 1.1;
+  --line-height-heading: 1.1667;
+  --line-height-title: 1.2308;
+  --line-height-body: 1.5;
+  --line-height-compact: 1.25;
+  --line-height-caption: 1.3847;
+  --line-height-mobile-title: 1.625rem;
+  --line-height-card-title: 1.0625rem;
+
+  /* Letter spacing */
+  --letter-spacing-display: -0.05em;
+  --letter-spacing-heading: -0.035em;
+  --letter-spacing-title: -0.025em;
+  --letter-spacing-statistic: -0.045em;
+  --letter-spacing-body: 0;
+  --letter-spacing-caption: 0.01em;
+  --letter-spacing-label: 0.04em;
+
+  /* Responsive typography roles: desktop defaults */
+  --type-display-size: var(--font-size-display-xl);
+  --type-display-line-height: var(--line-height-display);
+  --type-heading-size: var(--font-size-heading-xl);
+  --type-heading-line-height: var(--line-height-heading);
+  --type-title-size: var(--font-size-heading-md);
+  --type-title-line-height: var(--line-height-title);
+  --type-body-size: var(--font-size-body-md);
+  --type-body-line-height: var(--line-height-body);
+  --type-caption-size: var(--font-size-caption);
+  --type-caption-line-height: var(--line-height-caption);
+
+  /* Spacing scale: 4px base with 8-point rhythm */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Border widths and radii */
+  --border-width-thin: 0.0625rem;
+  --border-width-medium: 0.125rem;
+  --border-width-accent: 0.1875rem;
+  --radius-small: 0.5rem;
+  --radius-medium: 0.875rem;
+  --radius-large: 1.125rem;
+  --radius-extra-large: 1.5rem;
+  --radius-pill: 999rem;
+  --radius-icon-container: 0.625rem;
+  --radius-sidebar-toggle: 0.75rem;
+
+  /* Elevation */
+  --shadow-small: 0 0.375rem 1.125rem rgba(37, 49, 67, 0.08);
+  --shadow-medium: 0 0.9375rem 2.5rem rgba(37, 49, 67, 0.08);
+  --shadow-large: 0 1.125rem 2.75rem rgba(37, 49, 67, 0.12);
+  --shadow-extra-large: 0 1.5rem 4.375rem rgba(37, 49, 67, 0.16);
+  --shadow-primary-hover: 0 0.625rem 1.5rem color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --shadow-card-hover: 0 1.125rem 2.75rem rgba(0, 0, 0, 0.2);
+  --shadow-tooltip: 0 0.9375rem 2.5rem rgba(0, 0, 0, 0.22);
+  --shadow-drawer: -1.5rem 0 4.375rem rgba(0, 0, 0, 0.28);
+  --shadow-inset-active: inset var(--border-width-accent) 0 var(--color-primary);
+  --focus-ring: var(--nx-focus-ring);
+
+  /* Motion */
+  --transition-fast: 150ms;
+  --transition-normal: 250ms;
+  --transition-slow: 400ms;
+  --transition-page: 700ms;
+  --curve-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --curve-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --curve-exit: cubic-bezier(0.4, 0, 1, 1);
+  --curve-spring: cubic-bezier(0.2, 1.4, 0.4, 1);
+  --scale-pressed: 0.97;
+  --scale-confirmation: 1.08;
+  --opacity-disabled: 0.52;
+  --offset-hover: -0.125rem;
+  --offset-shake-small: 0.125rem;
+  --offset-shake-large: 0.1875rem;
+
+  /* Layering */
+  --z-base: 0;
+  --z-content: 1;
+  --z-sidebar: 40;
+  --z-header: 80;
+  --z-dropdown: 120;
+  --z-backdrop: 180;
+  --z-modal: 200;
+  --z-bottom-sheet: 220;
+  --z-fab: 240;
+  --z-toast: 300;
+  --z-signature: 1000;
+
+  /* Shared component geometry */
+  --size-touch-target: 2.75rem;
+  --size-control: 3.25rem;
+  --size-control-compact: 2.75rem;
+  --size-button: 3rem;
+  --size-icon-small: 1rem;
+  --size-icon-medium: 1.25rem;
+  --size-icon-large: 1.5rem;
+  --size-avatar-small: 1.75rem;
+  --size-avatar-medium: 2.25rem;
+  --size-avatar-large: 3rem;
+  --size-avatar-extra-large: 4rem;
+  --size-progress-linear: 0.5rem;
+  --size-progress-circular: 3rem;
+  --size-sidebar: 16.25rem;
+  --size-sidebar-collapsed: 4.75rem;
+  --size-header: 4.3125rem;
+  --size-content-max: 90rem;
+  --size-modal-max: 35rem;
+  --size-drawer: 32.5rem;
+  --size-fab: 3.5rem;
+  --size-brand-symbol: 2.125rem;
+  --size-nav-icon: 2rem;
+  --size-icon-container: 2.25rem;
+  --size-topbar-avatar: 2.375rem;
+  --size-notification-icon: 2.5rem;
+  --size-topbar-control: 2.625rem;
+  --size-form-action: 2.875rem;
+  --size-sidebar-profile: 3.625rem;
+  --size-action-compact: 2.125rem;
+  --size-badge-small: 1.125rem;
+  --size-badge-medium: 1.25rem;
+  --size-status-dot: 0.4375rem;
+  --size-unread-dot: 0.375rem;
+  --size-header-mobile: 4rem;
+  --size-search-max: 27.5rem;
+  --size-notification-center: 27.5rem;
+  --size-dashboard-card: 9.625rem;
+  --size-dashboard-card-mobile: 8.375rem;
+  --size-dashboard-panel: 20rem;
+  --size-dashboard-chart: 15rem;
+  --size-chart-max: 22.5rem;
+  --size-pending-item: 5.5rem;
+  --size-category-card: 9.375rem;
+  --size-layout-min-small: 5.5rem;
+  --size-layout-min-medium: 6rem;
+  --size-layout-min-large: 9.375rem;
+  --size-layout-min-extra-large: 11.25rem;
+  --size-layout-action-max: 13.75rem;
+  --size-layout-filter: 15rem;
+  --size-layout-filter-wide: 17.5rem;
+  --size-tablet-sidebar: 17.5rem;
+  --size-content-footer-max: 56.25rem;
+  --blur-backdrop: 0.1875rem;
+  --blur-tooltip: 1.125rem;
+  --blur-surface: 1.25rem;
+  --blur-drawer: 1.625rem;
+
+  /* Derived state colors keep component CSS free of one-off color recipes */
+  --color-surface-glass: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  --color-background-glass: color-mix(in srgb, var(--color-background) 88%, transparent);
+  --color-primary-hover-soft: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  --color-primary-active-soft: color-mix(in srgb, var(--color-primary) 11%, transparent);
+  --color-primary-icon-soft: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --color-primary-avatar-soft: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface));
+  --color-primary-border-soft: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  --color-primary-border-hover: color-mix(in srgb, var(--color-primary) 15%, var(--color-border));
+  --color-primary-border-focus: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  --color-primary-border-control: color-mix(in srgb, var(--color-primary) 60%, transparent);
+  --color-primary-button-border: color-mix(in srgb, var(--color-primary) 72%, var(--color-text-inverse) 12%);
+  --color-income-soft: color-mix(in srgb, var(--color-income) 10%, transparent);
+  --color-expense-soft: color-mix(in srgb, var(--color-expense) 10%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  --color-transfer-soft: color-mix(in srgb, var(--color-transfer) 10%, transparent);
+  --color-danger-border-soft: color-mix(in srgb, var(--color-danger) 22%, var(--color-border));
+  --color-danger-surface-soft: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface-soft));
+  --color-text-muted-subtle: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+
+  /* Breakpoint documentation tokens (media queries use their resolved values) */
+  --breakpoint-mobile-max: 767px;
+  --breakpoint-tablet-min: 768px;
+  --breakpoint-tablet-max: 1199px;
+  --breakpoint-desktop-min: 1200px;
+
+  /* Component semantic tokens */
+  --button-height: var(--size-button);
+  --button-padding-inline: var(--space-4);
+  --button-gap: var(--space-2);
+  --button-radius: var(--radius-medium);
+  --card-background: var(--color-card);
+  --card-border: var(--color-border);
+  --card-radius: var(--radius-large);
+  --card-padding: var(--space-6);
+  --card-padding-compact: var(--space-4);
+  --card-shadow: var(--shadow-medium);
+  --input-height: var(--size-control);
+  --input-padding-inline: var(--space-4);
+  --input-radius: var(--radius-medium);
+  --input-background: var(--color-surface-soft);
+  --input-background-hover: color-mix(in srgb, var(--color-text-primary) 3%, var(--color-surface-soft));
+  --input-background-focus: var(--color-surface);
+  --input-background-disabled: var(--color-surface-soft);
+  --input-background-autofill: var(--color-surface-soft);
+  --input-border: var(--color-border);
+  --input-border-hover: var(--color-border-strong);
+  --input-border-focus: var(--color-primary);
+  --input-text: var(--color-text-primary);
+  --input-placeholder: var(--color-text-muted);
+  --input-option-background: var(--color-surface-raised);
+  --input-option-text: var(--color-text-primary);
+  --input-icon: var(--color-text-secondary);
+  --input-icon-opacity: 0.72;
+  --input-focus-ring: var(--focus-ring);
+  --input-disabled-opacity: var(--opacity-disabled);
+  --input-autofill-fill-size: 100vmax;
+  --input-switch-track: var(--color-border-strong);
+  --input-switch-thumb: var(--color-surface);
+  --input-color-scheme: light;
+  --list-item-height: 3.5rem;
+  --list-item-padding: var(--space-4);
+  --badge-height: 1.5rem;
+  --badge-padding-inline: var(--space-2);
+
+  /* Nexio 1.x aliases: maintained for existing screens */
+  --nx-bg: var(--color-background);
+  --nx-surface: var(--color-surface);
+  --nx-surface-raised: var(--color-surface-raised);
+  --nx-surface-soft: var(--color-surface-soft);
+  --nx-text: var(--color-text-primary);
+  --nx-text-secondary: var(--color-text-secondary);
+  --nx-text-muted: var(--color-text-muted);
+  --nx-border: var(--color-border);
+  --nx-primary: #4f8fff;
+  --nx-primary-hover: #6aa2ff;
+  --nx-income: var(--color-income);
+  --nx-expense: var(--color-expense);
+  --nx-transfer: var(--color-transfer);
+  --nx-warning: var(--color-warning);
+  --nx-danger: var(--color-danger);
+  --nx-info: var(--color-info);
+  --nx-signature: var(--brand-signature);
+
+  --nx-font-display: var(--font-weight-bold) var(--type-display-size)/var(--type-display-line-height) var(--font-family-sans);
+  --nx-font-heading: var(--font-weight-bold) var(--type-heading-size)/var(--type-heading-line-height) var(--font-family-sans);
+  --nx-font-title: var(--font-weight-semibold) var(--type-title-size)/var(--type-title-line-height) var(--font-family-sans);
+  --nx-font-body: var(--font-weight-regular) var(--type-body-size)/var(--type-body-line-height) var(--font-family-sans);
+  --nx-font-caption: var(--font-weight-medium) var(--type-caption-size)/var(--type-caption-line-height) var(--font-family-sans);
+
+  --nx-space-1: var(--space-2);
+  --nx-space-2: var(--space-3);
+  --nx-space-3: var(--space-4);
+  --nx-space-4: var(--space-6);
+  --nx-space-5: var(--space-8);
+  --nx-space-6: var(--space-12);
+  --nx-space-7: var(--space-16);
+
+  --nx-card-radius: var(--card-radius);
+  --nx-control-radius: var(--input-radius);
+  --nx-card-padding: var(--card-padding);
+  --nx-card-shadow: var(--card-shadow);
+  --nx-focus-ring: 0 0 0 var(--border-width-accent) var(--color-focus-ring);
+  --nx-duration-fast: var(--transition-fast);
+  --nx-duration-control: var(--transition-normal);
+  --nx-duration-enter: var(--transition-slow);
+  --nx-duration-page: var(--transition-page);
+  --nx-ease: var(--curve-standard);
+  --nx-ease-enter: var(--curve-enter);
+  --nx-icon-size: var(--size-icon-medium);
+  --nx-icon-stroke: 1.8;
+  --nx-input-height: var(--input-height);
+  --nx-button-height: var(--button-height);
+  --nx-touch-target: var(--size-touch-target);
+
+  /* Legacy aliases */
+  --bg: var(--color-background);
+  --panel: var(--color-surface);
+  --panel-soft: var(--color-surface-soft);
+  --surface-1: var(--color-surface);
+  --surface-2: var(--color-surface-soft);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-muted);
+  --line: var(--color-border);
+  --primary: var(--color-primary);
+  --primary-rgb: var(--color-primary-rgb);
+  --primary-strong: var(--color-primary-hover);
+  --secondary: var(--color-secondary);
+  --income: var(--color-income);
+  --expense: var(--color-expense);
+  --warning: var(--color-warning);
+  --shadow: var(--card-shadow);
+  --shadow-xs: var(--shadow-small);
+  --radius: var(--radius-medium);
+  --radius-lg: var(--radius-large);
+  --control-radius: var(--radius-medium);
+  --sidebar-width: var(--size-sidebar);
+  --sidebar-collapsed-width: var(--size-sidebar-collapsed);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  color-scheme: light;
+}
+
+body.theme-dark,
+[data-theme="dark"] {
+  --color-primary: var(--nx-primary);
+  --color-primary-hover: var(--nx-primary-hover);
+  --color-primary-active: #3977e6;
+  --color-primary-subtle: #172b4a;
+  --color-primary-text: #8eb8ff;
+  --color-on-primary: #071120;
+
+  --color-secondary: #a78bfa;
+  --color-secondary-hover: #b8a2ff;
+  --color-secondary-subtle: #2a2148;
+  --color-on-secondary: #0b111d;
+
+  --color-success: #4fd18b;
+  --color-success-hover: #68dfa0;
+  --color-success-subtle: #153a2b;
+  --color-success-text: #4fd18b;
+  --color-on-success: #07170f;
+
+  --color-warning: #f2b95f;
+  --color-warning-hover: #f7c978;
+  --color-warning-subtle: #3b2d16;
+  --color-warning-text: #f2b95f;
+  --color-on-warning: #211500;
+
+  --color-danger: #e65765;
+  --color-danger-hover: #ef7580;
+  --color-danger-subtle: #452128;
+  --color-danger-text: #ff8993;
+  --color-on-danger: #071120;
+
+  --color-info: #38bdf8;
+  --color-info-hover: #67ccfa;
+  --color-info-subtle: #12364a;
+  --color-info-text: #38bdf8;
+  --color-on-info: #07151c;
+
+  --color-income: #4fd18b;
+  --color-expense: #f06b78;
+  --color-transfer: #a78bfa;
+  --color-background: #0b111d;
+  --color-surface: #141c2a;
+  --color-surface-raised: #192334;
+  --color-surface-soft: #101824;
+  --color-card: #141c2a;
+  --color-backdrop: rgba(3, 7, 14, 0.68);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-divider: rgba(255, 255, 255, 0.06);
+  --color-text-primary: #f7f9fc;
+  --color-text-secondary: #c2cad6;
+  --color-text-muted: #9aa7b9;
+  --color-text-disabled: #6f7c8e;
+  --color-text-inverse: #17202e;
+  --color-focus: #8eb8ff;
+  --color-focus-ring: rgba(79, 143, 255, 0.28);
+  --color-selection: rgba(79, 143, 255, 0.3);
+  --shadow-small: 0 0.375rem 1.125rem rgba(0, 0, 0, 0.16);
+  --shadow-medium: 0 0.9375rem 2.5rem rgba(0, 0, 0, 0.22);
+  --shadow-large: 0 1.125rem 2.75rem rgba(0, 0, 0, 0.28);
+  --shadow-extra-large: 0 1.5rem 4.375rem rgba(0, 0, 0, 0.34);
+  --color-primary-rgb: 79, 143, 255;
+
+  /* Theme-dependent derived colors and component surfaces */
+  --color-surface-glass: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  --color-background-glass: color-mix(in srgb, var(--color-background) 88%, transparent);
+  --color-primary-hover-soft: color-mix(in srgb, var(--color-primary) 6%, transparent);
+  --color-primary-active-soft: color-mix(in srgb, var(--color-primary) 11%, transparent);
+  --color-primary-icon-soft: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  --color-primary-avatar-soft: color-mix(in srgb, var(--color-primary) 9%, var(--color-surface));
+  --color-primary-border-soft: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+  --color-primary-border-hover: color-mix(in srgb, var(--color-primary) 15%, var(--color-border));
+  --color-primary-border-focus: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  --color-primary-border-control: color-mix(in srgb, var(--color-primary) 60%, transparent);
+  --color-primary-button-border: color-mix(in srgb, var(--color-primary) 72%, var(--color-text-inverse) 12%);
+  --color-income-soft: color-mix(in srgb, var(--color-income) 10%, transparent);
+  --color-expense-soft: color-mix(in srgb, var(--color-expense) 10%, transparent);
+  --color-warning-soft: color-mix(in srgb, var(--color-warning) 10%, transparent);
+  --color-transfer-soft: color-mix(in srgb, var(--color-transfer) 10%, transparent);
+  --color-danger-border-soft: color-mix(in srgb, var(--color-danger) 22%, var(--color-border));
+  --color-danger-surface-soft: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface-soft));
+  --color-text-muted-subtle: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+  --shadow-primary-hover: 0 0.625rem 1.5rem color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --shadow-inset-active: inset var(--border-width-accent) 0 var(--color-primary);
+  --focus-ring: var(--nx-focus-ring);
+  --card-background: var(--color-card);
+  --card-border: var(--color-border);
+  --card-shadow: var(--shadow-medium);
+  --input-background: var(--color-surface-raised);
+  --input-background-hover: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-surface-raised));
+  --input-background-focus: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface-raised));
+  --input-background-disabled: var(--color-surface-soft);
+  --input-background-autofill: var(--color-surface-raised);
+  --input-border: var(--color-border);
+  --input-border-hover: var(--color-border-strong);
+  --input-border-focus: var(--color-primary);
+  --input-text: var(--color-text-primary);
+  --input-placeholder: var(--color-text-muted);
+  --input-option-background: var(--color-surface-raised);
+  --input-option-text: var(--color-text-primary);
+  --input-icon: var(--color-text-secondary);
+  --input-focus-ring: var(--focus-ring);
+  --input-disabled-opacity: var(--opacity-disabled);
+  --input-switch-track: color-mix(in srgb, var(--color-text-muted) 28%, var(--color-surface));
+  --input-switch-thumb: var(--color-text-primary);
+  --input-color-scheme: dark;
+
+  /* Legacy control aliases resolve on the dark themed element. */
+  --control-bg: var(--input-background);
+  --control-bg-hover: var(--input-background-hover);
+  --control-bg-focus: var(--input-background-focus);
+  --control-border: var(--input-border);
+
+  /* Nexio 1.x aliases must resolve on the themed element, not on :root. */
+  --nx-bg: var(--color-background);
+  --nx-surface: var(--color-surface);
+  --nx-surface-raised: var(--color-surface-raised);
+  --nx-surface-soft: var(--color-surface-soft);
+  --nx-text: var(--color-text-primary);
+  --nx-text-secondary: var(--color-text-secondary);
+  --nx-text-muted: var(--color-text-muted);
+  --nx-border: var(--color-border);
+  --nx-income: var(--color-income);
+  --nx-expense: var(--color-expense);
+  --nx-transfer: var(--color-transfer);
+  --nx-warning: var(--color-warning);
+  --nx-danger: var(--color-danger);
+  --nx-card-shadow: var(--shadow-medium);
+
+  /* Legacy aliases used by screens that have not migrated selectors yet */
+  --bg: var(--color-background);
+  --surface-0: var(--color-background);
+  --surface-1: var(--color-surface);
+  --surface-2: var(--color-surface-soft);
+  --surface-3: var(--color-surface-raised);
+  --surface-4: var(--color-surface-raised);
+  --panel: var(--color-surface);
+  --panel-soft: var(--color-surface-soft);
+  --panel-elevated: var(--color-surface-raised);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-muted);
+  --line: var(--color-border);
+  --primary: var(--color-primary);
+  --primary-strong: var(--color-primary-hover);
+  --primary-soft: var(--color-primary-subtle);
+  --secondary: var(--color-secondary);
+  --income: var(--color-income);
+  --expense: var(--color-expense);
+  --warning: var(--color-warning);
+  --investment: var(--color-info);
+  --shadow-xs: var(--shadow-small);
+  --shadow-sm: var(--shadow-small);
+  --shadow: var(--shadow-medium);
+  --shadow-strong: var(--shadow-extra-large);
+  --card-shadow: var(--shadow-medium);
+  --card-shadow-hover: var(--shadow-large);
+  color-scheme: dark;
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  :root,
+  body.theme-light,
+  body.theme-dark,
+  [data-theme="light"],
+  [data-theme="dark"] {
+    --type-display-size: var(--font-size-display-lg);
+    --type-heading-size: var(--font-size-heading-lg);
+    --type-title-size: var(--font-size-heading-md);
+  }
+}
+
+@media (max-width: 767px) {
+  :root,
+  body.theme-light,
+  body.theme-dark,
+  [data-theme="light"],
+  [data-theme="dark"] {
+    --type-display-size: var(--font-size-heading-xl);
+    --type-heading-size: var(--font-size-heading-md);
+    --type-title-size: var(--font-size-heading-sm);
+    --card-padding: var(--space-4);
+    --list-item-padding: var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  body.theme-light,
+  body.theme-dark,
+  [data-theme="light"],
+  [data-theme="dark"] {
+    --transition-fast: 1ms;
+    --transition-normal: 1ms;
+    --transition-slow: 1ms;
+    --transition-page: 1ms;
+  }
+}

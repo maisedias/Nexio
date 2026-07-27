@@ -1,0 +1,4 @@
+/* Desktop extension point: 1200px and wider. */
+@media (min-width: 1200px) {
+  body.layout-desktop { --nexio-active-layout: desktop; }
+}
