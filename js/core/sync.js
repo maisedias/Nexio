@@ -4,15 +4,116 @@
   const core = global.NexioCore = global.NexioCore || {};
   const CROSS_TAB_EVENTS = new Set(["logout", "owner-changed", "session-invalidated", "state-changed"]);
   const VOLATILE_ROOT_FIELDS = new Set(["_sync", "lastSyncedAt", "syncStatus"]);
+  const CAS_OUTCOMES = new Set(["success", "conflict", "invalid-payload", "unauthenticated", "blocked"]);
+  const SERVER_UPDATE_REQUIRED_MESSAGE = "A sincronização precisa ser atualizada no servidor. Seus dados continuam salvos neste dispositivo.";
 
   function finiteInteger(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
   }
 
+  function createSyncError(category, reason = "") {
+    const normalizedCategory = new Set([
+      "network-error",
+      "server-error",
+      "unauthenticated",
+      "invalid-payload",
+      "blocked",
+    ]).has(category) ? category : "server-error";
+    const error = new Error("Sync operation failed.");
+    error.syncCategory = normalizedCategory;
+    error.syncReason = String(reason || "");
+    error.retryable = normalizedCategory === "network-error"
+      || (normalizedCategory === "server-error" && reason === "transient");
+    return error;
+  }
+
+  function classifySupabaseError(error) {
+    const code = String(error?.code || "").toUpperCase();
+    const status = Number(error?.status || error?.statusCode || 0);
+    const detail = [error?.message, error?.details, error?.hint]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+    const migrationMissing = new Set(["PGRST202", "PGRST204", "42703", "42883"]).has(code)
+      || detail.includes("could not find the function")
+      || detail.includes("schema cache")
+      || (detail.includes("permission denied") && detail.includes("nexio_save_user_data_cas"))
+      || (detail.includes("column") && detail.includes("revision") && detail.includes("does not exist"));
+    if (migrationMissing) return createSyncError("blocked", "migration-required");
+    if (status === 401 || status === 403 || code === "42501" || code === "PGRST301") {
+      return createSyncError("unauthenticated", "session-required");
+    }
+    if (
+      error?.offline === true
+      || error?.name === "TypeError"
+      || detail.includes("failed to fetch")
+      || detail.includes("network")
+    ) return createSyncError("network-error", "transient");
+    if (status === 429 || status >= 500 || /^(08|53|57P0)/.test(code)) {
+      return createSyncError("server-error", "transient");
+    }
+    return createSyncError("server-error", "permanent");
+  }
+
   function safeErrorMessage(error) {
-    if (error?.offline === true) return "Sem conexao. Alteracoes pendentes.";
-    return "Falha temporaria de sincronizacao.";
+    if (error?.syncReason === "migration-required") return SERVER_UPDATE_REQUIRED_MESSAGE;
+    if (error?.syncCategory === "unauthenticated") return "A sessão expirou. Entre novamente para sincronizar.";
+    if (error?.syncCategory === "invalid-payload") return "A sincronização foi bloqueada porque os dados locais não são válidos.";
+    if (error?.syncCategory === "blocked") return "A sincronização foi bloqueada para proteger seus dados.";
+    if (error?.offline === true || error?.syncCategory === "network-error") return "Sem conexão. Alterações pendentes.";
+    return "Falha temporária de sincronização.";
+  }
+
+  function normalizedRevision(value) {
+    return core.storage?.normalizeSyncRevision?.(value) ?? null;
+  }
+
+  function isValidServerTimestamp(value) {
+    return typeof value === "string" && value.length > 0 && Number.isFinite(Date.parse(value));
+  }
+
+  function normalizeCasResponse(value) {
+    const rows = Array.isArray(value) ? value : [value];
+    if (rows.length !== 1 || !rows[0] || typeof rows[0] !== "object" || Array.isArray(rows[0])) {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    const row = rows[0];
+    const outcome = typeof row.outcome === "string" ? row.outcome : "";
+    if (!CAS_OUTCOMES.has(outcome)) throw createSyncError("blocked", "malformed-response");
+    const revision = row.revision === null || row.revision === undefined
+      ? null
+      : normalizedRevision(row.revision);
+    const timestampValue = row.updated_at ?? row.updatedAt;
+    const updatedAt = timestampValue === null || timestampValue === undefined ? "" : timestampValue;
+    if ((row.revision !== null && row.revision !== undefined && revision === null)
+        || (updatedAt !== "" && !isValidServerTimestamp(updatedAt))) {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    if (outcome === "success" && (revision === null || revision === "0" || !isValidServerTimestamp(updatedAt))) {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    if (outcome === "conflict" && revision === null) {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    if (outcome === "conflict" && updatedAt !== "") {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    if ((outcome === "invalid-payload" || outcome === "unauthenticated")
+        && (revision !== null || updatedAt !== "")) {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    if (outcome === "blocked" && updatedAt !== "") {
+      throw createSyncError("blocked", "malformed-response");
+    }
+    return Object.freeze({ outcome, revision, updatedAt });
+  }
+
+  function isNextRevision(expectedRevision, nextRevision) {
+    try {
+      return BigInt(nextRevision) === BigInt(expectedRevision) + 1n;
+    } catch (error) {
+      return false;
+    }
   }
 
   function createCoordinator(options = {}) {
@@ -47,6 +148,8 @@
         offline: false,
         guest: false,
         canSync: false,
+        remoteRevision: null,
+        revisionKnown: false,
         localGeneration: 0,
         lastSuccessfulGeneration: 0,
         lastAttemptAt: "",
@@ -71,6 +174,7 @@
       if (state.dirty) return "dirty";
       if (
         state.ownerId &&
+        state.revisionKnown &&
         state.localGeneration > 0 &&
         state.lastSuccessfulGeneration === state.localGeneration
       ) return "synced";
@@ -104,6 +208,10 @@
       cancelScheduledSave();
       const nextOwnerId = String(ownerId || "").trim();
       const meta = activation.meta || {};
+      const guest = Boolean(activation.guest);
+      const remoteRevision = guest ? null : normalizedRevision(meta.remoteRevision);
+      const revisionKnown = !guest && meta.revisionKnown === true && remoteRevision !== null;
+      const missingRevisionBlocks = Boolean(nextOwnerId && !guest && activation.canSync && !revisionKnown);
       const localGeneration = finiteInteger(meta.localGeneration, 0);
       const confirmedGeneration = Math.min(
         finiteInteger(meta.lastSuccessfulGeneration, 0),
@@ -112,16 +220,20 @@
       state = {
         ...emptyState(state.ownerEpoch + 1),
         ownerId: nextOwnerId,
-        guest: Boolean(activation.guest),
-        canSync: Boolean(nextOwnerId && activation.canSync && !activation.guest),
+        guest,
+        canSync: Boolean(nextOwnerId && activation.canSync && !guest),
         dirty: Boolean(meta.dirty),
         conflict: Boolean(meta.conflict),
-        blocked: Boolean(meta.blocked),
+        blocked: Boolean(meta.blocked || missingRevisionBlocks),
+        remoteRevision: revisionKnown ? remoteRevision : null,
+        revisionKnown,
         localGeneration,
         lastSuccessfulGeneration: confirmedGeneration,
         lastAttemptAt: String(meta.lastAttemptAt || ""),
         lastSuccessAt: String(meta.lastSuccessAt || ""),
-        lastError: meta.lastError ? "Falha de sincronizacao pendente." : "",
+        lastError: missingRevisionBlocks
+          ? SERVER_UPDATE_REQUIRED_MESSAGE
+          : (meta.lastError ? "Falha de sincronizacao pendente." : ""),
         retryCount: Math.min(finiteInteger(meta.retryCount, 0), maxRetries),
       };
       activeRun = null;
@@ -140,6 +252,7 @@
         state.ownerId &&
         state.canSync &&
         !state.guest &&
+        state.revisionKnown &&
         !state.conflict &&
         !state.blocked &&
         !state.offline &&
@@ -151,7 +264,7 @@
       if (!state.ownerId || destroyed) return snapshot();
       state.localGeneration += 1;
       state.dirty = true;
-      state.lastError = "";
+      if (!state.blocked) state.lastError = "";
       state.retryCount = 0;
       persistAndNotify();
       if (markOptions.schedule !== false) scheduleSave();
@@ -159,6 +272,15 @@
     }
 
     function scheduleSave(delay = debounceMs, scheduleOptions = {}) {
+      if (
+        state.dirty && state.ownerId && state.canSync && !state.guest
+        && !state.revisionKnown
+      ) {
+        state.blocked = true;
+        state.lastError = SERVER_UPDATE_REQUIRED_MESSAGE;
+        persistAndNotify();
+        return snapshot();
+      }
       if (!state.dirty || !canWrite()) return snapshot();
       if (activeRun && currentContext(activeRun.ownerId, activeRun.ownerEpoch)) return snapshot();
       if (timerId !== null) clearTimer(timerId);
@@ -199,6 +321,7 @@
 
       while (currentContext(run.ownerId, run.ownerEpoch) && state.dirty && canWrite()) {
         const generation = state.localGeneration;
+        const expectedRevision = state.remoteRevision;
         let payload;
         try {
           payload = await options.getPayload({
@@ -218,13 +341,16 @@
         state.lastAttemptAt = now();
         persistAndNotify();
 
+        let result;
         try {
-          await requestSave({
+          const response = await requestSave({
             ownerId: run.ownerId,
             ownerEpoch: run.ownerEpoch,
             generation,
+            expectedRevision,
             payload,
           });
+          result = normalizeCasResponse(response);
         } catch (error) {
           if (!currentContext(run.ownerId, run.ownerEpoch)) return false;
           state.syncing = false;
@@ -239,9 +365,39 @@
           persistAndNotify();
           return false;
         }
+        if (result.outcome === "conflict") {
+          state.syncing = false;
+          state.dirty = true;
+          state.conflict = true;
+          state.remoteRevision = result.revision;
+          state.revisionKnown = true;
+          state.lastError = "Conflito de sincronização. Revise os dados antes de continuar.";
+          state.retryCount = 0;
+          persistAndNotify();
+          return false;
+        }
+        if (result.outcome !== "success") {
+          state.syncing = false;
+          state.dirty = true;
+          state.blocked = true;
+          if (result.outcome === "unauthenticated") state.canSync = false;
+          state.lastError = safeErrorMessage(createSyncError(
+            result.outcome === "invalid-payload" ? "invalid-payload" : result.outcome,
+          ));
+          state.retryCount = 0;
+          persistAndNotify();
+          return false;
+        }
+        if (!isNextRevision(expectedRevision, result.revision)) {
+          state.syncing = false;
+          handleFailure(createSyncError("blocked", "malformed-response"));
+          return false;
+        }
         state.syncing = false;
+        state.remoteRevision = result.revision;
+        state.revisionKnown = true;
         state.lastSuccessfulGeneration = Math.max(state.lastSuccessfulGeneration, generation);
-        state.lastSuccessAt = now();
+        state.lastSuccessAt = result.updatedAt;
         state.lastError = "";
         state.retryCount = 0;
         state.dirty = state.localGeneration !== generation;
@@ -251,13 +407,29 @@
     }
 
     function handleFailure(error) {
+      const failure = error?.syncCategory ? error : createSyncError("network-error", "transient");
       state.dirty = true;
-      state.lastError = (options.safeErrorMessage || safeErrorMessage)(error);
-      state.retryCount = Math.min(state.retryCount + 1, maxRetries);
+      state.lastError = (options.safeErrorMessage || safeErrorMessage)(failure);
+      if (failure.retryable === true) {
+        state.retryCount = Math.min(state.retryCount + 1, maxRetries);
+      } else {
+        state.retryCount = 0;
+        state.blocked = true;
+        if (failure.syncCategory === "unauthenticated") state.canSync = false;
+      }
       persistAndNotify();
     }
 
     function flush() {
+      if (
+        state.dirty && state.ownerId && state.canSync && !state.guest
+        && !state.revisionKnown
+      ) {
+        state.blocked = true;
+        state.lastError = SERVER_UPDATE_REQUIRED_MESSAGE;
+        persistAndNotify();
+        return Promise.resolve(false);
+      }
       if (!state.dirty || !canWrite()) return Promise.resolve(false);
       if (activeRun && currentContext(activeRun.ownerId, activeRun.ownerEpoch)) return activeRun.promise;
       cancelScheduledSave();
@@ -515,11 +687,14 @@
   }
 
   core.sync = Object.freeze({
+    classifySupabaseError,
     createCoordinator,
+    createSyncError,
     createTabChannel,
     deterministicState,
     isRecognizableFinancialState,
     normalizeOwnerUser,
+    normalizeCasResponse,
     reconcileBootstrap,
     statesEquivalent,
   });

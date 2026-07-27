@@ -45,6 +45,7 @@
   const LEGACY_BACKUP_MARKER_PREFIX = "nexio-migration-v1-backup-created";
   const BACKUP_PREFIX = "nexio-local-backup-v1";
   const BACKUP_INDEX_PREFIX = "nexio-local-backup-index-v1";
+  const MAX_SYNC_REVISION = "9223372036854775807";
 
   function canonicalFieldName(name) {
     return String(name || "")
@@ -103,6 +104,17 @@
 
   function sanitizeSensitiveData(value) {
     return sanitizeValue(value).value;
+  }
+
+  function normalizeSyncRevision(value) {
+    if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) return null;
+    if (value.length > MAX_SYNC_REVISION.length) return null;
+    if (value.length === MAX_SYNC_REVISION.length && value > MAX_SYNC_REVISION) return null;
+    return value;
+  }
+
+  function isValidSyncRevision(value) {
+    return normalizeSyncRevision(value) !== null;
   }
 
   function loadStore(storage, key) {
@@ -379,7 +391,12 @@
 
   function loadSyncMeta(storage, ownerId, options = {}) {
     const parsed = parseSanitizedValue(storage, syncMetaKey(ownerId, options));
-    if (!parsed.exists || parsed.malformed || !parsed.value || typeof parsed.value !== "object") return {};
+    if (!parsed.exists || parsed.malformed || !parsed.value || typeof parsed.value !== "object") {
+      return { remoteRevision: null, revisionKnown: false };
+    }
+    const guest = options.guest === true;
+    const remoteRevision = guest ? null : normalizeSyncRevision(parsed.value.remoteRevision);
+    const revisionKnown = !guest && parsed.value.revisionKnown === true && remoteRevision !== null;
     return {
       dirty: parsed.value.dirty === true,
       conflict: parsed.value.conflict === true,
@@ -389,10 +406,15 @@
       retryCount: Math.max(0, Math.min(Number(parsed.value.retryCount) || 0, 10)),
       lastError: parsed.value.lastError ? "Falha de sincronizacao pendente." : "",
       updatedAt: String(parsed.value.updatedAt || ""),
+      remoteRevision: revisionKnown ? remoteRevision : null,
+      revisionKnown,
     };
   }
 
   function saveSyncMeta(storage, ownerId, meta, options = {}) {
+    const guest = options.guest === true;
+    const remoteRevision = guest ? null : normalizeSyncRevision(meta?.remoteRevision);
+    const revisionKnown = !guest && meta?.revisionKnown === true && remoteRevision !== null;
     const safeMeta = {
       dirty: meta?.dirty === true,
       conflict: meta?.conflict === true,
@@ -402,6 +424,8 @@
       retryCount: Math.max(0, Math.min(Number(meta?.retryCount) || 0, 10)),
       lastError: meta?.lastError ? "Falha de sincronizacao pendente." : "",
       updatedAt: safeTimestamp(options.now),
+      remoteRevision: revisionKnown ? remoteRevision : null,
+      revisionKnown,
     };
     storage.setItem(syncMetaKey(ownerId, options), JSON.stringify(safeMeta));
     return safeMeta;
@@ -480,11 +504,13 @@
     getAuthenticatedSession,
     getSession,
     getValue,
+    isValidSyncRevision,
     isSensitiveField,
     loadOwnerUser,
     loadStore,
     loadSyncMeta,
     migrateLegacyOwner,
+    normalizeSyncRevision,
     ownerStateKey,
     sanitizeSensitiveData,
     saveOwnerUser,

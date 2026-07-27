@@ -122,13 +122,26 @@ function coordinatorFixture(options = {}) {
   let payload = options.payload || { version: 0 };
   let concurrent = 0;
   let maximumConcurrent = 0;
-  const save = options.save || (async (context) => {
-    concurrent += 1;
-    maximumConcurrent = Math.max(maximumConcurrent, concurrent);
-    saves.push({ ...context, payload: clone(context.payload) });
-    concurrent -= 1;
-  });
-  const coordinator = sync.createCoordinator({
+  function successfulResponse(context) {
+    return {
+      outcome: "success",
+      revision: (BigInt(context.expectedRevision) + 1n).toString(),
+      updated_at: timers.now(),
+    };
+  }
+  const save = options.save
+    ? async (context) => {
+      const result = await options.save(context);
+      return result === undefined ? successfulResponse(context) : result;
+    }
+    : async (context) => {
+      concurrent += 1;
+      maximumConcurrent = Math.max(maximumConcurrent, concurrent);
+      saves.push({ ...context, payload: clone(context.payload) });
+      concurrent -= 1;
+      return successfulResponse(context);
+    };
+  const baseCoordinator = sync.createCoordinator({
     debounceMs: options.debounceMs ?? 10,
     retryDelays: options.retryDelays || [5, 10, 20],
     maxRetries: options.maxRetries,
@@ -139,6 +152,21 @@ function coordinatorFixture(options = {}) {
     save,
     persistMeta: options.persistMeta,
     onStatus: options.onStatus,
+  });
+  const coordinator = Object.freeze({
+    ...baseCoordinator,
+    activateOwner(ownerId, activation = {}) {
+      if (activation.guest) return baseCoordinator.activateOwner(ownerId, activation);
+      const meta = activation.meta || {};
+      const hasRevisionState = Object.hasOwn(meta, "remoteRevision")
+        || Object.hasOwn(meta, "revisionKnown");
+      return baseCoordinator.activateOwner(ownerId, {
+        ...activation,
+        meta: hasRevisionState
+          ? meta
+          : { ...meta, remoteRevision: "0", revisionKnown: true },
+      });
+    },
   });
   return {
     coordinator,
@@ -265,6 +293,7 @@ test("7. logout durante requisicao ignora conclusao antiga", async () => {
   assert.deepEqual(fixture.coordinator.getStatus(), {
     ownerId: "", ownerEpoch: 2, dirty: false, syncing: false, scheduled: false,
     conflict: false, blocked: false, offline: false, guest: false, canSync: false,
+    remoteRevision: null, revisionKnown: false,
     localGeneration: 0, lastSuccessfulGeneration: 0, lastAttemptAt: "",
     lastSuccessAt: "", lastError: "", retryCount: 0, status: "idle",
   });
@@ -280,11 +309,24 @@ test("8. troca A para B nunca envia payload A como B", async () => {
     clearTimer: timers.clearTimer.bind(timers),
     now: timers.now.bind(timers),
     getPayload: () => clone(currentPayload),
-    save: async (context) => calls.push(clone(context)),
+    save: async (context) => {
+      calls.push(clone(context));
+      return {
+        outcome: "success",
+        revision: (BigInt(context.expectedRevision) + 1n).toString(),
+        updated_at: timers.now(),
+      };
+    },
   });
-  coordinator.activateOwner("owner-a", { canSync: true });
+  coordinator.activateOwner("owner-a", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
   coordinator.markDirty();
-  coordinator.activateOwner("owner-b", { canSync: true });
+  coordinator.activateOwner("owner-b", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
   currentPayload = { owner: "B" };
   coordinator.markDirty();
   await timers.advance(10);
@@ -924,6 +966,637 @@ test("47. modulos carregam na ordem do navegador sem bundler", () => {
   assert.equal(typeof context.NexioApp.bootstrap, "function");
   assert.equal(typeof context.NexioApp.handleConnectivity, "function");
   assert.equal(typeof listeners.get("document:DOMContentLoaded"), "function");
+});
+
+test("48. revision aceita somente decimal canonico dentro de bigint", () => {
+  ["0", "1", "25", "9223372036854775807"].forEach((revision) => {
+    assert.equal(storage.normalizeSyncRevision(revision), revision);
+    assert.equal(storage.isValidSyncRevision(revision), true);
+  });
+});
+
+test("49. revision rejeita formatos ambiguos e fora de bigint", () => {
+  [
+    null,
+    undefined,
+    "",
+    "-1",
+    "1.0",
+    "1e2",
+    " 1",
+    "1 ",
+    "01",
+    "9223372036854775808",
+    1,
+    {},
+  ].forEach((revision) => {
+    assert.equal(storage.normalizeSyncRevision(revision), null);
+    assert.equal(storage.isValidSyncRevision(revision), false);
+  });
+});
+
+test("50. metadado persiste revision por owner sem payload sensivel", () => {
+  const local = memoryStorage();
+  storage.saveSyncMeta(local, "auth-1", {
+    dirty: true,
+    remoteRevision: "25",
+    revisionKnown: true,
+    payload: financialUser({ password: "must-not-persist" }),
+    token: "must-not-persist",
+  });
+  const raw = local.getItem(storage.syncMetaKey("auth-1"));
+  const parsed = JSON.parse(raw);
+  assert.equal(parsed.remoteRevision, "25");
+  assert.equal(parsed.revisionKnown, true);
+  assert.doesNotMatch(raw, /must-not-persist|payload|token|profiles/i);
+  assert.deepEqual(
+    storage.loadSyncMeta(local, "auth-1"),
+    { ...parsed, lastError: "", updatedAt: parsed.updatedAt },
+  );
+});
+
+test("51. revision local invalida nunca vira zero conhecido", () => {
+  const local = memoryStorage({
+    [storage.syncMetaKey("auth-1")]: JSON.stringify({
+      dirty: true,
+      remoteRevision: "01",
+      revisionKnown: true,
+    }),
+  });
+  const meta = storage.loadSyncMeta(local, "auth-1");
+  assert.equal(meta.remoteRevision, null);
+  assert.equal(meta.revisionKnown, false);
+});
+
+test("52. guest nao persiste revision remota", () => {
+  const local = memoryStorage();
+  storage.saveSyncMeta(local, "guest", {
+    dirty: true,
+    remoteRevision: "8",
+    revisionKnown: true,
+  }, { guest: true });
+  const meta = storage.loadSyncMeta(local, "guest", { guest: true });
+  assert.equal(meta.remoteRevision, null);
+  assert.equal(meta.revisionKnown, false);
+});
+
+test("53. primeira criacao envia zero e confirma revision um", async () => {
+  const calls = [];
+  const fixture = coordinatorFixture({ save: async (context) => {
+    calls.push(clone(context));
+    return { outcome: "success", revision: "1", updated_at: fixture.timers.now() };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(calls[0].expectedRevision, "0");
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "1");
+  assert.equal(fixture.coordinator.getStatus().status, "synced");
+});
+
+test("54. atualizacao envia N e confirma N mais um", async () => {
+  const calls = [];
+  const fixture = coordinatorFixture({ save: async (context) => {
+    calls.push(clone(context));
+    return { outcome: "success", revision: "26", updated_at: fixture.timers.now() };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "25", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(calls[0].expectedRevision, "25");
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "26");
+});
+
+test("55. success persiste remoteRevision confirmada", async () => {
+  const local = memoryStorage();
+  const fixture = coordinatorFixture({
+    persistMeta: (meta) => storage.saveSyncMeta(local, meta.ownerId, meta),
+  });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  const stored = storage.loadSyncMeta(local, "auth-1");
+  assert.equal(stored.remoteRevision, "1");
+  assert.equal(stored.revisionKnown, true);
+});
+
+test("56. geracao nova usa revision confirmada sem limpar dirty cedo", async () => {
+  const first = deferred();
+  const second = deferred();
+  const calls = [];
+  const fixture = coordinatorFixture({ save: (context) => {
+    calls.push(clone(context));
+    return calls.length === 1 ? first.promise : second.promise;
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  fixture.coordinator.markDirty();
+  first.resolve({ outcome: "success", revision: "1", updated_at: fixture.timers.now() });
+  await settle();
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "1");
+  assert.equal(calls[1].expectedRevision, "1");
+  second.resolve({ outcome: "success", revision: "2", updated_at: fixture.timers.now() });
+  await settle();
+  assert.equal(fixture.coordinator.getStatus().status, "synced");
+});
+
+test("57. resposta de epoch antigo nao altera revision do owner novo", async () => {
+  const pending = deferred();
+  const fixture = coordinatorFixture({ save: () => pending.promise });
+  fixture.coordinator.activateOwner("owner-a", {
+    canSync: true,
+    meta: { remoteRevision: "3", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  fixture.coordinator.activateOwner("owner-b", {
+    canSync: true,
+    meta: { remoteRevision: "9", revisionKnown: true },
+  });
+  pending.resolve({ outcome: "success", revision: "4", updated_at: fixture.timers.now() });
+  await settle();
+  const status = fixture.coordinator.getStatus();
+  assert.equal(status.ownerId, "owner-b");
+  assert.equal(status.remoteRevision, "9");
+  assert.equal(status.dirty, false);
+});
+
+test("58. conflict mantem dirty, ativa conflict e nao faz retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    return { outcome: "conflict", revision: "6", updated_at: null };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "5", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  const status = fixture.coordinator.getStatus();
+  assert.equal(attempts, 1);
+  assert.equal(status.dirty, true);
+  assert.equal(status.conflict, true);
+  assert.equal(status.status, "conflict");
+  assert.equal(status.remoteRevision, "6");
+  assert.equal(status.lastSuccessfulGeneration, 0);
+});
+
+test("59. network-error preserva revision e retry usa o mesmo expectedRevision", async () => {
+  const expected = [];
+  let attempt = 0;
+  const fixture = coordinatorFixture({ retryDelays: [1, 1, 1], save: async (context) => {
+    attempt += 1;
+    expected.push(context.expectedRevision);
+    if (attempt === 1) throw sync.createSyncError("network-error", "transient");
+    return { outcome: "success", revision: "8", updated_at: fixture.timers.now() };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "7", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "7");
+  await fixture.timers.runAll();
+  assert.deepEqual(expected, ["7", "7"]);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "8");
+});
+
+test("60. save posterior ao success usa a revision nova", async () => {
+  const expected = [];
+  const fixture = coordinatorFixture({ save: async (context) => {
+    expected.push(context.expectedRevision);
+    return {
+      outcome: "success",
+      revision: (BigInt(context.expectedRevision) + 1n).toString(),
+      updated_at: fixture.timers.now(),
+    };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "10", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.deepEqual(expected, ["10", "11"]);
+});
+
+test("61. invalid-payload bloqueia sem retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    return { outcome: "invalid-payload", revision: null, updated_at: null };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "1", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  assert.equal(attempts, 1);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+});
+
+test("62. unauthenticated invalida sync e nao entra em retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    throw sync.createSyncError("unauthenticated", "session-required");
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "1", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  const status = fixture.coordinator.getStatus();
+  assert.equal(attempts, 1);
+  assert.equal(status.blocked, true);
+  assert.equal(status.canSync, false);
+  assert.equal(status.dirty, true);
+});
+
+test("63. outcome blocked nao entra em retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    return { outcome: "blocked", revision: "9223372036854775807", updated_at: null };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "9223372036854775807", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  assert.equal(attempts, 1);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+});
+
+test("64. resultado malformado bloqueia e nao assume success", async () => {
+  const fixture = coordinatorFixture({ save: async () => ({ outcome: "success", revision: "1" }) });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  const status = fixture.coordinator.getStatus();
+  assert.equal(status.blocked, true);
+  assert.equal(status.dirty, true);
+  assert.equal(status.remoteRevision, "0");
+});
+
+test("65. revision retornada invalida bloqueia sem alterar revision", async () => {
+  const fixture = coordinatorFixture({
+    save: async () => ({
+      outcome: "success",
+      revision: "01",
+      updated_at: "2026-07-27T12:00:00.000Z",
+    }),
+  });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "0");
+});
+
+test("66. revision ausente bloqueia antes de chamar adapter", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => { attempts += 1; } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { dirty: true, remoteRevision: null, revisionKnown: false },
+  });
+  await fixture.coordinator.flush();
+  assert.equal(attempts, 0);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+});
+
+test("67. linha remota inexistente confirmada permite expectedRevision zero", async () => {
+  const fixture = coordinatorFixture();
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { dirty: true, localGeneration: 1, remoteRevision: "0", revisionKnown: true },
+  });
+  await fixture.coordinator.flush();
+  assert.equal(fixture.saves[0].expectedRevision, "0");
+});
+
+test("68. troca de owner isola revisions", () => {
+  const fixture = coordinatorFixture();
+  fixture.coordinator.activateOwner("owner-a", {
+    canSync: true,
+    meta: { remoteRevision: "4", revisionKnown: true },
+  });
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "4");
+  fixture.coordinator.activateOwner("owner-b", {
+    canSync: true,
+    meta: { remoteRevision: "12", revisionKnown: true },
+  });
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "12");
+  fixture.coordinator.activateOwner("owner-a", {
+    canSync: true,
+    meta: { remoteRevision: "4", revisionKnown: true },
+  });
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "4");
+});
+
+test("69. mudanca de email preserva revision pelo userId", () => {
+  const local = memoryStorage();
+  storage.saveSyncMeta(local, "auth-1", { remoteRevision: "14", revisionKnown: true });
+  storage.saveOwnerUser(local, "auth-1", financialUser({ email: "old@example.com" }));
+  storage.saveOwnerUser(local, "auth-1", financialUser({ email: "new@example.com" }));
+  assert.equal(storage.loadSyncMeta(local, "auth-1").remoteRevision, "14");
+});
+
+test("70. logout invalida resposta CAS pendente", async () => {
+  const pending = deferred();
+  const fixture = coordinatorFixture({ save: () => pending.promise });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "2", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  fixture.coordinator.invalidateOwner();
+  pending.resolve({ outcome: "success", revision: "3", updated_at: fixture.timers.now() });
+  await settle();
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, null);
+  assert.equal(fixture.coordinator.getStatus().ownerId, "");
+});
+
+test("71. adapter usa RPC CAS sem campos controlados pelo servidor", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "js", "ui", "shared-ui.js"), "utf8");
+  const rpcStart = source.indexOf('.rpc("nexio_save_user_data_cas"');
+  assert.ok(rpcStart >= 0);
+  const rpcCall = source.slice(rpcStart, rpcStart + 260);
+  assert.match(rpcCall, /p_expected_revision:\s*expectedRevision/);
+  assert.match(rpcCall, /p_data:\s*payload/);
+  assert.doesNotMatch(rpcCall, /user_id|email|updated_at/);
+  assert.doesNotMatch(source, /\.upsert\(/);
+  assert.match(source, /delete clone\.email/);
+});
+
+test("72. bootstrap remoto seleciona revision", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "js", "ui", "shared-ui.js"), "utf8");
+  assert.match(source, /\.select\("data, revision"\)/);
+});
+
+test("73. migration ausente e classificada como bloqueio seguro", () => {
+  [
+    { code: "PGRST202", message: "function missing" },
+    { code: "42703", message: "column revision does not exist" },
+  ].forEach((sourceError) => {
+    const error = sync.classifySupabaseError(sourceError);
+    assert.equal(error.syncCategory, "blocked");
+    assert.equal(error.syncReason, "migration-required");
+    assert.equal(error.retryable, false);
+  });
+});
+
+test("74. conflito de bootstrap preserva revision remota conhecida", () => {
+  const reconciliation = sync.reconcileBootstrap({
+    authUser: { id: "auth-1", email: "owner@example.com" },
+    localExists: true,
+    localUser: financialUser({ currency: "BRL" }),
+    remoteRowExists: true,
+    remoteData: financialUser({ currency: "USD" }),
+  });
+  const fixture = coordinatorFixture();
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: false,
+    meta: {
+      dirty: reconciliation.dirty,
+      conflict: reconciliation.conflict,
+      remoteRevision: "22",
+      revisionKnown: true,
+    },
+  });
+  const status = fixture.coordinator.getStatus();
+  assert.equal(status.conflict, true);
+  assert.equal(status.remoteRevision, "22");
+  assert.equal(status.dirty, true);
+});
+
+test("75. resposta RPC valida exatamente uma linha", () => {
+  assert.deepEqual(
+    sync.normalizeCasResponse([{
+      outcome: "success",
+      revision: "1",
+      updated_at: "2026-07-27T12:00:00.000Z",
+    }]),
+    {
+      outcome: "success",
+      revision: "1",
+      updatedAt: "2026-07-27T12:00:00.000Z",
+    },
+  );
+  assert.throws(() => sync.normalizeCasResponse([]), /Sync operation failed/);
+  assert.throws(() => sync.normalizeCasResponse([{}, {}]), /Sync operation failed/);
+});
+
+test("76. success com salto inesperado de revision bloqueia", async () => {
+  const fixture = coordinatorFixture({
+    save: async () => ({
+      outcome: "success",
+      revision: "7",
+      updated_at: "2026-07-27T12:00:00.000Z",
+    }),
+  });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "5", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "5");
+});
+
+test("77. server-error transitorio tem retry limitado", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ maxRetries: 2, retryDelays: [1, 1], save: async () => {
+    attempts += 1;
+    throw sync.createSyncError("server-error", "transient");
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "3", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  assert.equal(attempts, 2);
+  assert.equal(fixture.coordinator.getStatus().remoteRevision, "3");
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+});
+
+test("78. server-error permanente bloqueia sem retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    throw sync.createSyncError("server-error", "permanent");
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "3", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  assert.equal(attempts, 1);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+});
+
+test("79. success exige updated_at valido do servidor", async () => {
+  const fixture = coordinatorFixture({
+    save: async () => ({ outcome: "success", revision: "1", updated_at: "not-a-date" }),
+  });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "0", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().lastSuccessAt, "");
+});
+
+test("80. SQL versionado remove escrita direta e nao recebe user_id", () => {
+  const migration = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260727000000_add_nexio_sync_revision_cas.sql"),
+    "utf8",
+  );
+  const signature = migration.slice(
+    migration.indexOf("create or replace function public.nexio_save_user_data_cas"),
+    migration.indexOf("returns table", migration.indexOf("create or replace function public.nexio_save_user_data_cas")),
+  );
+  assert.doesNotMatch(signature, /user_id/i);
+  assert.match(migration, /v_user_id\s*:=\s*auth\.uid\(\)/i);
+  assert.match(migration, /revoke insert, update, delete[\s\S]*from authenticated/i);
+  assert.match(
+    migration,
+    /on function public\.nexio_save_user_data_cas\(text, jsonb\)[\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(
+    migration,
+    /revoke all[\s\S]*on public\.nexio_user_data[\s\S]*from public, anon, authenticated/i,
+  );
+  assert.match(migration, /pg_advisory_xact_lock/i);
+  assert.match(migration, /on conflict \(user_id\) do nothing/i);
+});
+
+test("81. schema e migration mantem o mesmo contrato RPC", () => {
+  const schema = fs.readFileSync(path.join(__dirname, "..", "supabase-schema.sql"), "utf8");
+  const migration = fs.readFileSync(
+    path.join(__dirname, "..", "supabase", "migrations", "20260727000000_add_nexio_sync_revision_cas.sql"),
+    "utf8",
+  );
+  [
+    "revision bigint",
+    "nexio_user_data_revision_nonnegative",
+    "nexio_user_data_set_updated_at",
+    "nexio_save_user_data_cas",
+    "security definer",
+    "set search_path = ''",
+  ].forEach((contractPart) => {
+    assert.ok(schema.toLowerCase().includes(contractPart));
+    assert.ok(migration.toLowerCase().includes(contractPart));
+  });
+});
+
+test("82. bootstrap sem migration bloqueia e mantem dados locais", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "js", "ui", "shared-ui.js"), "utf8");
+  assert.match(source, /syncError\.syncReason !== "migration-required"/);
+  assert.match(source, /remoteRevision:\s*null,[\s\S]{0,80}revisionKnown:\s*false/);
+  assert.match(
+    source,
+    /A sincronização precisa ser atualizada no servidor\. Seus dados continuam salvos neste dispositivo\./,
+  );
+  assert.doesNotMatch(source, /\.upsert\(/);
+});
+
+test("83. migration-required bloqueia sem retry", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    throw sync.classifySupabaseError({
+      code: "PGRST202",
+      message: "Could not find the function in the schema cache",
+    });
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "1", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  await fixture.timers.runAll();
+  assert.equal(attempts, 1);
+  assert.equal(fixture.coordinator.getStatus().blocked, true);
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+});
+
+test("84. conflict bloqueia saves automaticos posteriores", async () => {
+  let attempts = 0;
+  const fixture = coordinatorFixture({ save: async () => {
+    attempts += 1;
+    return { outcome: "conflict", revision: "2", updated_at: null };
+  } });
+  fixture.coordinator.activateOwner("auth-1", {
+    canSync: true,
+    meta: { remoteRevision: "1", revisionKnown: true },
+  });
+  fixture.coordinator.markDirty();
+  await fixture.timers.advance(10);
+  fixture.coordinator.markDirty();
+  fixture.coordinator.scheduleSave();
+  await fixture.timers.runAll();
+  assert.equal(attempts, 1);
+  assert.equal(fixture.coordinator.getStatus().conflict, true);
+  assert.equal(fixture.coordinator.getStatus().dirty, true);
+});
+
+test("85. outcome desconhecido ou revision ausente sao malformados", () => {
+  assert.throws(
+    () => sync.normalizeCasResponse({ outcome: "unknown", revision: "1", updated_at: null }),
+    /Sync operation failed/,
+  );
+  assert.throws(
+    () => sync.normalizeCasResponse({
+      outcome: "success",
+      revision: null,
+      updated_at: "2026-07-27T12:00:00.000Z",
+    }),
+    /Sync operation failed/,
+  );
 });
 
 (async () => {

@@ -16,6 +16,7 @@
   const LANGUAGE_KEY = "nexio-interface-language-v1";
   const LOCAL_USER_EMAIL = "sem-login@nexio.local";
   const AUTH_SERVICE_UNAVAILABLE_MESSAGE = "O serviço de autenticação está indisponível no momento. Tente novamente mais tarde.";
+  const SYNC_SERVER_UPDATE_MESSAGE = "A sincronização precisa ser atualizada no servidor. Seus dados continuam salvos neste dispositivo.";
   const readStorage = (key, fallback = "") => core.storage.getValue(localStorage, key, fallback);
   const writeStorage = (key, value) => core.storage.setValue(localStorage, key, value);
   const removeStorage = (key) => core.storage.removeValue(localStorage, key);
@@ -67,6 +68,7 @@
     ready: false,
     userId: "",
     lastStatus: "Local",
+    lastNotification: "",
   };
 
   const app = document.getElementById("app");
@@ -91,25 +93,28 @@
       }
       return sanitizeUserForCloud(user);
     },
-    save: async ({ ownerId, payload }) => {
+    save: async ({ ownerId, expectedRevision, payload }) => {
       if (!cloud.enabled || !cloud.ready || !cloud.client || cloud.userId !== ownerId) {
-        throw new Error("Sync adapter is not ready.");
+        throw core.sync.createSyncError("blocked", "adapter-not-ready");
       }
-      const { error } = await cloud.client
-        .from("nexio_user_data")
-        .upsert({
-          user_id: ownerId,
-          email: payload.email,
-          data: payload,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
-      if (error) throw new Error("Cloud save failed.");
+      const { data, error } = await cloud.client.rpc("nexio_save_user_data_cas", {
+        p_expected_revision: expectedRevision,
+        p_data: payload,
+      });
+      if (error) throw core.sync.classifySupabaseError(error);
+      return core.sync.normalizeCasResponse(data);
     },
     persistMeta: (meta) => {
       core.storage.saveSyncMeta(localStorage, meta.ownerId, meta, { guest: meta.guest });
     },
     onStatus: (status) => {
       cloud.lastStatus = syncStatusLabel(status);
+      if (status.lastError === SYNC_SERVER_UPDATE_MESSAGE) {
+        if (cloud.lastNotification !== SYNC_SERVER_UPDATE_MESSAGE) showToast(SYNC_SERVER_UPDATE_MESSAGE);
+        cloud.lastNotification = SYNC_SERVER_UPDATE_MESSAGE;
+      } else if (status.status === "synced") {
+        cloud.lastNotification = "";
+      }
       updateSyncStatus();
     },
   });
@@ -130,7 +135,9 @@
         : "Sincronizado",
       retrying: "Nova tentativa agendada",
       conflict: "Conflito: revisão necessária",
-      blocked: "Sincronização bloqueada",
+      blocked: status.lastError === SYNC_SERVER_UPDATE_MESSAGE
+        ? SYNC_SERVER_UPDATE_MESSAGE
+        : "Sincronização bloqueada",
       offline: status.dirty ? "Offline: alterações pendentes" : "Offline",
       error: "Erro ao sincronizar",
     };
@@ -233,16 +240,48 @@
     const storedMeta = core.storage.loadSyncMeta(localStorage, ownerId);
     const { data, error } = await cloud.client
       .from("nexio_user_data")
-      .select("data")
+      .select("data, revision")
       .eq("user_id", ownerId)
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      const syncError = core.sync.classifySupabaseError(error);
+      if (syncError.syncReason !== "migration-required") throw syncError;
+      const nextUser = local.user || createUserFromCloudAuth(authUser);
+      ensureUserShape(nextUser);
+      const localGeneration = Math.max(Number(storedMeta.localGeneration) || 0, 1);
+      const meta = {
+        ...storedMeta,
+        dirty: true,
+        blocked: true,
+        localGeneration,
+        lastSuccessfulGeneration: Math.min(
+          Number(storedMeta.lastSuccessfulGeneration) || 0,
+          localGeneration,
+        ),
+        remoteRevision: null,
+        revisionKnown: false,
+      };
+      cloud.userId = ownerId;
+      syncCoordinator.activateOwner(ownerId, { canSync: false, meta });
+      upsertStoreUser(nextUser, { ownerId });
+      cloud.ready = false;
+      cloud.lastStatus = SYNC_SERVER_UPDATE_MESSAGE;
+      if (cloud.lastNotification !== SYNC_SERVER_UPDATE_MESSAGE) showToast(SYNC_SERVER_UPDATE_MESSAGE);
+      cloud.lastNotification = SYNC_SERVER_UPDATE_MESSAGE;
+      return;
+    }
+
+    const remoteRowExists = data !== null && data !== undefined;
+    const remoteRevision = remoteRowExists
+      ? normalizeRemoteRevision(data.revision)
+      : "0";
+    const revisionKnown = remoteRevision !== null;
 
     const reconciliation = core.sync.reconcileBootstrap({
       authUser: { id: ownerId, email },
       localExists: local.exists,
       localUser: local.user,
-      remoteRowExists: data !== null && data !== undefined,
+      remoteRowExists,
       remoteData: data?.data,
     });
     const needsReview = local.reviewRequired === true;
@@ -262,7 +301,9 @@
       dirty: storedMeta.conflict || reconciliation.conflict || (pendingLocal && !local.migrated)
         || (reconciliation.blocked && storedMeta.dirty),
       conflict: storedMeta.conflict || reconciliation.conflict,
-      blocked: reconciliation.blocked || needsReview,
+      blocked: reconciliation.blocked || needsReview || !revisionKnown,
+      remoteRevision: revisionKnown ? remoteRevision : null,
+      revisionKnown,
       localGeneration,
       lastSuccessfulGeneration: reconciliation.status === "equivalent"
         ? localGeneration
@@ -278,7 +319,7 @@
       state.sessionEmail = email;
       core.storage.setSession(localStorage, SESSION_KEY, email);
     }
-    cloud.ready = !meta.conflict && !meta.blocked;
+    cloud.ready = !meta.conflict && !meta.blocked && meta.revisionKnown;
     syncCoordinator.setCanSync(cloud.ready);
 
     if (meta.conflict) {
@@ -287,6 +328,9 @@
       showToast("Os dados remotos não puderam ser validados. A sincronização foi bloqueada.");
     } else if (needsReview) {
       showToast("A migração local encontrou dados ambíguos e precisa de revisão.");
+    } else if (!meta.revisionKnown) {
+      cloud.lastStatus = SYNC_SERVER_UPDATE_MESSAGE;
+      showToast(SYNC_SERVER_UPDATE_MESSAGE);
     } else if (meta.dirty && !local.migrated) {
       syncCoordinator.scheduleSave();
     }
@@ -309,10 +353,18 @@
 
   function sanitizeUserForCloud(user) {
     return core.storage.buildCloudPayload(user, (clone) => {
-      clone.email = normalizeEmail(clone.email || state.sessionEmail);
       ensureUserShape(clone);
+      delete clone.email;
       return clone;
     });
+  }
+
+  function normalizeRemoteRevision(value) {
+    if (typeof value === "number") {
+      if (!Number.isSafeInteger(value) || value < 0) return null;
+      return core.storage.normalizeSyncRevision(String(value));
+    }
+    return core.storage.normalizeSyncRevision(value);
   }
 
   function upsertStoreUser(user, options = {}) {
