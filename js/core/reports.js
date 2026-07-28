@@ -152,14 +152,14 @@
 
   function peakExpenseDay(transactions) {
     const totals = new Map();
-    transactions.filter((transaction) => transaction.type === "expense").forEach((transaction) => {
+    transactions.filter((transaction) => transaction.type === "expense" && !transaction.transferId).forEach((transaction) => {
       totals.set(transaction.date, (totals.get(transaction.date) || 0) + Number(transaction.amount || 0));
     });
     return [...totals.entries()].map(([date, total]) => ({ date, total })).sort((a, b) => b.total - a.total)[0] || null;
   }
 
   function highestTransaction(transactions) {
-    return [...transactions].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))[0] || null;
+    return transactions.filter((transaction) => !transaction.transferId).sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))[0] || null;
   }
 
   function categorySpendingComparison(transactions, currentMonth, findCategory) {
@@ -167,7 +167,7 @@
     previousMonth.setMonth(previousMonth.getMonth() - 1);
     const previousValue = utils.toMonthInput(previousMonth);
     const totals = new Map();
-    transactions.filter((transaction) => transaction.type === "expense").forEach((transaction) => {
+    transactions.filter((transaction) => transaction.type === "expense" && !transaction.transferId).forEach((transaction) => {
       const month = utils.toMonthInput(utils.parseLocalDate(transaction.date));
       if (month !== currentMonth.value && month !== previousValue) return;
       const key = transaction.categoryId || "uncategorized";
@@ -236,6 +236,24 @@
     });
   }
 
+  function filterExportProfileByAccount(profile, accountId) {
+    if (!profile?.accounts?.some((account) => account.id === accountId)) return profile;
+    const transferIds = new Set(profile.transactions
+      .filter((transaction) => transaction.accountId === accountId && transaction.transferId)
+      .map((transaction) => transaction.transferId));
+    profile.transactions = profile.transactions.filter((transaction) => (
+      transaction.accountId === accountId || transferIds.has(transaction.transferId)
+    ));
+    const requiredAccountIds = new Set([accountId]);
+    profile.transactions.forEach((transaction) => {
+      requiredAccountIds.add(transaction.accountId);
+      if (transaction.transferAccountId) requiredAccountIds.add(transaction.transferAccountId);
+    });
+    profile.accounts = profile.accounts.filter((account) => requiredAccountIds.has(account.id));
+    profile.defaultAccountId = accountId;
+    return profile;
+  }
+
   core.reports = Object.freeze({
     canonicalHeader,
     bestExtraGoalContribution,
@@ -245,6 +263,7 @@
     categorySpendingComparison,
     detectDelimiter,
     findHeaderRow,
+    filterExportProfileByAccount,
     highestTransaction,
     inferTransactionType,
     parseDelimitedRows,

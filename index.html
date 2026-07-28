@@ -260,6 +260,7 @@
           <nav class="nav-list" aria-label="Navegação principal">
             <button class="nav-item is-active" data-view="overview" data-tooltip="Visão geral" type="button"><span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true">▦</i></span><span>Visão geral</span></button>
             <button class="nav-item" data-view="transactions" data-tooltip="Transações" type="button"><span class="nav-icon"><i data-lucide="wallet-cards" aria-hidden="true">▤</i></span><span>Transações</span></button>
+            <button class="nav-item" data-view="accounts" data-tooltip="Contas" type="button"><span class="nav-icon"><i data-lucide="landmark" aria-hidden="true"></i></span><span>Contas</span></button>
             <button class="nav-item" data-view="cashflow" data-tooltip="Fluxo de caixa" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" data-tooltip="Metas" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
             <button class="nav-item" data-view="profiles" data-tooltip="Perfis" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
@@ -449,6 +450,61 @@
                 <div class="insight-list dashboard-insights" data-dashboard-insight-list></div>
               </section>
             </div>
+
+            <section class="panel dashboard-accounts-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Contas</p><h2>Saldos separados</h2></div>
+                <button class="ghost-action" data-view-shortcut="accounts" type="button">Ver todas</button>
+              </div>
+              <div class="dashboard-account-list" data-dashboard-account-list></div>
+            </section>
+          </section>
+
+          <section id="view-accounts" class="view accounts-experience" data-view-panel="accounts">
+            <section class="panel accounts-hero-panel">
+              <div><p class="eyebrow">Organização financeira</p><h2>Contas</h2><p>Acompanhe cada origem de dinheiro sem misturar movimentações.</p></div>
+              <div class="accounts-hero-summary"><span data-accounts-total-label>Saldo ativo consolidado</span><strong data-accounts-total-balance>R$ 0,00</strong><small data-accounts-active-count>0 contas ativas</small></div>
+              <div class="accounts-hero-actions">
+                <button class="ghost-action" data-open-transfer type="button"><i data-lucide="repeat-2" aria-hidden="true"></i><span>Transferir</span></button>
+                <button class="primary-action" data-new-account type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Nova conta</span></button>
+              </div>
+            </section>
+
+            <div class="accounts-layout">
+              <section class="panel account-form-panel">
+                <div class="panel-heading"><div><p class="eyebrow" data-account-form-mode>Nova conta</p><h2>Dados da conta</h2></div></div>
+                <form id="accountForm" class="stacked-form">
+                  <input id="accountId" type="hidden" />
+                  <label class="field"><span>Nome</span><input id="accountName" type="text" maxlength="80" placeholder="Ex.: Conta do dia a dia" required /></label>
+                  <label class="field"><span>Tipo</span><select id="accountType" required></select></label>
+                  <label class="field"><span>Saldo inicial</span><input id="accountInitialBalance" type="number" step="0.01" value="0" required /></label>
+                  <label class="field"><span>Moeda</span><input id="accountCurrency" type="text" value="BRL" readonly aria-readonly="true" /></label>
+                  <label class="checkbox-line"><input id="accountActive" type="checkbox" checked /><span>Conta ativa</span></label>
+                  <label class="checkbox-line"><input id="accountDefault" type="checkbox" /><span>Usar como conta padrão</span></label>
+                  <div class="account-form-actions"><button class="primary-action" data-save-account type="submit">Salvar conta</button><button class="ghost-action" data-reset-account-form type="button">Limpar</button></div>
+                </form>
+              </section>
+
+              <section class="panel accounts-list-panel">
+                <div class="panel-heading"><div><p class="eyebrow">Visão por conta</p><h2>Suas contas</h2></div><label class="checkbox-line compact"><input data-show-inactive-accounts type="checkbox" /><span>Mostrar inativas</span></label></div>
+                <div class="account-card-grid" data-account-list><div class="empty-state empty-state-compact"><strong>Carregando contas...</strong></div></div>
+              </section>
+            </div>
+
+            <div class="account-modal-backdrop" data-transfer-composer hidden>
+              <section class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountTransferTitle">
+                <div class="goal-modal-header"><div><span>Movimentação interna</span><h3 id="accountTransferTitle">Transferir entre contas</h3></div><button class="icon-button" data-close-transfer type="button" aria-label="Fechar">x</button></div>
+                <form id="accountTransferForm" class="stacked-form">
+                  <input id="accountTransferId" type="hidden" />
+                  <label class="field"><span>Conta de origem</span><select id="transferFromAccount" required></select></label>
+                  <label class="field"><span>Conta de destino</span><select id="transferToAccount" required></select></label>
+                  <label class="field"><span>Valor</span><input id="transferAmount" type="number" min="0.01" step="0.01" required /></label>
+                  <label class="field"><span>Data</span><input id="transferDate" type="date" required /></label>
+                  <label class="field"><span>Descrição (opcional)</span><input id="transferDescription" type="text" maxlength="120" placeholder="Ex.: Reserva do mês" /></label>
+                  <div class="account-form-actions"><button class="ghost-action" data-close-transfer type="button">Cancelar</button><button class="primary-action" type="submit">Salvar transferência</button></div>
+                </form>
+              </section>
+            </div>
           </section>
 
           <section id="view-transactions" class="view transactions-experience" data-view-panel="transactions">
@@ -496,6 +552,10 @@
                     <label class="field">
                       <span>Categoria</span>
                       <select id="transactionCategory" required></select>
+                    </label>
+                    <label class="field transaction-account-field">
+                      <span>Conta</span>
+                      <select id="transactionAccount" required></select>
                     </label>
                     <div class="split-fields">
                       <label class="field">
@@ -594,6 +654,10 @@
                   <label class="field compact-field transaction-filter-category">
                     <span>Categoria</span>
                     <select id="filterCategory"></select>
+                  </label>
+                  <label class="field compact-field transaction-filter-account">
+                    <span>Conta</span>
+                    <select id="filterAccount"></select>
                   </label>
                   <div class="period-filter">
                     <span>Período</span>
@@ -734,6 +798,10 @@
                   <label class="cashflow-month-field" for="cashflowMonth">
                     <span>Mês analisado</span>
                     <input class="month-input" id="cashflowMonth" type="month" />
+                  </label>
+                  <label class="cashflow-month-field" for="cashflowAccount">
+                    <span>Conta</span>
+                    <select id="cashflowAccount"></select>
                   </label>
                 </div>
               </div>
@@ -1235,6 +1303,7 @@
                     <h2>Portabilidade dos dados</h2>
                   </div>
                 </div>
+                <label class="field compact-field"><span>Conta para exportar</span><select id="exportAccount"></select></label>
                 <button class="ghost-action" data-export-data type="button">Exportar dados</button>
                 <pre class="export-box" data-export-box></pre>
               </section>
@@ -1306,6 +1375,7 @@
     <script src="js/core/sync.js?v=20260727-sync-client-safety"></script>
     <script src="js/core/categories.js?v=20260722-layered-architecture"></script>
     <script src="js/core/finance.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/accounts.js?v=20260728-accounts-balances"></script>
     <script src="js/core/transactions.js?v=20260722-layered-architecture"></script>
     <script src="js/core/goals.js?v=20260722-layered-architecture"></script>
     <script src="js/core/profiles.js?v=20260722-layered-architecture"></script>

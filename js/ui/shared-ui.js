@@ -35,6 +35,7 @@
     editingCategoryId: "",
     editingGoalId: "",
     editingProfileId: "",
+    editingAccountId: "",
     sidebarCollapsed: false,
     filters: {
       description: "",
@@ -44,10 +45,14 @@
       valueMin: "",
       valueMax: "",
       status: "all",
+      account: "all",
       sort: "date-desc",
     },
     cashflowMonth: toMonthInput(new Date()),
     cashflowRange: "month",
+    cashflowAccount: "all",
+    exportAccount: "all",
+    showInactiveAccounts: false,
     goalFilters: {
       query: "",
       status: "all",
@@ -415,7 +420,7 @@
   }
 
   function ensureProfileShape(profile) {
-    return core.profiles.ensureProfileShape(profile, { uid, locale: languageLocale() });
+    return core.profiles.ensureProfileShape(profile, { uid, locale: languageLocale(), currency: currentUser()?.currency || "BRL" });
   }
 
   function ensureGoalShape(goal, profile = currentProfile()) {
@@ -443,7 +448,7 @@
   }
 
   function createProfile(name) {
-    return core.profiles.create(name, { uid });
+    return core.profiles.create(name, { uid, currency: currentUser()?.currency || "BRL" });
   }
 
   function clearVisibleOwner() {
@@ -1075,6 +1080,7 @@
     bindNavigation();
     bindTopbar();
     bindFloatingActionButton();
+    bindAccountForms();
     bindTransactionForm();
     bindCategoryForm();
     bindFilters();
@@ -1442,6 +1448,7 @@
     const titleMap = {
       overview: "Visão geral",
       transactions: "Transações",
+      accounts: "Contas",
       cashflow: "Fluxo de caixa",
       goals: "Metas e Objetivos",
       profiles: "Perfis",
@@ -1486,8 +1493,11 @@
     ensureProfileShape(profile);
     if (updateOverdueTransactions(profile)) saveStore();
     populateCategorySelects();
+    populateAccountSelects();
     populateStatusSelects();
     updateOverview();
+    renderAccounts();
+    renderDashboardAccounts();
     renderRecentTransactions();
     renderTransactionsTable();
     renderCategories();
@@ -1509,6 +1519,347 @@
     return changed;
   }
 
+  function bindAccountForms() {
+    const form = app.querySelector("#accountForm");
+    const transferForm = app.querySelector("#accountTransferForm");
+    core.accounts.types.forEach((type) => {
+      app.querySelector("#accountType")?.append(new Option(core.accounts.typeLabels[type], type));
+    });
+    if (app.querySelector("#accountCurrency")) app.querySelector("#accountCurrency").value = currentUser()?.currency || "BRL";
+    form?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const profile = currentProfile();
+      const user = currentUser();
+      const id = app.querySelector("#accountId").value;
+      const input = {
+        name: app.querySelector("#accountName").value,
+        type: app.querySelector("#accountType").value,
+        initialBalance: app.querySelector("#accountInitialBalance").value,
+        currency: user.currency,
+        active: app.querySelector("#accountActive").checked,
+        makeDefault: app.querySelector("#accountDefault").checked,
+      };
+      const result = id
+        ? core.accounts.update(profile, id, input, { uid, currency: user.currency })
+        : core.accounts.add(profile, input, { uid, currency: user.currency });
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      saveStore();
+      showToast(id ? "Conta atualizada." : "Conta criada.");
+      resetAccountForm();
+      refreshAll();
+    });
+    app.querySelector("[data-reset-account-form]")?.addEventListener("click", resetAccountForm);
+    app.querySelector("[data-new-account]")?.addEventListener("click", () => {
+      resetAccountForm();
+      app.querySelector("#accountName")?.focus();
+    });
+    app.querySelector("[data-open-transfer]")?.addEventListener("click", () => openTransferComposer());
+    app.querySelectorAll("[data-close-transfer]").forEach((button) => button.addEventListener("click", closeAccountTransfer));
+    app.querySelector("[data-transfer-composer]")?.addEventListener("click", (event) => {
+      if (event.target === event.currentTarget) closeAccountTransfer();
+    });
+    app.querySelector("[data-show-inactive-accounts]")?.addEventListener("change", (event) => {
+      state.showInactiveAccounts = event.currentTarget.checked;
+      renderAccounts();
+    });
+    transferForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const profile = currentProfile();
+      const transferId = app.querySelector("#accountTransferId").value;
+      const input = {
+        fromAccountId: app.querySelector("#transferFromAccount").value,
+        toAccountId: app.querySelector("#transferToAccount").value,
+        amount: app.querySelector("#transferAmount").value,
+        date: app.querySelector("#transferDate").value,
+        description: app.querySelector("#transferDescription").value,
+      };
+      const validation = core.accounts.validateTransfer(profile, input);
+      if (!validation.ok) {
+        showToast(validation.error);
+        return;
+      }
+      input.categoryId = ensureTransferCategory(profile).id;
+      const result = transferId
+        ? core.accounts.updateTransfer(profile, transferId, input, { uid })
+        : core.accounts.createTransfer(profile, input, { uid });
+      if (!result.ok) {
+        showToast(result.error);
+        return;
+      }
+      saveStore();
+      closeAccountTransfer();
+      showToast(transferId ? "Transferência atualizada." : "Transferência realizada.");
+      refreshAll();
+    });
+  }
+
+  function resetAccountForm() {
+    const form = app.querySelector("#accountForm");
+    if (!form) return;
+    form.reset();
+    app.querySelector("#accountId").value = "";
+    app.querySelector("#accountType").value = "checking";
+    app.querySelector("#accountInitialBalance").value = "0";
+    app.querySelector("#accountCurrency").value = currentUser()?.currency || "BRL";
+    app.querySelector("#accountActive").checked = true;
+    app.querySelector("[data-account-form-mode]").textContent = "Nova conta";
+    app.querySelector("[data-save-account]").textContent = "Salvar conta";
+    state.editingAccountId = "";
+  }
+
+  function populateAccountSelects() {
+    const profile = currentProfile();
+    if (!profile) return;
+    const validIds = new Set(profile.accounts.map((account) => account.id));
+    if (!validIds.has(state.filters.account)) state.filters.account = "all";
+    if (!validIds.has(state.cashflowAccount)) state.cashflowAccount = "all";
+    if (!validIds.has(state.exportAccount)) state.exportAccount = "all";
+    const editing = profile.transactions.find((transaction) => transaction.id === state.editingTransactionId);
+    const active = core.accounts.activeAccounts(profile);
+    const transactionAccounts = core.accounts.selectableAccounts(profile, editing?.accountId);
+    const transactionSelect = app.querySelector("#transactionAccount");
+    if (transactionSelect) {
+      const selected = transactionSelect.value || editing?.accountId || profile.defaultAccountId;
+      transactionSelect.innerHTML = "";
+      transactionAccounts.forEach((account) => {
+        const label = `${account.name}${account.active === false ? " (inativa)" : ""}`;
+        transactionSelect.append(new Option(label, account.id));
+      });
+      transactionSelect.value = transactionAccounts.some((account) => account.id === selected) ? selected : profile.defaultAccountId;
+    }
+    const fillAll = (selector, value) => {
+      const select = app.querySelector(selector);
+      if (!select) return;
+      select.innerHTML = "";
+      select.append(new Option("Todas as contas", "all"));
+      profile.accounts.forEach((account) => select.append(new Option(`${account.name}${account.active === false ? " (inativa)" : ""}`, account.id)));
+      select.value = profile.accounts.some((account) => account.id === value) ? value : "all";
+    };
+    fillAll("#filterAccount", state.filters.account);
+    fillAll("#cashflowAccount", state.cashflowAccount);
+    fillAll("#exportAccount", state.exportAccount);
+    const fillActive = (selector) => {
+      const select = app.querySelector(selector);
+      if (!select) return;
+      const previous = select.value;
+      select.innerHTML = "";
+      active.forEach((account) => select.append(new Option(account.name, account.id)));
+      if (active.some((account) => account.id === previous)) select.value = previous;
+    };
+    fillActive("#transferFromAccount");
+    fillActive("#transferToAccount");
+  }
+
+  function renderDashboardAccounts() {
+    const profile = currentProfile();
+    const box = app.querySelector("[data-dashboard-account-list]");
+    if (!profile || !box) return;
+    const rows = core.accounts.balances(profile, { includeInactive: false })
+      .sort((a, b) => Number(b.account.id === profile.defaultAccountId) - Number(a.account.id === profile.defaultAccountId))
+      .slice(0, 4);
+    box.innerHTML = rows.map(({ account, balance: value }) => `
+      <button class="dashboard-account-item" data-dashboard-account="${escapeHtml(account.id)}" type="button">
+        <span><i data-lucide="${accountTypeIcon(account.type)}" aria-hidden="true"></i>${escapeHtml(account.name)}${profile.defaultAccountId === account.id ? " · Padrão" : ""}</span>
+        <strong class="${value < 0 ? "amount-expense" : ""}">${money(value)}</strong>
+      </button>
+    `).join("");
+    box.querySelectorAll("[data-dashboard-account]").forEach((button) => button.addEventListener("click", () => {
+      state.filters.account = button.dataset.dashboardAccount;
+      setView("transactions");
+      syncFilterInputs();
+      renderTransactionsTable();
+    }));
+    renderIcons();
+  }
+
+  function renderAccounts() {
+    try {
+      renderAccountsContent();
+    } catch (error) {
+      const box = app.querySelector("[data-account-list]");
+      if (!box) return;
+      box.innerHTML = "";
+      box.append(emptyState({
+        icon: "shield-alert",
+        title: "Não foi possível exibir as contas.",
+        description: "Seus dados foram preservados. Recarregue a tela e tente novamente.",
+      }));
+    }
+  }
+
+  function renderAccountsContent() {
+    const profile = currentProfile();
+    const box = app.querySelector("[data-account-list]");
+    if (!profile || !box) return;
+    const rows = core.accounts.balances(profile, { includeInactive: state.showInactiveAccounts });
+    const active = core.accounts.activeAccounts(profile);
+    const total = core.accounts.consolidatedBalance(profile, { includeInactive: state.showInactiveAccounts });
+    const totalElement = app.querySelector("[data-accounts-total-balance]");
+    if (totalElement) {
+      totalElement.textContent = money(total);
+      setAmountTone(totalElement, total);
+    }
+    const activeLabel = app.querySelector("[data-accounts-active-count]");
+    if (activeLabel) activeLabel.textContent = plural(active.length, "conta ativa", "contas ativas");
+    const totalLabel = app.querySelector("[data-accounts-total-label]");
+    if (totalLabel) totalLabel.textContent = state.showInactiveAccounts ? "Saldo incluindo contas inativas" : "Saldo ativo consolidado";
+    const inactiveToggle = app.querySelector("[data-show-inactive-accounts]");
+    if (inactiveToggle) inactiveToggle.checked = state.showInactiveAccounts;
+    box.innerHTML = "";
+    if (!rows.length) {
+      box.append(emptyState({
+        icon: "landmark",
+        title: "Nenhuma conta disponível.",
+        description: "Crie uma conta para começar a separar seus saldos.",
+        actionLabel: "Nova conta",
+        action: () => app.querySelector("#accountName")?.focus(),
+      }));
+      return;
+    }
+    rows.forEach(({ account, balance: value, transactionCount: count }) => {
+      const card = document.createElement("article");
+      card.className = `account-card${account.active === false ? " is-inactive" : ""}`;
+      card.innerHTML = `
+        <header><span class="account-card-icon"><i data-lucide="${accountTypeIcon(account.type)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(core.accounts.typeLabels[account.type] || account.type || "Conta")}</p></div>${profile.defaultAccountId === account.id ? '<span class="pill">Padrão</span>' : ""}</header>
+        <div class="account-card-balance"><span>Saldo atual</span><strong class="${value < 0 ? "amount-expense" : ""}">${money(value)}</strong></div>
+        <dl><div><dt>Saldo inicial</dt><dd>${money(account.initialBalance)}</dd></div><div><dt>Movimentações</dt><dd>${count}</dd></div><div><dt>Status</dt><dd>${account.active === false ? "Inativa" : "Ativa"}</dd></div></dl>
+        <footer>
+          <button class="ghost-action compact" data-filter-account="${escapeHtml(account.id)}" type="button">Ver transações</button>
+          <button class="icon-button" data-edit-account="${escapeHtml(account.id)}" type="button" aria-label="Editar ${escapeHtml(account.name)}"><i data-lucide="pencil" aria-hidden="true"></i></button>
+          <details class="account-action-menu">
+            <summary class="icon-button" aria-label="Mais ações para ${escapeHtml(account.name)}"><i data-lucide="more-horizontal" aria-hidden="true"></i></summary>
+            <div>
+              ${profile.defaultAccountId === account.id || account.active === false ? "" : `<button data-default-account="${escapeHtml(account.id)}" type="button"><i data-lucide="star" aria-hidden="true"></i>Tornar padrão</button>`}
+              <button data-toggle-account="${escapeHtml(account.id)}" type="button"><i data-lucide="${account.active === false ? "circle-play" : "circle-pause"}" aria-hidden="true"></i>${account.active === false ? "Ativar" : "Inativar"}</button>
+              <button class="danger" data-delete-account="${escapeHtml(account.id)}" type="button"><i data-lucide="trash-2" aria-hidden="true"></i>Excluir</button>
+            </div>
+          </details>
+        </footer>`;
+      box.append(card);
+    });
+    bindAccountActions(box);
+    renderIcons();
+  }
+
+  function accountTypeIcon(type) {
+    return ({ checking: "landmark", savings: "piggy-bank", cash: "banknote", "digital-wallet": "wallet", investment: "chart-no-axes-combined", other: "circle-dollar-sign" })[type] || "wallet-cards";
+  }
+
+  function bindAccountActions(box) {
+    box.querySelectorAll("[data-filter-account]").forEach((button) => button.addEventListener("click", () => {
+      state.filters.account = button.dataset.filterAccount;
+      state.transactionPage = 1;
+      setView("transactions");
+      syncFilterInputs();
+      renderTransactionsTable();
+    }));
+    box.querySelectorAll("[data-edit-account]").forEach((button) => button.addEventListener("click", () => editAccount(button.dataset.editAccount)));
+    box.querySelectorAll("[data-default-account]").forEach((button) => button.addEventListener("click", () => {
+      const result = core.accounts.setDefault(currentProfile(), button.dataset.defaultAccount);
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast("Conta padrão atualizada.");
+      refreshAll();
+    }));
+    box.querySelectorAll("[data-toggle-account]").forEach((button) => button.addEventListener("click", () => {
+      const profile = currentProfile();
+      const account = core.accounts.accountById(profile, button.dataset.toggleAccount);
+      if (!account) return;
+      const activating = account.active === false;
+      if (!activating && !confirm(`Inativar a conta "${account.name}"? Ela continuará disponível em filtros e edições.`)) return;
+      const result = core.accounts.setActive(profile, account.id, activating);
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast(activating ? "Conta ativada." : "Conta inativada.");
+      refreshAll();
+    }));
+    box.querySelectorAll("[data-delete-account]").forEach((button) => button.addEventListener("click", () => {
+      const profile = currentProfile();
+      const account = core.accounts.accountById(profile, button.dataset.deleteAccount);
+      if (!account) return;
+      if (!confirm(`Excluir a conta "${account.name}"?`)) return;
+      const result = core.accounts.remove(profile, account.id);
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast("Conta excluída.");
+      resetAccountForm();
+      refreshAll();
+    }));
+  }
+
+  function editAccount(accountId) {
+    const account = core.accounts.accountById(currentProfile(), accountId);
+    if (!account) return;
+    state.editingAccountId = account.id;
+    app.querySelector("#accountId").value = account.id;
+    app.querySelector("#accountName").value = account.name;
+    app.querySelector("#accountType").value = core.accounts.types.includes(account.type) ? account.type : "other";
+    app.querySelector("#accountInitialBalance").value = account.initialBalance;
+    app.querySelector("#accountCurrency").value = account.currency;
+    app.querySelector("#accountActive").checked = account.active !== false;
+    app.querySelector("#accountDefault").checked = currentProfile().defaultAccountId === account.id;
+    app.querySelector("[data-account-form-mode]").textContent = "Editando conta";
+    app.querySelector("[data-save-account]").textContent = "Atualizar conta";
+    app.querySelector("#accountName")?.focus();
+  }
+
+  function ensureTransferCategory(profile) {
+    let category = profile.categories.find((item) => normalizeText(item.name) === "transferencias");
+    if (!category) {
+      category = { id: uid("cat"), name: "Transferências", icon: "↔" };
+      profile.categories.push(category);
+    }
+    return category;
+  }
+
+  function openTransferComposer(transferId = "") {
+    const profile = currentProfile();
+    if (core.accounts.activeAccounts(profile).length < 2) {
+      setView("accounts");
+      showToast("Crie pelo menos duas contas ativas para transferir.");
+      return;
+    }
+    setView("accounts");
+    populateAccountSelects();
+    const modal = app.querySelector("[data-transfer-composer]");
+    const form = app.querySelector("#accountTransferForm");
+    form.reset();
+    app.querySelector("#accountTransferId").value = transferId;
+    app.querySelector("#transferDate").value = toDateInput(new Date());
+    app.querySelector("#transferFromAccount").value = profile.defaultAccountId;
+    const firstDestination = core.accounts.activeAccounts(profile).find((account) => account.id !== profile.defaultAccountId);
+    if (firstDestination) app.querySelector("#transferToAccount").value = firstDestination.id;
+    if (transferId) {
+      const pairValidation = core.accounts.validateTransferPair(profile, transferId);
+      if (!pairValidation.ok) return showToast(pairValidation.error);
+      const expense = pairValidation.outgoing;
+      const income = pairValidation.incoming;
+      if ([expense.accountId, income.accountId].some((accountId) => core.accounts.accountById(profile, accountId)?.active === false)) {
+        return showToast("Ative as duas contas antes de editar esta transferência.");
+      }
+      app.querySelector("#transferFromAccount").value = expense.accountId;
+      app.querySelector("#transferToAccount").value = income.accountId;
+      app.querySelector("#transferAmount").value = expense.amount;
+      app.querySelector("#transferDate").value = expense.date;
+      app.querySelector("#transferDescription").value = expense.description.startsWith("Transferência: ") ? "" : expense.description;
+    }
+    modal.hidden = false;
+    modal.classList.add("is-open");
+    document.body.classList.add("has-modal-open");
+    app.querySelector("#transferAmount")?.focus();
+  }
+
+  function closeAccountTransfer() {
+    const modal = app.querySelector("[data-transfer-composer]");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    modal.hidden = true;
+    document.body.classList.remove("has-modal-open");
+  }
+
   function bindTransactionForm() {
     app.querySelectorAll('input[name="type"]').forEach((radio) => {
       radio.addEventListener("change", () => {
@@ -1528,12 +1879,14 @@
       const id = app.querySelector("#transactionId").value;
       const existing = profile.transactions.find((item) => item.id === id) || {};
       const transaction = {
+        ...existing,
         id: id || uid("trx"),
         type,
         description: app.querySelector("#transactionDescription").value.trim(),
         amount: Number(app.querySelector("#transactionAmount").value),
         date: app.querySelector("#transactionDate").value,
         categoryId: app.querySelector("#transactionCategory").value,
+        accountId: app.querySelector("#transactionAccount").value,
         status: app.querySelector("#transactionStatus").value,
         createdAt: id
           ? existing.createdAt || new Date().toISOString()
@@ -1546,7 +1899,7 @@
         transaction.installmentTotal = existing.installmentTotal;
       }
 
-      if (!transaction.description || !transaction.amount || !transaction.date || !transaction.categoryId) {
+      if (!transaction.description || !transaction.amount || !transaction.date || !transaction.categoryId || !transaction.accountId) {
         showToast("Preencha todos os dados da transação.");
         return;
       }
@@ -1705,6 +2058,7 @@
       filterValueMin: "valueMin",
       filterValueMax: "valueMax",
       filterStatus: "status",
+      filterAccount: "account",
       sortTransactions: "sort",
     };
     Object.entries(map).forEach(([id, key]) => {
@@ -1729,6 +2083,15 @@
       state.cashflowRange = "custom";
       syncCashflowRangeButtons();
       drawCashflowCharts();
+    });
+    const cashflowAccount = app.querySelector("#cashflowAccount");
+    cashflowAccount?.addEventListener("change", () => {
+      state.cashflowAccount = cashflowAccount.value || "all";
+      drawCashflowCharts();
+    });
+    const exportAccount = app.querySelector("#exportAccount");
+    exportAccount?.addEventListener("change", () => {
+      state.exportAccount = exportAccount.value || "all";
     });
     app.querySelectorAll("[data-cashflow-range]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -2038,7 +2401,14 @@
     const user = currentUser();
     if (!user) return;
     const box = app.querySelector("[data-export-box]");
-    const payload = JSON.stringify(buildExportUser(user), null, 2);
+    const exportUser = buildExportUser(user);
+    if (state.exportAccount !== "all") {
+      const profile = exportUser.profiles.find((item) => item.id === exportUser.activeProfileId);
+      if (profile?.accounts.some((account) => account.id === state.exportAccount)) {
+        core.reports.filterExportProfileByAccount(profile, state.exportAccount);
+      }
+    }
+    const payload = JSON.stringify(core.storage.sanitizeSensitiveData(exportUser), null, 2);
     if (box) box.textContent = payload;
     const blob = new Blob([payload], { type: "application/json" });
     const link = document.createElement("a");
@@ -2155,6 +2525,7 @@
         amount: Math.abs(Number(item.amount)),
         date: override.date || item.date,
         categoryId: category.id,
+        accountId: core.accounts.resolveAccountId(profile),
         status: normalizeImportedStatus(item.status, type),
         installmentGroupId: override.installmentGroupId || item.installmentGroupId,
         installmentNumber: override.installmentNumber || item.installmentNumber,
@@ -2470,14 +2841,15 @@
     const profile = currentProfile();
     const currentMonth = currentCalendarMonth();
     const monthTransactions = profile.transactions.filter((item) => isInCalendarMonth(item.date, currentMonth));
-    const settledMonthTransactions = monthTransactions.filter(isSettledTransaction);
-    const pendingMonthTransactions = monthTransactions.filter(isOpenTransaction);
+    const reportableMonthTransactions = monthTransactions.filter((transaction) => !core.accounts.isTransfer(transaction));
+    const settledMonthTransactions = reportableMonthTransactions.filter(isSettledTransaction);
+    const pendingMonthTransactions = reportableMonthTransactions.filter(isOpenTransaction);
     const monthIncome = sum(settledMonthTransactions.filter((item) => item.type === "income"), "amount");
     const monthExpense = sum(settledMonthTransactions.filter((item) => item.type === "expense"), "amount");
     const pendingIncome = sum(pendingMonthTransactions.filter((item) => item.type === "income"), "amount");
     const pendingExpense = sum(pendingMonthTransactions.filter((item) => item.type === "expense"), "amount");
     const pendingImpact = pendingIncome - pendingExpense;
-    const balance = calculateBalance(profile.transactions);
+    const balance = core.accounts.consolidatedBalance(profile);
     const goalsActive = profile.goals.filter((goal) => goal.saved < goal.target);
     const hasAchievedGoal = profile.goals.some((goal) => Number(goal.target || 0) > 0 && Number(goal.saved || 0) >= Number(goal.target || 0));
     const goalsSaved = sum(profile.goals, "saved");
@@ -2564,7 +2936,7 @@
           ${transactionBankLogoHtml(transaction)}
           <div>
             <div class="list-title">${escapeHtml(transaction.description)}</div>
-            <div class="list-meta">${escapeHtml(category.name)} · ${friendlyTransactionDate(transaction.date)}</div>
+            <div class="list-meta">${escapeHtml(category.name)} · ${escapeHtml(transactionAccountName(transaction))} · ${friendlyTransactionDate(transaction.date)}</div>
           </div>
         </div>
         <strong class="${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong>
@@ -2686,6 +3058,7 @@
       </header>
       <div class="transaction-card-body">
         <span><small>Categoria</small><strong><span class="category-dot">${escapeHtml(category.icon)}</span>${escapeHtml(category.name)}</strong></span>
+        <span><small>Conta</small><strong>${escapeHtml(transactionAccountName(transaction))}</strong></span>
         <span><small>Data</small><strong>${friendlyTransactionDate(transaction.date)}</strong></span>
         <span class="transaction-card-amount"><small>Valor</small><strong class="${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong></span>
       </div>
@@ -2701,16 +3074,23 @@
     return `
       <div class="row-actions">
         <button class="icon-button" data-edit-transaction="${transaction.id}" type="button" aria-label="Editar transação ${escapeHtml(transaction.description)}" title="Editar"><i data-lucide="pencil" aria-hidden="true"></i></button>
-        <button class="icon-button" data-duplicate-transaction="${transaction.id}" type="button" aria-label="Duplicar transação ${escapeHtml(transaction.description)}" title="Duplicar"><i data-lucide="copy" aria-hidden="true"></i></button>
+        ${transaction.transferId ? "" : `<button class="icon-button" data-duplicate-transaction="${transaction.id}" type="button" aria-label="Duplicar transação ${escapeHtml(transaction.description)}" title="Duplicar"><i data-lucide="copy" aria-hidden="true"></i></button>`}
         <button class="icon-button" data-delete-transaction="${transaction.id}" type="button" aria-label="Excluir transação ${escapeHtml(transaction.description)}" title="Excluir"><i data-lucide="trash-2" aria-hidden="true"></i></button>
       </div>
     `;
   }
 
   function transactionSubtitle(transaction) {
-    return transaction.installmentGroupId
+    const account = transactionAccountName(transaction);
+    if (transaction.transferId) return `Transferência · ${account}`;
+    const kind = transaction.installmentGroupId
       ? `Parcela ${transaction.installmentNumber || 1}/${transaction.installmentTotal || 1}`
       : (transaction.type === "income" ? "Receita avulsa" : "Despesa avulsa");
+    return `${kind} · ${account}`;
+  }
+
+  function transactionAccountName(transaction) {
+    return core.accounts.accountById(currentProfile(), transaction.accountId)?.name || "Conta principal";
   }
 
   function transactionShortDate(value) {
@@ -2720,6 +3100,7 @@
   }
 
   function statusBadge(transaction) {
+    if (transaction.transferId) return '<span class="transaction-detail-status">Transferência</span>';
     const options = statusOptionsFor(transaction.type)
       .map((status) => `
         <button class="status-option ${statusClass(status)}" data-status-option="${escapeHtml(status)}" data-status-transaction="${escapeHtml(transaction.id)}" type="button"${status === transaction.status ? " aria-current=\"true\"" : ""}>
@@ -2871,6 +3252,7 @@
           </section>
           <section class="transaction-detail-grid">
             <div><span>Categoria</span><strong>${escapeHtml(category.icon)} ${escapeHtml(category.name)}</strong></div>
+            <div><span>Conta</span><strong>${escapeHtml(transactionAccountName(transaction))}</strong></div>
             <div><span>Parcelamento</span><strong>${transaction.installmentGroupId ? `${transaction.installmentNumber || 1} de ${transaction.installmentTotal || 1}` : "À vista"}</strong></div>
             <div><span>Banco</span><strong>${escapeHtml(bank.name || "Não informado")}</strong></div>
             <div><span>Data</span><strong>${friendlyTransactionDate(transaction.date)}</strong></div>
@@ -2878,7 +3260,7 @@
         </div>
         <footer class="transaction-detail-actions">
           <button class="primary-action" data-detail-edit type="button"><i data-lucide="pencil" aria-hidden="true"></i><span>Editar</span></button>
-          <button class="ghost-action" data-detail-duplicate type="button"><i data-lucide="copy" aria-hidden="true"></i><span>Duplicar</span></button>
+          ${transaction.transferId ? "" : '<button class="ghost-action" data-detail-duplicate type="button"><i data-lucide="copy" aria-hidden="true"></i><span>Duplicar</span></button>'}
           <button class="danger-action" data-detail-delete type="button"><i data-lucide="trash-2" aria-hidden="true"></i><span>Excluir</span></button>
         </footer>
       </aside>`;
@@ -2889,7 +3271,7 @@
       if (event.target === drawer || event.target.closest("[data-close-transaction-detail]")) closeTransactionDetail();
     });
     drawer.querySelector("[data-detail-edit]").addEventListener("click", () => { closeTransactionDetail(true); setView("transactions"); editTransaction(id); });
-    drawer.querySelector("[data-detail-duplicate]").addEventListener("click", () => { closeTransactionDetail(true); duplicateTransaction(id); });
+    drawer.querySelector("[data-detail-duplicate]")?.addEventListener("click", () => { closeTransactionDetail(true); duplicateTransaction(id); });
     drawer.querySelector("[data-detail-delete]").addEventListener("click", () => { closeTransactionDetail(true); deleteTransaction(id); });
     drawer.querySelector("[data-close-transaction-detail]")?.focus();
     renderIcons();
@@ -2905,8 +3287,9 @@
   }
 
   function updateTransactionSummaryCards(rows) {
-    const income = sum(rows.filter((transaction) => transaction.type === "income"), "amount");
-    const expense = sum(rows.filter((transaction) => transaction.type === "expense"), "amount");
+    const summaryRows = state.filters.account === "all" ? rows.filter((transaction) => !transaction.transferId) : rows;
+    const income = sum(summaryRows.filter((transaction) => transaction.type === "income"), "amount");
+    const expense = sum(summaryRows.filter((transaction) => transaction.type === "expense"), "amount");
     const balance = income - expense;
     const incomeEl = app.querySelector("[data-transactions-summary-income]");
     const expenseEl = app.querySelector("[data-transactions-summary-expense]");
@@ -3044,6 +3427,7 @@
     let changed = 0;
     profile.transactions.forEach((transaction) => {
       if (!ids.has(transaction.id)) return;
+      if (transaction.transferId) return;
       if (!statusOptionsFor(transaction.type).includes(status) || transaction.status === status) return;
       transaction.status = status;
       transaction.updatedAt = new Date().toISOString();
@@ -3064,16 +3448,18 @@
     const ids = new Set(state.selectedTransactionIds);
     const selected = profile.transactions.filter((transaction) => ids.has(transaction.id));
     if (!selected.length) return;
-    selected.forEach((transaction) => profile.transactions.push(createTransactionDuplicate(transaction)));
+    const duplicable = selected.filter((transaction) => !transaction.transferId);
+    if (!duplicable.length) return showToast("Transferências devem ser criadas pela ação Transferir.");
+    duplicable.forEach((transaction) => profile.transactions.push(createTransactionDuplicate(transaction)));
     state.selectedTransactionIds.clear();
     saveStore();
-    showToast(`${selected.length} ${selected.length === 1 ? "transação duplicada" : "transações duplicadas"}.`);
+    showToast(`${duplicable.length} ${duplicable.length === 1 ? "transação duplicada" : "transações duplicadas"}.`);
     refreshAll();
   }
 
   function deleteSelectedTransactions() {
     const profile = currentProfile();
-    const ids = new Set(profile.transactions.filter((transaction) => state.selectedTransactionIds.has(transaction.id)).map((transaction) => transaction.id));
+    const ids = expandTransferTransactionIds(profile, state.selectedTransactionIds);
     const count = ids.size;
     if (!count) return;
     if (!confirm(`Excluir ${count} ${count === 1 ? "transação selecionada" : "transações selecionadas"}?`)) return;
@@ -3091,10 +3477,10 @@
       showToast("Nenhuma transação filtrada para excluir.");
       return;
     }
-    const count = rows.length;
+    const ids = expandTransferTransactionIds(profile, new Set(rows.map((transaction) => transaction.id)));
+    const count = ids.size;
     const filterLabel = describeActiveTransactionFilters();
     if (!confirm(`Excluir ${count} ${count === 1 ? "transação filtrada" : "transações filtradas"}?\n\nFiltro: ${filterLabel}`)) return;
-    const ids = new Set(rows.map((transaction) => transaction.id));
     profile.transactions = profile.transactions.filter((transaction) => !ids.has(transaction.id));
     rows.forEach((transaction) => state.selectedTransactionIds.delete(transaction.id));
     saveStore();
@@ -3111,7 +3497,17 @@
     if (filters.valueMin) parts.push(`valor mín. ${money(filters.valueMin)}`);
     if (filters.valueMax) parts.push(`valor máx. ${money(filters.valueMax)}`);
     if (filters.status !== "all") parts.push(`status ${filters.status === "open" ? "Pendências" : filters.status}`);
+    if (filters.account !== "all") parts.push(`conta ${core.accounts.accountById(currentProfile(), filters.account)?.name || "selecionada"}`);
     return parts.length ? parts.join(", ") : "todas as transações visíveis";
+  }
+
+  function expandTransferTransactionIds(profile, sourceIds) {
+    const ids = new Set(sourceIds);
+    const transferIds = new Set(profile.transactions.filter((transaction) => ids.has(transaction.id) && transaction.transferId).map((transaction) => transaction.transferId));
+    profile.transactions.forEach((transaction) => {
+      if (transferIds.has(transaction.transferId)) ids.add(transaction.id);
+    });
+    return ids;
   }
 
   function nextSortValue(sort) {
@@ -3135,7 +3531,7 @@
   }
   function updateTransactionStatus(id, status) {
     const transaction = currentProfile().transactions.find((item) => item.id === id);
-    if (!transaction || transaction.status === status) return;
+    if (!transaction || transaction.transferId || transaction.status === status) return;
     transaction.status = status;
     transaction.updatedAt = new Date().toISOString();
     applyAutomaticOverdueStatus(transaction);
@@ -3152,6 +3548,7 @@
     let changed = 0;
 
     profile.transactions.forEach((transaction) => {
+      if (transaction.transferId) return;
       if (toMonthInput(parseLocalDate(transaction.date)) !== month) return;
       if (transaction.status !== currentStatus) return;
       const nextStatus = target === "settled" ? settledStatusFor(transaction.type) : target;
@@ -3221,6 +3618,7 @@
     const map = {
       filterDescription: "description",
       filterCategory: "category",
+      filterAccount: "account",
       filterDateFrom: "dateFrom",
       filterDateTo: "dateTo",
       filterValueMin: "valueMin",
@@ -3248,6 +3646,7 @@
       transaction.description,
       category.name,
       category.icon,
+      transactionAccountName(transaction),
       transaction.status,
       transaction.type === "income" ? "receita entrada recebimento" : "despesa saida pagamento",
       transaction.amount,
@@ -3261,6 +3660,10 @@
   function editTransaction(id) {
     const transaction = currentProfile().transactions.find((item) => item.id === id);
     if (!transaction) return;
+    if (transaction.transferId) {
+      openTransferComposer(transaction.transferId);
+      return;
+    }
     state.editingTransactionId = id;
     app.querySelector("#transactionId").value = transaction.id;
     app.querySelector(`input[name="type"][value="${transaction.type}"]`).checked = true;
@@ -3269,6 +3672,8 @@
     app.querySelector("#transactionAmount").value = transaction.amount;
     app.querySelector("#transactionDate").value = transaction.date;
     app.querySelector("#transactionCategory").value = transaction.categoryId;
+    populateAccountSelects();
+    app.querySelector("#transactionAccount").value = transaction.accountId;
     app.querySelector("#transactionStatus").value = transaction.status;
     app.querySelector("#transactionInstallmentsEnabled").checked = false;
     app.querySelector("#transactionInstallmentCount").value = transaction.installmentTotal || 2;
@@ -3282,6 +3687,10 @@
     const profile = currentProfile();
     const transaction = profile.transactions.find((item) => item.id === id);
     if (!transaction) return;
+    if (transaction.transferId) {
+      showToast("Transferências devem ser criadas pela ação Transferir.");
+      return;
+    }
     if (transaction.installmentGroupId) {
       const duplicateSeries = confirm(`"${transaction.description}" faz parte de uma série parcelada.\n\nOK: duplicar toda a série\nCancelar: duplicar somente esta transação`);
       if (duplicateSeries) {
@@ -3314,6 +3723,15 @@
     const profile = currentProfile();
     const transaction = profile.transactions.find((item) => item.id === id);
     if (!transaction) return;
+    if (transaction.transferId) {
+      if (!confirm("Excluir os dois lados desta transferência?")) return;
+      const result = core.accounts.deleteTransfer(profile, transaction.transferId);
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast("Transferência excluída por completo.");
+      refreshAll();
+      return;
+    }
     let ids = new Set([id]);
     if (transaction.installmentGroupId) {
       const choice = prompt(`"${transaction.description}" faz parte de uma série parcelada.\n\n1 - Excluir apenas esta parcela\n2 - Excluir esta e próximas\n3 - Excluir toda a série\n\nDigite 1, 2 ou 3.`);
@@ -3353,6 +3771,7 @@
     app.querySelector("[data-transaction-form-mode]").textContent = "Novo lançamento";
     setButtonText("[data-save-transaction]", "Salvar transação");
     state.editingTransactionId = "";
+    populateAccountSelects();
     populateStatusSelects();
     updateInstallmentControls();
   }
@@ -4339,31 +4758,6 @@
     document.body.classList.remove("has-modal-open");
   }
 
-  function openTransferComposer() {
-    setView("goals");
-    const goals = currentProfile().goals || [];
-    const fundedGoal = goals.find((goal) => Number(goal.saved || 0) > 0);
-    const targetGoal = fundedGoal || goals[0];
-
-    if (!targetGoal) {
-      openGoalComposer();
-      showToast("Crie uma meta para transferir valores.");
-      return;
-    }
-
-    const transferButton = [...app.querySelectorAll("[data-transfer-goal]")]
-      .find((button) => button.dataset.transferGoal === targetGoal.id);
-    transferButton?.scrollIntoView({ behavior: "smooth", block: "center" });
-    transferButton?.focus();
-
-    if (!fundedGoal) {
-      showToast("Adicione saldo a uma meta para fazer uma transferencia.");
-      return;
-    }
-
-    openGoalMoneyModal("transfer", fundedGoal.id, 0);
-  }
-
   function createReminder(id) {
     const goal = currentProfile().goals.find((item) => item.id === id);
     if (!goal) return;
@@ -4536,7 +4930,7 @@
   function buildInsights(profile) {
     const insights = [];
     const currentMonth = currentCalendarMonth();
-    const settledTransactions = profile.transactions.filter(isSettledTransaction);
+    const settledTransactions = profile.transactions.filter((transaction) => isSettledTransaction(transaction) && !transaction.transferId);
     const monthSettled = settledTransactions.filter((transaction) => isInCalendarMonth(transaction.date, currentMonth));
     const monthIncome = sum(monthSettled.filter((transaction) => transaction.type === "income"), "amount");
     const monthExpense = sum(monthSettled.filter((transaction) => transaction.type === "expense"), "amount");
@@ -4634,7 +5028,7 @@
     const box = app.querySelector("[data-profile-list]");
     box.innerHTML = "";
     user.profiles.forEach((profile) => {
-      const balance = calculateBalance(profile.transactions);
+      const balance = core.accounts.consolidatedBalance(profile);
       const activeGoals = profile.goals.filter((goal) => goal.saved < goal.target).length;
       const month = currentCalendarMonth();
       const monthIncome = monthlyTotal(profile.transactions, month.value, "income");
@@ -4751,7 +5145,7 @@
 
   function updateProfilesHero(user) {
     const active = user.profiles.find((profile) => profile.id === user.activeProfileId) || user.profiles[0];
-    const totalBalance = user.profiles.reduce((total, profile) => total + calculateBalance(profile.transactions), 0);
+    const totalBalance = user.profiles.reduce((total, profile) => total + core.accounts.consolidatedBalance(profile), 0);
     const count = app.querySelector("[data-profiles-count]");
     const activeName = app.querySelector("[data-profiles-active-name]");
     if (count) count.textContent = String(user.profiles.length);
@@ -4780,7 +5174,7 @@
 
   function profileComparator(sort) {
     return (a, b) => {
-      if (sort === "balance-desc") return calculateBalance(b.transactions) - calculateBalance(a.transactions);
+      if (sort === "balance-desc") return core.accounts.consolidatedBalance(b) - core.accounts.consolidatedBalance(a);
       if (sort === "name-asc") return a.name.localeCompare(b.name, languageLocale());
       if (sort === "used-desc") return profileUsageScore(b) - profileUsageScore(a);
       return (latestProfileActivityDate(b)?.getTime() || 0) - (latestProfileActivityDate(a)?.getTime() || 0);
@@ -4792,7 +5186,7 @@
   }
 
   function profileCard(profile, user) {
-    const balance = calculateBalance(profile.transactions);
+    const balance = core.accounts.consolidatedBalance(profile);
     const activeGoals = profile.goals.filter((goal) => Number(goal.saved || 0) < Number(goal.target || 0)).length;
     const month = currentCalendarMonth();
     const monthIncome = monthlyTotal(profile.transactions, month.value, "income");
@@ -5121,6 +5515,7 @@
     if (!dailyCanvas || !balanceCanvas) return;
 
     const profile = currentProfile();
+    const cashflowTransactions = transactionsForCashflow(profile);
     const month = state.cashflowMonth || toMonthInput(new Date());
     const days = daysInMonth(month);
     const labels = Array.from({ length: days }, (_, index) => String(index + 1));
@@ -5131,7 +5526,7 @@
     syncCashflowRangeButtons();
     updateCashflowModeLabels(isForecast);
     updateCashflowModeNote(profile, month, isForecast);
-    profile.transactions.forEach((transaction) => {
+    cashflowTransactions.forEach((transaction) => {
       if (toMonthInput(parseLocalDate(transaction.date)) !== month) return;
       if (!isDateInCashflowRange(transaction.date, month)) return;
       if (!isCashflowTransactionIncluded(transaction)) return;
@@ -5152,7 +5547,7 @@
     });
     updateChartSummary(dailyCanvas, `No mês selecionado, entradas ${isForecast ? "previstas" : "realizadas"} somam ${money(income.reduce((a, b) => a + b, 0))} e saídas ${isForecast ? "previstas" : "realizadas"} somam ${money(expense.reduce((a, b) => a + b, 0))}.`);
 
-    let running = calculateCashflowBalance(profile.transactions.filter((transaction) => transaction.date < `${month}-01`));
+    let running = cashflowInitialBalance(profile) + calculateCashflowBalance(cashflowTransactions.filter((transaction) => transaction.date < `${month}-01`));
     const evolution = labels.map((_, index) => {
       running += income[index] - expense[index];
       return running;
@@ -5294,7 +5689,7 @@
       calendar.append(cell);
     });
 
-    const upcoming = profile.transactions
+    const upcoming = transactionsForCashflow(profile)
       .filter((transaction) => toMonthInput(parseLocalDate(transaction.date)) === month)
       .filter(isCashflowTransactionIncluded)
       .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)))
@@ -5462,7 +5857,8 @@
 
   function buildCashflowForecast(profile, count = 14) {
     const today = parseLocalDate(toDateInput(new Date()));
-    let running = calculateCashflowBalance(profile.transactions.filter((transaction) => transaction.date < toDateInput(today)));
+    const cashflowTransactions = transactionsForCashflow(profile);
+    let running = cashflowInitialBalance(profile) + calculateCashflowBalance(cashflowTransactions.filter((transaction) => transaction.date < toDateInput(today)));
     const labels = [];
     const fullLabels = [];
     const values = [];
@@ -5471,7 +5867,7 @@
       const date = new Date(today);
       date.setDate(today.getDate() + index);
       const dateInput = toDateInput(date);
-      const daily = profile.transactions.filter((transaction) => transaction.date === dateInput && isCashflowTransactionIncluded(transaction));
+      const daily = cashflowTransactions.filter((transaction) => transaction.date === dateInput && isCashflowTransactionIncluded(transaction));
       daily.forEach((transaction) => {
         const amount = Number(transaction.amount || 0);
         running += transaction.type === "income" ? amount : -amount;
@@ -5585,7 +5981,27 @@
   }
 
   function cashflowTotalsForMonth(profile, month) {
-    return core.finance.cashflowTotalsForMonth(profile, month);
+    const transactions = transactionsForCashflow(profile);
+    return transactions.reduce((totals, transaction) => {
+      if (toMonthInput(parseLocalDate(transaction.date)) !== month || !isCashflowTransactionIncluded(transaction)) return totals;
+      const amount = Number(transaction.amount || 0);
+      if (transaction.type === "income") totals.income += amount;
+      if (transaction.type === "expense") totals.expense += amount;
+      return totals;
+    }, { income: 0, expense: 0 });
+  }
+
+  function transactionsForCashflow(profile) {
+    if (state.cashflowAccount !== "all") return core.accounts.transactionsFor(profile, state.cashflowAccount);
+    const activeIds = new Set(core.accounts.activeAccounts(profile).map((account) => account.id));
+    return profile.transactions.filter((transaction) => activeIds.has(transaction.accountId) && !transaction.transferId);
+  }
+
+  function cashflowInitialBalance(profile) {
+    if (state.cashflowAccount !== "all") {
+      return Number(core.accounts.accountById(profile, state.cashflowAccount)?.initialBalance || 0);
+    }
+    return core.accounts.activeAccounts(profile).reduce((total, account) => total + Number(account.initialBalance || 0), 0);
   }
 
   function shiftMonthValue(month, offset) {
@@ -5619,7 +6035,7 @@
       note.textContent = "Mês atual ou futuro: considera movimentos pagos, recebidos, pendentes e atrasados.";
       return;
     }
-    const monthTransactions = profile.transactions.filter((transaction) => toMonthInput(parseLocalDate(transaction.date)) === month);
+    const monthTransactions = transactionsForCashflow(profile).filter((transaction) => toMonthInput(parseLocalDate(transaction.date)) === month);
     const open = monthTransactions.filter(isOpenTransaction);
     const pendingIncome = sum(open.filter((transaction) => transaction.type === "income"), "amount");
     const pendingExpense = sum(open.filter((transaction) => transaction.type === "expense"), "amount");

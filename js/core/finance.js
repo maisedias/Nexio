@@ -52,7 +52,7 @@
 
   function monthlyTotal(transactions, month, type) {
     return transactions
-      .filter((transaction) => transaction.type === type && isSettledTransaction(transaction) && utils.toMonthInput(utils.parseLocalDate(transaction.date)) === month)
+      .filter((transaction) => !transaction.transferId && transaction.type === type && isSettledTransaction(transaction) && utils.toMonthInput(utils.parseLocalDate(transaction.date)) === month)
       .reduce((total, transaction) => total + Number(transaction.amount || 0), 0);
   }
 
@@ -64,6 +64,7 @@
 
   function cashflowTotalsForMonth(profile, month, now = new Date()) {
     return profile.transactions.reduce((totals, transaction) => {
+      if (transaction.transferId) return totals;
       if (utils.toMonthInput(utils.parseLocalDate(transaction.date)) !== month) return totals;
       if (!isCashflowTransactionIncluded(transaction, now)) return totals;
       const amount = Number(transaction.amount || 0);

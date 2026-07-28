@@ -5,7 +5,7 @@ const path = require("node:path");
 
 global.window = global;
 [
-  "utils", "storage", "categories", "finance", "transactions",
+  "utils", "storage", "categories", "finance", "accounts", "transactions",
   "goals", "profiles", "reports", "notifications",
 ].forEach((name) => require(path.join(__dirname, "..", "js", "core", `${name}.js`)));
 

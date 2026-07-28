@@ -65,6 +65,9 @@
       installmentGroupId: undefined,
       installmentNumber: undefined,
       installmentTotal: undefined,
+      transferId: undefined,
+      transferDirection: undefined,
+      transferAccountId: undefined,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
       ...overrides,
@@ -91,7 +94,8 @@
       const maxMatches = !filters.valueMax || transaction.amount <= Number(filters.valueMax);
       const statusMatches = filters.status === "all" ||
         (filters.status === "open" ? finance.isOpenTransaction(transaction) : transaction.status === filters.status);
-      return descriptionMatches && categoryMatches && fromMatches && toMatches && minMatches && maxMatches && statusMatches;
+      const accountMatches = !filters.account || filters.account === "all" || transaction.accountId === filters.account;
+      return descriptionMatches && categoryMatches && fromMatches && toMatches && minMatches && maxMatches && statusMatches && accountMatches;
     });
 
     const sorters = {
