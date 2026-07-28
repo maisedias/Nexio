@@ -169,7 +169,7 @@ begin
     return query
       select
         'conflict'::text,
-        pg_catalog.coalesce(v_current_revision, 0)::text,
+        coalesce(v_current_revision, 0)::text,
         null::timestamptz;
     return;
   end if;
