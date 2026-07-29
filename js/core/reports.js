@@ -254,6 +254,24 @@
     return profile;
   }
 
+  function monthlyBudgetReport(profile, month, options = {}) {
+    const result = core.budgets.summary(profile, month, options);
+    if (!result.ok) return result;
+    return {
+      ...result,
+      rows: result.items.map((item) => ({
+        categoryId: item.budget.categoryId,
+        category: item.category?.name || "Categoria removida",
+        limit: item.limit,
+        spent: item.spent,
+        committed: item.committed,
+        remaining: item.remainingCommitted,
+        percent: item.committedPercent,
+        status: item.statusLabel,
+      })),
+    };
+  }
+
   core.reports = Object.freeze({
     canonicalHeader,
     bestExtraGoalContribution,
@@ -266,6 +284,7 @@
     filterExportProfileByAccount,
     highestTransaction,
     inferTransactionType,
+    monthlyBudgetReport,
     parseDelimitedRows,
     parseImportedDate,
     parseImportedNumber,

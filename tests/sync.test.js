@@ -952,6 +952,7 @@ test("47. modulos carregam na ordem do navegador sem bundler", () => {
     "js/core/categories.js",
     "js/core/finance.js",
     "js/core/accounts.js",
+    "js/core/budgets.js",
     "js/core/transactions.js",
     "js/core/goals.js",
     "js/core/profiles.js",

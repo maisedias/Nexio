@@ -36,6 +36,7 @@
     editingGoalId: "",
     editingProfileId: "",
     editingAccountId: "",
+    editingBudgetId: "",
     sidebarCollapsed: false,
     filters: {
       description: "",
@@ -53,6 +54,9 @@
     cashflowAccount: "all",
     exportAccount: "all",
     showInactiveAccounts: false,
+    budgetMonth: toMonthInput(new Date()),
+    budgetAccount: "all",
+    showInactiveBudgets: false,
     goalFilters: {
       query: "",
       status: "all",
@@ -1081,6 +1085,7 @@
     bindTopbar();
     bindFloatingActionButton();
     bindAccountForms();
+    bindBudgetForms();
     bindTransactionForm();
     bindCategoryForm();
     bindFilters();
@@ -1444,11 +1449,13 @@
 
   function setView(view) {
     const enteringTransactions = view === "transactions" && state.view !== "transactions";
+    const enteringBudgets = view === "budgets" && state.view !== "budgets";
     state.view = view;
     const titleMap = {
       overview: "Visão geral",
       transactions: "Transações",
       accounts: "Contas",
+      budgets: "Orçamentos",
       cashflow: "Fluxo de caixa",
       goals: "Metas e Objetivos",
       profiles: "Perfis",
@@ -1469,6 +1476,12 @@
     if (view === "cashflow") drawCashflowCharts();
     if (view === "overview") drawMonthlyFlowChart();
     if (enteringTransactions) resetTransactionsMonthToCurrent();
+    if (enteringBudgets) {
+      state.budgetMonth = toMonthInput(new Date());
+      const monthPicker = app.querySelector("#budgetMonthPicker");
+      if (monthPicker) monthPicker.value = state.budgetMonth;
+      renderBudgets();
+    }
     syncFloatingActionButton();
   }
 
@@ -1498,6 +1511,8 @@
     updateOverview();
     renderAccounts();
     renderDashboardAccounts();
+    renderBudgets();
+    renderDashboardBudgets();
     renderRecentTransactions();
     renderTransactionsTable();
     renderCategories();
@@ -1617,6 +1632,7 @@
     if (!validIds.has(state.filters.account)) state.filters.account = "all";
     if (!validIds.has(state.cashflowAccount)) state.cashflowAccount = "all";
     if (!validIds.has(state.exportAccount)) state.exportAccount = "all";
+    if (!validIds.has(state.budgetAccount)) state.budgetAccount = "all";
     const editing = profile.transactions.find((transaction) => transaction.id === state.editingTransactionId);
     const active = core.accounts.activeAccounts(profile);
     const transactionAccounts = core.accounts.selectableAccounts(profile, editing?.accountId);
@@ -1641,6 +1657,7 @@
     fillAll("#filterAccount", state.filters.account);
     fillAll("#cashflowAccount", state.cashflowAccount);
     fillAll("#exportAccount", state.exportAccount);
+    fillAll("#budgetAccount", state.budgetAccount);
     const fillActive = (selector) => {
       const select = app.querySelector(selector);
       if (!select) return;
@@ -1858,6 +1875,322 @@
     modal.classList.remove("is-open");
     modal.hidden = true;
     document.body.classList.remove("has-modal-open");
+  }
+
+  function bindBudgetForms() {
+    const monthPicker = app.querySelector("#budgetMonthPicker");
+    if (monthPicker) {
+      monthPicker.value = state.budgetMonth;
+      monthPicker.addEventListener("change", () => {
+        if (!core.budgets.isValidMonth(monthPicker.value)) {
+          showToast("Informe um mês válido.");
+          monthPicker.value = state.budgetMonth;
+          return;
+        }
+        state.budgetMonth = monthPicker.value;
+        renderBudgets();
+      });
+    }
+    app.querySelector("[data-budget-previous-month]")?.addEventListener("click", () => changeBudgetMonth(-1));
+    app.querySelector("[data-budget-next-month]")?.addEventListener("click", () => changeBudgetMonth(1));
+    app.querySelector("#budgetAccount")?.addEventListener("change", (event) => {
+      state.budgetAccount = event.currentTarget.value || "all";
+      renderBudgets();
+    });
+    app.querySelector("[data-show-inactive-budgets]")?.addEventListener("change", (event) => {
+      state.showInactiveBudgets = event.currentTarget.checked;
+      renderBudgets();
+    });
+    app.querySelectorAll("[data-new-budget]").forEach((button) => {
+      button.addEventListener("click", () => openBudgetComposer());
+    });
+    app.querySelector("[data-copy-all-budgets]")?.addEventListener("click", copyAllBudgetsToNextMonth);
+    app.querySelectorAll("[data-close-budget]").forEach((button) => button.addEventListener("click", closeBudgetComposer));
+    app.querySelector("[data-budget-composer]")?.addEventListener("click", (event) => {
+      if (event.target === event.currentTarget) closeBudgetComposer();
+    });
+    app.querySelector("#budgetForm")?.addEventListener("submit", handleBudgetSubmit);
+    app.querySelector("[data-budget-list]")?.addEventListener("click", handleBudgetListAction);
+    app.querySelector("[data-dashboard-budget-list]")?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-new-budget]")) openBudgetComposer();
+    });
+  }
+
+  function changeBudgetMonth(offset) {
+    state.budgetMonth = shiftMonthValue(state.budgetMonth, offset);
+    const monthPicker = app.querySelector("#budgetMonthPicker");
+    if (monthPicker) monthPicker.value = state.budgetMonth;
+    renderBudgets();
+  }
+
+  function populateBudgetCategorySelect(selectedId = "") {
+    const select = app.querySelector("#budgetCategory");
+    if (!select) return;
+    const categories = core.budgets.expenseCategories(currentProfile());
+    select.innerHTML = "";
+    if (!categories.length) {
+      select.append(new Option("Nenhuma categoria de despesa disponível", ""));
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    select.append(new Option("Selecione uma categoria", ""));
+    categories.forEach((category) => select.append(new Option(`${category.icon || "•"} ${category.name}`, category.id)));
+    select.value = categories.some((category) => category.id === selectedId) ? selectedId : "";
+  }
+
+  function openBudgetComposer(budgetId = "") {
+    const profile = currentProfile();
+    const budget = budgetId ? core.budgets.budgetById(profile, budgetId) : null;
+    state.editingBudgetId = budget?.id || "";
+    populateBudgetCategorySelect(budget?.categoryId || "");
+    app.querySelector("#budgetId").value = budget?.id || "";
+    app.querySelector("#budgetMonth").value = budget?.month || state.budgetMonth;
+    app.querySelector("#budgetLimit").value = budget?.limit ?? "";
+    app.querySelector("#budgetAlertThreshold").value = budget?.alertThreshold ?? 80;
+    app.querySelector("#budgetActive").checked = budget?.active !== false;
+    app.querySelector("[data-budget-form-mode]").textContent = budget ? "Editar orçamento" : "Novo orçamento";
+    setButtonText("[data-save-budget]", budget ? "Atualizar orçamento" : "Salvar orçamento");
+    const modal = app.querySelector("[data-budget-composer]");
+    modal.hidden = false;
+    modal.classList.add("is-open");
+    document.body.classList.add("has-modal-open");
+    window.requestAnimationFrame(() => (budget ? app.querySelector("#budgetLimit") : app.querySelector("#budgetCategory"))?.focus());
+  }
+
+  function closeBudgetComposer() {
+    const modal = app.querySelector("[data-budget-composer]");
+    if (!modal) return;
+    modal.classList.remove("is-open");
+    modal.hidden = true;
+    document.body.classList.remove("has-modal-open");
+    state.editingBudgetId = "";
+    app.querySelector("#budgetForm")?.reset();
+    if (app.querySelector("#budgetId")) app.querySelector("#budgetId").value = "";
+    if (app.querySelector("#budgetAlertThreshold")) app.querySelector("#budgetAlertThreshold").value = "80";
+  }
+
+  function handleBudgetSubmit(event) {
+    event.preventDefault();
+    const profile = currentProfile();
+    const budgetId = app.querySelector("#budgetId").value;
+    const input = {
+      categoryId: app.querySelector("#budgetCategory").value,
+      month: app.querySelector("#budgetMonth").value,
+      limit: app.querySelector("#budgetLimit").value,
+      alertThreshold: app.querySelector("#budgetAlertThreshold").value,
+      active: app.querySelector("#budgetActive").checked,
+    };
+    const result = budgetId
+      ? core.budgets.update(profile, budgetId, input, { uid })
+      : core.budgets.add(profile, input, { uid });
+    if (!result.ok) {
+      showToast(result.error);
+      return;
+    }
+    state.budgetMonth = result.budget.month;
+    saveStore();
+    closeBudgetComposer();
+    showToast(budgetId ? "Orçamento atualizado." : "Orçamento criado.");
+    refreshAll();
+  }
+
+  function handleBudgetListAction(event) {
+    const edit = event.target.closest("[data-edit-budget]");
+    if (edit) {
+      openBudgetComposer(edit.dataset.editBudget);
+      return;
+    }
+    const toggle = event.target.closest("[data-toggle-budget]");
+    if (toggle) {
+      const profile = currentProfile();
+      const budget = core.budgets.budgetById(profile, toggle.dataset.toggleBudget);
+      const result = core.budgets.setActive(profile, budget?.id, budget?.active === false, { uid });
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast(result.budget.active ? "Orçamento reativado." : "Orçamento desativado.");
+      refreshAll();
+      return;
+    }
+    const copy = event.target.closest("[data-copy-budget]");
+    if (copy) {
+      const result = core.budgets.copyNextMonth(currentProfile(), copy.dataset.copyBudget, { uid });
+      if (!result.ok) return showToast(result.error);
+      if (result.copied) saveStore();
+      showToast(result.copied ? "Orçamento copiado para o próximo mês." : "O próximo mês já possui orçamento para esta categoria.");
+      refreshAll();
+      return;
+    }
+    const removeButton = event.target.closest("[data-delete-budget]");
+    if (removeButton) {
+      const profile = currentProfile();
+      const budget = core.budgets.budgetById(profile, removeButton.dataset.deleteBudget);
+      if (!budget) return showToast("Orçamento não encontrado.");
+      if (!confirm("Excluir este orçamento?")) return;
+      const result = core.budgets.remove(profile, budget.id);
+      if (!result.ok) return showToast(result.error);
+      saveStore();
+      showToast("Orçamento excluído.");
+      refreshAll();
+      return;
+    }
+    if (event.target.closest("[data-new-budget]")) openBudgetComposer();
+  }
+
+  function copyAllBudgetsToNextMonth() {
+    const result = core.budgets.copyAllNextMonth(currentProfile(), state.budgetMonth, { uid });
+    if (!result.ok) return showToast(result.error);
+    if (result.copied) saveStore();
+    showToast(`${result.copied} copiado(s) e ${result.ignored} ignorado(s).`);
+    refreshAll();
+  }
+
+  function renderBudgets() {
+    const profile = currentProfile();
+    const list = app.querySelector("[data-budget-list]");
+    if (!profile || !list) return;
+    try {
+      const activeSummary = core.budgets.summary(profile, state.budgetMonth, { accountId: state.budgetAccount });
+      const visibleSummary = core.budgets.summary(profile, state.budgetMonth, {
+        accountId: state.budgetAccount,
+        includeInactive: state.showInactiveBudgets,
+      });
+      if (!activeSummary.ok || !visibleSummary.ok) throw new Error(activeSummary.error || visibleSummary.error);
+      setAnimatedMoney("[data-budgets-planned]", activeSummary.planned);
+      setAnimatedMoney("[data-budgets-spent]", activeSummary.spent);
+      setAnimatedMoney("[data-budgets-committed]", activeSummary.committed);
+      app.querySelector("[data-budgets-month-label]").textContent = formatMonthYear(state.budgetMonth);
+      const monthPicker = app.querySelector("#budgetMonthPicker");
+      if (monthPicker) monthPicker.value = state.budgetMonth;
+      const inactiveToggle = app.querySelector("[data-show-inactive-budgets]");
+      if (inactiveToggle) inactiveToggle.checked = state.showInactiveBudgets;
+      renderBudgetAlerts(activeSummary.items);
+      renderBudgetReport(activeSummary);
+      list.innerHTML = "";
+      if (!visibleSummary.items.length) {
+        list.append(emptyState({
+          icon: "gauge",
+          title: state.showInactiveBudgets ? "Nenhum orçamento neste mês." : "Nenhum orçamento ativo neste mês.",
+          description: "Crie um limite por categoria para acompanhar seus gastos.",
+          actionLabel: "Criar orçamento",
+          action: openBudgetComposer,
+        }));
+        return;
+      }
+      visibleSummary.items.forEach((item) => list.append(budgetCard(item)));
+      renderIcons();
+    } catch (error) {
+      list.innerHTML = "";
+      list.append(emptyState({
+        icon: "triangle-alert",
+        title: "Não foi possível calcular os orçamentos.",
+        description: "Revise os filtros e tente novamente.",
+      }));
+      renderBudgetAlerts([], "Os orçamentos não puderam ser carregados com segurança.");
+    }
+  }
+
+  function budgetCard(item) {
+    const card = document.createElement("article");
+    const inactive = item.budget.active === false;
+    const progress = Math.max(0, Math.min(item.committedPercent, 100));
+    const remainingLabel = item.remainingCommitted < 0 ? "Excedente" : "Restante";
+    const remainingValue = item.remainingCommitted < 0 ? item.exceededBy : item.remainingCommitted;
+    card.className = `panel budget-card budget-status-${item.status}${inactive ? " is-inactive" : ""}`;
+    card.dataset.budgetId = item.budget.id;
+    card.innerHTML = `
+      <header class="budget-card-header">
+        <span class="budget-category-icon" aria-hidden="true">${escapeHtml(item.category?.icon || "•")}</span>
+        <div><h3>${escapeHtml(item.category?.name || "Categoria removida")}</h3><span>${formatMonthYear(item.budget.month)}${inactive ? " · Inativo" : ""}</span></div>
+        <span class="budget-status-pill">${escapeHtml(item.statusLabel)}</span>
+      </header>
+      <div class="budget-card-limit"><span>Limite mensal</span><strong>${money(item.limit)}</strong></div>
+      <div class="budget-progress-head"><span>${Math.round(item.committedPercent)}% comprometido</span><span>Alerta em ${item.budget.alertThreshold}%</span></div>
+      <div class="budget-progress" role="progressbar" aria-label="Progresso de ${escapeHtml(item.category?.name || "categoria")}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><i style="width:${progress}%"></i></div>
+      <div class="budget-card-values">
+        <span><small>Gasto</small><strong>${money(item.spent)}</strong></span>
+        <span><small>Comprometido</small><strong>${money(item.committed)}</strong></span>
+        <span class="${item.remainingCommitted < 0 ? "is-exceeded" : ""}"><small>${remainingLabel}</small><strong>${money(remainingValue)}</strong></span>
+      </div>
+      <footer class="budget-card-actions">
+        <button class="ghost-action compact" data-edit-budget="${item.budget.id}" type="button"><i data-lucide="pencil" aria-hidden="true"></i><span>Editar</span></button>
+        <details class="budget-action-menu">
+          <summary class="icon-button" aria-label="Ações do orçamento"><i data-lucide="ellipsis" aria-hidden="true"></i></summary>
+          <div>
+            <button data-toggle-budget="${item.budget.id}" type="button">${inactive ? "Reativar" : "Desativar"}</button>
+            <button data-copy-budget="${item.budget.id}" type="button">Copiar para próximo mês</button>
+            <button class="is-danger" data-delete-budget="${item.budget.id}" type="button">Excluir</button>
+          </div>
+        </details>
+      </footer>
+    `;
+    return card;
+  }
+
+  function renderBudgetAlerts(items, errorMessage = "") {
+    const box = app.querySelector("[data-budget-alerts]");
+    if (!box) return;
+    box.innerHTML = "";
+    if (errorMessage) {
+      box.innerHTML = `<article class="budget-alert budget-alert-error"><i data-lucide="triangle-alert" aria-hidden="true"></i><span>${escapeHtml(errorMessage)}</span></article>`;
+      renderIcons();
+      return;
+    }
+    items.filter((item) => item.status !== "healthy").forEach((item) => {
+      const alert = document.createElement("article");
+      alert.className = `budget-alert budget-alert-${item.status}`;
+      alert.innerHTML = `<i data-lucide="${item.status === "exceeded" ? "badge-alert" : "gauge"}" aria-hidden="true"></i><span><strong>${escapeHtml(item.category?.name || "Categoria")}: ${escapeHtml(item.statusLabel)}</strong><small>${item.status === "exceeded" ? `Excedente de ${money(item.exceededBy)}.` : `${Math.round(item.committedPercent)}% do limite já está comprometido.`}</small></span>`;
+      box.append(alert);
+    });
+    renderIcons();
+  }
+
+  function renderBudgetReport(summary) {
+    const body = app.querySelector("[data-budget-report]");
+    if (!body) return;
+    const report = core.reports.monthlyBudgetReport(currentProfile(), state.budgetMonth, { accountId: state.budgetAccount });
+    body.innerHTML = "";
+    if (!report.ok || !report.rows.length) {
+      body.innerHTML = '<tr><td colspan="7">Nenhum orçamento ativo para este relatório.</td></tr>';
+      return;
+    }
+    report.rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${escapeHtml(row.category)}</td><td>${money(row.limit)}</td><td>${money(row.spent)}</td><td>${money(row.committed)}</td><td class="${row.remaining < 0 ? "amount-expense" : ""}">${money(row.remaining)}</td><td>${Math.round(row.percent)}%</td><td>${escapeHtml(row.status)}</td>`;
+      body.append(tr);
+    });
+  }
+
+  function renderDashboardBudgets() {
+    const profile = currentProfile();
+    const box = app.querySelector("[data-dashboard-budget-list]");
+    if (!profile || !box) return;
+    const result = core.budgets.dashboard(profile, toMonthInput(new Date()));
+    box.innerHTML = "";
+    if (!result.ok || !result.items.length) {
+      box.append(emptyState({
+        icon: "gauge",
+        title: "Nenhum orçamento para este mês.",
+        description: "Planeje uma categoria para acompanhar seu limite.",
+        actionLabel: "Criar orçamento",
+        action: () => {
+          setView("budgets");
+          openBudgetComposer();
+        },
+      }));
+      return;
+    }
+    result.items.forEach((item) => {
+      const progress = Math.max(0, Math.min(item.committedPercent, 100));
+      const row = document.createElement("article");
+      row.className = `dashboard-budget-item budget-status-${item.status}`;
+      row.innerHTML = `
+        <span class="budget-category-icon" aria-hidden="true">${escapeHtml(item.category?.icon || "•")}</span>
+        <div><strong>${escapeHtml(item.category?.name || "Categoria")}</strong><small>${money(item.limit)} · ${item.statusLabel}</small><div class="budget-progress"><i style="width:${progress}%"></i></div></div>
+        <span><strong>${Math.round(item.committedPercent)}%</strong><small>${item.remainingCommitted < 0 ? `+${money(item.exceededBy)}` : money(item.remainingCommitted)}</small></span>
+      `;
+      box.append(row);
+    });
   }
 
   function bindTransactionForm() {
@@ -2391,6 +2724,7 @@
       profile.transactions = [];
       profile.goals = [];
       profile.imports = [];
+      profile.budgets = [];
       saveStore();
       showToast("Dados do perfil limpos.");
       refreshAll();
@@ -2897,7 +3231,9 @@
     app.querySelector("[data-goal-achieved-indicator]")?.toggleAttribute("hidden", !hasAchievedGoal);
     setAmountTone(app.querySelector("[data-overview-projected-balance]"), projectedBalance);
     setAmountTone(app.querySelector("[data-month-savings]"), monthSavings);
-    updateNotificationBadge(pendingMonthTransactions.length);
+    const budgetAlerts = core.budgets.dashboard(profile, currentMonth.value, { limit: Number.MAX_SAFE_INTEGER });
+    const budgetAlertCount = budgetAlerts.ok ? budgetAlerts.items.filter((item) => item.status !== "healthy").length : 0;
+    updateNotificationBadge(pendingMonthTransactions.length + budgetAlertCount);
     updatePendingTone(app.querySelector("[data-pending-impact-card]"), app.querySelector("[data-pending-impact-icon]"), pendingImpact);
     updatePendingTone(app.querySelector("[data-projected-balance-card]"), app.querySelector("[data-projected-balance-icon]"), projectedBalance);
 
@@ -3796,7 +4132,8 @@
       return;
     }
     profile.categories.forEach((category) => {
-      const used = profile.transactions.some((transaction) => transaction.categoryId === category.id);
+      const used = profile.transactions.some((transaction) => transaction.categoryId === category.id) ||
+        profile.budgets.some((budget) => budget.categoryId === category.id);
       const item = document.createElement("article");
       item.className = `category-card${used ? " is-used" : ""}`;
       item.innerHTML = `
@@ -3818,7 +4155,8 @@
     box.querySelectorAll("[data-delete-category]").forEach((button) => {
       button.addEventListener("click", () => {
         const profile = currentProfile();
-        if (profile.transactions.some((transaction) => transaction.categoryId === button.dataset.deleteCategory)) {
+        if (profile.transactions.some((transaction) => transaction.categoryId === button.dataset.deleteCategory) ||
+          profile.budgets.some((budget) => budget.categoryId === button.dataset.deleteCategory)) {
           showToast("Categorias em uso não podem ser excluídas.");
           return;
         }
@@ -5182,7 +5520,7 @@
   }
 
   function profileUsageScore(profile) {
-    return profile.transactions.length + profile.goals.length + (profile.imports || []).length;
+    return profile.transactions.length + profile.goals.length + (profile.imports || []).length + (profile.budgets || []).length;
   }
 
   function profileCard(profile, user) {
@@ -5334,6 +5672,7 @@
     const dates = [
       ...profile.transactions.map((transaction) => transaction.updatedAt || transaction.createdAt || transaction.date),
       ...profile.goals.map((goal) => goal.updatedAt || goal.createdAt || goal.deadline),
+      ...(profile.budgets || []).map((budget) => budget.updatedAt || budget.createdAt),
       ...(profile.imports || []).map((entry) => entry.importedAt),
     ].filter(Boolean);
     return dates

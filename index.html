@@ -261,6 +261,7 @@
             <button class="nav-item is-active" data-view="overview" data-tooltip="Visão geral" type="button"><span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true">▦</i></span><span>Visão geral</span></button>
             <button class="nav-item" data-view="transactions" data-tooltip="Transações" type="button"><span class="nav-icon"><i data-lucide="wallet-cards" aria-hidden="true">▤</i></span><span>Transações</span></button>
             <button class="nav-item" data-view="accounts" data-tooltip="Contas" type="button"><span class="nav-icon"><i data-lucide="landmark" aria-hidden="true"></i></span><span>Contas</span></button>
+            <button class="nav-item" data-view="budgets" data-tooltip="Orçamentos" type="button"><span class="nav-icon"><i data-lucide="gauge" aria-hidden="true"></i></span><span>Orçamentos</span></button>
             <button class="nav-item" data-view="cashflow" data-tooltip="Fluxo de caixa" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" data-tooltip="Metas" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
             <button class="nav-item" data-view="profiles" data-tooltip="Perfis" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
@@ -458,6 +459,16 @@
               </div>
               <div class="dashboard-account-list" data-dashboard-account-list></div>
             </section>
+
+            <section class="panel dashboard-budgets-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Planejamento</p><h2>Orçamentos do mês</h2></div>
+                <button class="ghost-action" data-view-shortcut="budgets" type="button">Ver todos</button>
+              </div>
+              <div class="dashboard-budget-list" data-dashboard-budget-list>
+                <div class="empty-state empty-state-compact"><strong>Carregando orçamentos...</strong></div>
+              </div>
+            </section>
           </section>
 
           <section id="view-accounts" class="view accounts-experience" data-view-panel="accounts">
@@ -502,6 +513,68 @@
                   <label class="field"><span>Data</span><input id="transferDate" type="date" required /></label>
                   <label class="field"><span>Descrição (opcional)</span><input id="transferDescription" type="text" maxlength="120" placeholder="Ex.: Reserva do mês" /></label>
                   <div class="account-form-actions"><button class="ghost-action" data-close-transfer type="button">Cancelar</button><button class="primary-action" type="submit">Salvar transferência</button></div>
+                </form>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-budgets" class="view budgets-experience" data-view-panel="budgets">
+            <section class="panel budgets-hero-panel">
+              <div class="budgets-hero-copy">
+                <p class="eyebrow">Planejamento mensal</p>
+                <h2>Orçamentos</h2>
+                <p>Defina limites por categoria e acompanhe gastos realizados e comprometidos.</p>
+              </div>
+              <div class="budgets-summary-grid" aria-label="Resumo dos orçamentos">
+                <article><span>Planejado</span><strong data-budgets-planned>R$ 0,00</strong></article>
+                <article><span>Gasto</span><strong data-budgets-spent>R$ 0,00</strong></article>
+                <article><span>Comprometido</span><strong data-budgets-committed>R$ 0,00</strong></article>
+                <article><span>Mês</span><strong data-budgets-month-label>Este mês</strong></article>
+              </div>
+              <button class="primary-action budgets-new-action" data-new-budget type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Novo orçamento</span></button>
+            </section>
+
+            <section class="panel budgets-toolbar-panel" aria-label="Filtros de orçamento">
+              <div class="budget-month-navigation">
+                <button class="icon-button" data-budget-previous-month type="button" aria-label="Mês anterior"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+                <label class="field compact-field"><span>Mês selecionado</span><input id="budgetMonthPicker" type="month" /></label>
+                <button class="icon-button" data-budget-next-month type="button" aria-label="Próximo mês"><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+              </div>
+              <label class="field compact-field budget-account-filter"><span>Conta</span><select id="budgetAccount"></select></label>
+              <label class="checkbox-line compact"><input data-show-inactive-budgets type="checkbox" /><span>Mostrar inativos</span></label>
+              <button class="ghost-action" data-copy-all-budgets type="button"><i data-lucide="copy-plus" aria-hidden="true"></i><span>Copiar todos para o próximo mês</span></button>
+            </section>
+
+            <div class="budget-alert-list" data-budget-alerts aria-live="polite"></div>
+
+            <section class="budget-card-grid" data-budget-list aria-live="polite">
+              <div class="empty-state"><strong>Carregando orçamentos...</strong></div>
+            </section>
+
+            <details class="panel budget-report-panel">
+              <summary><span>Relatório mensal por categoria</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+              <div class="table-shell">
+                <table>
+                  <thead><tr><th>Categoria</th><th>Limite</th><th>Gasto</th><th>Comprometido</th><th>Restante</th><th>Percentual</th><th>Status</th></tr></thead>
+                  <tbody data-budget-report></tbody>
+                </table>
+              </div>
+            </details>
+
+            <div class="budget-modal-backdrop" data-budget-composer hidden>
+              <section class="budget-modal" role="dialog" aria-modal="true" aria-labelledby="budgetComposerTitle">
+                <div class="goal-modal-header">
+                  <div><span data-budget-form-mode>Novo orçamento</span><h3 id="budgetComposerTitle">Planejar categoria</h3></div>
+                  <button class="icon-button" data-close-budget type="button" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button>
+                </div>
+                <form id="budgetForm" class="stacked-form">
+                  <input id="budgetId" type="hidden" />
+                  <label class="field"><span>Categoria</span><select id="budgetCategory" required></select></label>
+                  <label class="field"><span>Mês</span><input id="budgetMonth" type="month" required /></label>
+                  <label class="field"><span>Limite mensal</span><input id="budgetLimit" type="number" min="0.01" step="0.01" inputmode="decimal" required /></label>
+                  <label class="field"><span>Alertar ao atingir (%)</span><input id="budgetAlertThreshold" type="number" min="1" max="100" step="1" value="80" required /></label>
+                  <label class="checkbox-line"><input id="budgetActive" type="checkbox" checked /><span>Orçamento ativo</span></label>
+                  <div class="account-form-actions"><button class="ghost-action" data-close-budget type="button">Cancelar</button><button class="primary-action" data-save-budget type="submit">Salvar orçamento</button></div>
                 </form>
               </section>
             </div>
@@ -1376,6 +1449,7 @@
     <script src="js/core/categories.js?v=20260722-layered-architecture"></script>
     <script src="js/core/finance.js?v=20260722-layered-architecture"></script>
     <script src="js/core/accounts.js?v=20260728-accounts-balances"></script>
+    <script src="js/core/budgets.js?v=20260728-monthly-budgets"></script>
     <script src="js/core/transactions.js?v=20260722-layered-architecture"></script>
     <script src="js/core/goals.js?v=20260722-layered-architecture"></script>
     <script src="js/core/profiles.js?v=20260722-layered-architecture"></script>

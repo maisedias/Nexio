@@ -53,6 +53,28 @@
       const progress = Math.min(Math.round((Number(mainGoal.saved || 0) / Number(mainGoal.target || 1)) * 100), 100);
       notifications.push({ group: "Esta semana", tone: "goal", icon: "target", title: "Meta atualizada", description: `${mainGoal.name} chegou a ${progress}% do objetivo.`, time: "esta semana", action: "goals", actionLabel: "Acompanhar" });
     }
+    const budgetMonth = core.utils.toMonthInput(today);
+    const budgetAlerts = core.budgets.dashboard(profile, budgetMonth, { limit: Number.MAX_SAFE_INTEGER });
+    if (budgetAlerts.ok) {
+      budgetAlerts.items
+        .filter((item) => item.status !== "healthy")
+        .slice(0, 4)
+        .forEach((item) => {
+          const exceeded = item.status === "exceeded";
+          notifications.push({
+            group: "Hoje",
+            tone: exceeded ? "danger" : "warning",
+            icon: exceeded ? "badge-alert" : "gauge",
+            title: exceeded ? "Orçamento excedido" : "Orçamento em atenção",
+            description: exceeded
+              ? `${item.category?.name || "Categoria"} excedeu o limite em ${money(item.exceededBy)}.`
+              : `${item.category?.name || "Categoria"} atingiu ${Math.round(item.committedPercent)}% do limite.`,
+            time: "agora",
+            action: "budgets",
+            actionLabel: "Revisar",
+          });
+        });
+    }
     const cloudReady = Boolean(options.cloudReady);
     notifications.push({ group: "Esta semana", tone: "system", icon: "cloud-check", title: cloudReady ? "Backup realizado" : "Dados salvos neste dispositivo", description: cloudReady ? "Suas informações foram sincronizadas com segurança." : "A Nexio mantém uma cópia local atualizada.", time: cloudReady ? "sincronizado" : "local", action: "settings", actionLabel: "Detalhes" });
     return notifications;

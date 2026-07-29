@@ -13,6 +13,7 @@
       transactions: [],
       goals: [],
       imports: [],
+      budgets: [],
     };
     core.accounts.normalizeProfile(profile, options);
     return profile;
@@ -27,6 +28,7 @@
       ? profile.categories
       : core.categories.createDefaults(createId);
     core.categories.normalizeCategoryIcons(profile.categories);
+    core.budgets.normalizeProfile(profile);
     profile.goals = Array.isArray(profile.goals) ? profile.goals : [];
     profile.goals.forEach((goal) => core.goals.ensureShape(goal, profile, options));
     profile.imports = Array.isArray(profile.imports) ? profile.imports : [];
@@ -111,6 +113,23 @@
       updatedAt: new Date().toISOString(),
       history: (goal.history || []).map((entry) => ({ ...entry, id: createId("goal-move") })),
     }));
+    const usedBudgetIds = new Set((clone.budgets || []).map((budget) => budget.id).filter(Boolean));
+    clone.budgets = (clone.budgets || []).map((budget) => {
+      const baseId = createId("budget");
+      let nextId = baseId;
+      let suffix = 2;
+      while (!nextId || usedBudgetIds.has(nextId)) {
+        nextId = `${baseId || "budget"}-${suffix}`;
+        suffix += 1;
+      }
+      usedBudgetIds.add(nextId);
+      return {
+        ...budget,
+        id: nextId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    });
     return clone;
   }
 
@@ -140,10 +159,27 @@
       let targetProfile = target.profiles.find((profile) => profile.id === incomingProfile.id);
       if (!targetProfile) targetProfile = target.profiles.find((profile) => normalizeText(profile.name) === normalizeText(incomingProfile.name));
       if (!targetProfile) {
+        core.budgets.sanitizeImportedProfile(incomingProfile, { ...options, uid: createId });
         target.profiles.push(incomingProfile);
         return;
       }
       ensureProfile(targetProfile);
+      const categoryIdMap = new Map();
+      const usedCategoryIds = new Set(targetProfile.categories.map((category) => category.id).filter(Boolean));
+      incomingProfile.categories.forEach((incomingCategory) => {
+        const byName = targetProfile.categories.find((category) => normalizeText(category.name) === normalizeText(incomingCategory.name));
+        const byId = targetProfile.categories.find((category) => category.id === incomingCategory.id);
+        const existing = byName || (byId && normalizeText(byId.name) === normalizeText(incomingCategory.name) ? byId : null);
+        if (existing) {
+          categoryIdMap.set(incomingCategory.id, existing.id);
+          return;
+        }
+        const category = JSON.parse(JSON.stringify(incomingCategory));
+        if (!category.id || usedCategoryIds.has(category.id)) category.id = uniqueImportedId("cat", usedCategoryIds);
+        else usedCategoryIds.add(category.id);
+        targetProfile.categories.push(category);
+        categoryIdMap.set(incomingCategory.id, category.id);
+      });
       const accountIdMap = new Map();
       incomingProfile.accounts.forEach((incomingAccount) => {
         const byId = targetProfile.accounts.find((account) => account.id === incomingAccount.id);
@@ -160,6 +196,7 @@
       });
       const targetAccountIds = new Set(targetProfile.accounts.map((account) => account.id));
       incomingProfile.transactions.forEach((transaction) => {
+        if (categoryIdMap.has(transaction.categoryId)) transaction.categoryId = categoryIdMap.get(transaction.categoryId);
         transaction.accountId = accountIdMap.get(transaction.accountId) ||
           (targetAccountIds.has(transaction.accountId) ? transaction.accountId : targetProfile.defaultAccountId);
         if (transaction.transferAccountId) {
@@ -193,10 +230,10 @@
           }
         });
       });
-      utils.mergeUniqueBy(targetProfile.categories, incomingProfile.categories, (item) => normalizeText(item.name));
       utils.mergeUniqueBy(targetProfile.transactions, incomingProfile.transactions, (item) => item.id || `${item.date}|${item.description}|${item.amount}|${item.status}`);
       utils.mergeUniqueBy(targetProfile.goals, incomingProfile.goals, (item) => item.id || normalizeText(item.name));
       utils.mergeUniqueBy(targetProfile.imports, incomingProfile.imports, (item) => item.id || `${item.sourceName}|${item.importedAt}`);
+      core.budgets.importInto(targetProfile, incomingProfile.budgets, { ...options, uid: createId, categoryIdMap });
     });
     if (!target.profiles.some((profile) => profile.id === target.activeProfileId)) target.activeProfileId = target.profiles[0]?.id;
     return target;

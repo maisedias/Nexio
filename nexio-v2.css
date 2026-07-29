@@ -238,6 +238,79 @@
 .account-modal { width: min(100%, var(--size-notification-center)); border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-card-radius); background: var(--nx-surface-raised); box-shadow: var(--shadow-extra-large); padding: var(--nx-space-4); }
 .account-modal form { margin-top: var(--nx-space-3); }
 
+/* Monthly budgets */
+.budgets-experience { gap: var(--nx-space-4); overflow-x: clip; }
+.budgets-hero-panel { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.5fr) auto; align-items: center; gap: var(--nx-space-4); }
+.budgets-hero-copy h2 { margin: var(--space-1) 0; font: var(--nx-font-display); }
+.budgets-hero-copy p { margin: 0; color: var(--nx-text-muted); }
+.budgets-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--nx-space-2); min-width: 0; }
+.budgets-summary-grid article { display: grid; gap: var(--nx-space-1); min-width: 0; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); padding: var(--nx-space-3); }
+.budgets-summary-grid span { color: var(--nx-text-muted); font-size: var(--font-size-micro); }
+.budgets-summary-grid strong { min-width: 0; overflow-wrap: anywhere; color: var(--nx-text); font-size: clamp(var(--font-size-caption), 1.25vw, var(--font-size-body-md)); }
+.budgets-new-action { min-width: max-content; }
+.budgets-toolbar-panel { display: grid; grid-template-columns: auto minmax(var(--size-layout-min-small), .55fr) auto auto; align-items: end; gap: var(--nx-space-3); }
+.budget-month-navigation { display: flex; align-items: end; gap: var(--nx-space-2); }
+.budget-month-navigation .icon-button { flex: 0 0 var(--size-touch-target); min-width: var(--size-touch-target); min-height: var(--size-touch-target); }
+.budget-month-navigation .field { min-width: var(--size-layout-filter); }
+.budget-account-filter { min-width: 0; }
+.budget-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nx-space-3); }
+.budget-card { --budget-tone: var(--nx-income); display: grid; gap: var(--nx-space-3); min-width: 0; overflow: visible; }
+.budget-card.budget-status-warning { --budget-tone: var(--nx-warning); }
+.budget-card.budget-status-exceeded { --budget-tone: var(--nx-expense); }
+.budget-card.is-inactive { opacity: .66; }
+.budget-card-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--nx-space-2); min-width: 0; }
+.budget-card-header > div { min-width: 0; }
+.budget-card-header h3, .budget-card-header span { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; }
+.budget-card-header > div > span { color: var(--nx-text-muted); font-size: var(--font-size-caption); }
+.budget-category-icon { display: grid; place-items: center; flex: 0 0 var(--size-notification-icon); width: var(--size-notification-icon); height: var(--size-notification-icon); border-radius: var(--nx-control-radius); background: color-mix(in srgb, var(--budget-tone, var(--nx-primary)) 14%, transparent); color: var(--budget-tone, var(--nx-primary)); font-size: var(--font-size-body-lg); }
+.budget-status-pill { border: var(--border-width-thin) solid color-mix(in srgb, var(--budget-tone) 35%, transparent); border-radius: var(--radius-pill); background: color-mix(in srgb, var(--budget-tone) 12%, transparent); padding: var(--space-1) var(--nx-space-2); color: var(--budget-tone); font-size: var(--font-size-micro); font-weight: var(--font-weight-bold); }
+.budget-card-limit { display: grid; gap: var(--nx-space-1); min-width: 0; }
+.budget-card-limit span { color: var(--nx-text-muted); font-size: var(--font-size-caption); }
+.budget-card-limit strong { overflow-wrap: anywhere; font-size: clamp(var(--font-size-heading-sm), 2vw, var(--font-size-heading-lg)); line-height: var(--line-height-tight); }
+.budget-progress-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--nx-space-1); color: var(--nx-text-muted); font-size: var(--font-size-micro); }
+.budget-progress { width: 100%; height: var(--space-2); overflow: hidden; border-radius: var(--radius-pill); background: var(--nx-surface-soft); }
+.budget-progress i { display: block; width: 0; max-width: 100%; height: 100%; border-radius: inherit; background: var(--budget-tone, var(--nx-primary)); transition: width var(--transition-normal) var(--nx-ease); }
+.budget-card-values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nx-space-2); }
+.budget-card-values span { display: grid; gap: var(--space-1); min-width: 0; border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); padding: var(--nx-space-2); }
+.budget-card-values small { color: var(--nx-text-muted); }
+.budget-card-values strong { overflow: hidden; font-size: var(--font-size-caption); text-overflow: ellipsis; white-space: nowrap; }
+.budget-card-values .is-exceeded strong { color: var(--nx-expense); }
+.budget-card-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--nx-space-2); border-top: var(--border-width-thin) solid var(--nx-border); padding-top: var(--nx-space-2); }
+.budget-card-actions .ghost-action { margin-right: auto; min-height: var(--size-touch-target); }
+.budget-action-menu { position: relative; }
+.budget-action-menu summary { display: grid; place-items: center; min-width: var(--size-touch-target); min-height: var(--size-touch-target); list-style: none; cursor: pointer; }
+.budget-action-menu summary::-webkit-details-marker { display: none; }
+.budget-action-menu > div { position: absolute; z-index: var(--z-dropdown); right: 0; bottom: calc(100% + var(--nx-space-1)); display: grid; width: max-content; max-width: calc(100vw - var(--nx-space-5)); border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-raised); box-shadow: var(--shadow-medium); padding: var(--nx-space-1); }
+.budget-action-menu button { min-height: var(--size-touch-target); border: 0; border-radius: var(--radius-small); background: transparent; padding: var(--nx-space-2) var(--nx-space-3); color: var(--nx-text); text-align: left; cursor: pointer; white-space: nowrap; }
+.budget-action-menu button:hover { background: var(--nx-surface-soft); }
+.budget-action-menu button.is-danger { color: var(--nx-expense); }
+.budget-alert-list { display: grid; gap: var(--nx-space-2); }
+.budget-alert { display: flex; align-items: center; gap: var(--nx-space-3); border: var(--border-width-thin) solid color-mix(in srgb, var(--budget-alert-tone) 34%, transparent); border-radius: var(--nx-control-radius); background: color-mix(in srgb, var(--budget-alert-tone) 10%, var(--nx-surface)); padding: var(--nx-space-3); color: var(--nx-text); }
+.budget-alert-warning { --budget-alert-tone: var(--nx-warning); }
+.budget-alert-exceeded, .budget-alert-error { --budget-alert-tone: var(--nx-expense); }
+.budget-alert > svg { flex: 0 0 var(--size-icon-medium); color: var(--budget-alert-tone); }
+.budget-alert span { display: grid; gap: var(--space-1); }
+.budget-alert small { color: var(--nx-text-muted); }
+.dashboard-budgets-panel { min-width: 0; }
+.dashboard-budget-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nx-space-2); }
+.dashboard-budget-item { --budget-tone: var(--nx-income); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--nx-space-2); min-width: 0; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); padding: var(--nx-space-3); }
+.dashboard-budget-item.budget-status-warning { --budget-tone: var(--nx-warning); }
+.dashboard-budget-item.budget-status-exceeded { --budget-tone: var(--nx-expense); }
+.dashboard-budget-item > div, .dashboard-budget-item > span { min-width: 0; }
+.dashboard-budget-item > div > strong, .dashboard-budget-item > div > small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dashboard-budget-item small { color: var(--nx-text-muted); font-size: var(--font-size-micro); }
+.dashboard-budget-item > span:last-child { display: grid; justify-items: end; gap: var(--space-1); }
+.dashboard-budget-item .budget-progress { margin-top: var(--nx-space-2); }
+.budget-report-panel { min-width: 0; }
+.budget-report-panel > summary { display: flex; align-items: center; justify-content: space-between; min-height: var(--size-touch-target); list-style: none; cursor: pointer; font-weight: var(--font-weight-bold); }
+.budget-report-panel > summary::-webkit-details-marker { display: none; }
+.budget-report-panel[open] > summary { margin-bottom: var(--nx-space-3); }
+.budget-report-panel td, .budget-report-panel th { white-space: nowrap; }
+.budget-modal-backdrop[hidden] { display: none; }
+.budget-modal-backdrop { position: fixed; z-index: var(--z-modal); inset: 0; display: grid; place-items: center; overflow-y: auto; background: var(--color-backdrop); padding: var(--nx-space-4); backdrop-filter: blur(var(--blur-backdrop)); }
+.budget-modal { width: min(100%, var(--size-notification-center)); max-height: calc(100svh - var(--nx-space-5)); overflow-y: auto; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-card-radius); background: var(--nx-surface-raised); box-shadow: var(--shadow-extra-large); padding: var(--nx-space-4); }
+.budget-modal form { margin-top: var(--nx-space-3); }
+
 /* Charts feel like applications, not reports */
 .app-shell :where(.chart-canvas, .goal-evolution-chart) {
   max-height: var(--size-chart-max);
@@ -405,6 +478,9 @@ body.has-notification-center { overflow: hidden; }
   .dashboard-account-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .accounts-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(var(--size-layout-filter), .7fr); }
   .accounts-hero-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .budgets-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .budgets-new-action { grid-column: 1 / -1; justify-self: start; }
+  .budgets-toolbar-panel { grid-template-columns: minmax(0, 1fr) minmax(var(--size-layout-min-small), .7fr); }
 }
 
 @media (max-width: 900px) {
@@ -419,6 +495,10 @@ body.has-notification-center { overflow: hidden; }
   .settings-premium .settings-layout, .settings-premium .settings-data-grid { grid-template-columns: 1fr; }
   .accounts-layout { grid-template-columns: 1fr; }
   .account-form-panel { position: static; }
+  .budgets-hero-panel { grid-template-columns: 1fr; }
+  .budgets-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budgets-new-action { grid-column: auto; }
+  .budget-card-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1199px) {
@@ -491,11 +571,28 @@ body.has-notification-center { overflow: hidden; }
   .account-card footer { flex-wrap: wrap; }
   .account-modal-backdrop { align-items: end; padding: 0; }
   .account-modal { max-height: 94vh; overflow-y: auto; border-radius: var(--nx-card-radius) var(--nx-card-radius) 0 0; }
+  .budgets-toolbar-panel { grid-template-columns: 1fr; }
+  .budget-month-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .budget-month-navigation .field { min-width: 0; }
+  .dashboard-budget-list { grid-template-columns: 1fr; }
+  .budget-modal-backdrop { align-items: end; padding: 0; }
+  .budget-modal { max-height: 94svh; border-radius: var(--nx-card-radius) var(--nx-card-radius) 0 0; }
   .notification-center > header, .notification-center-list { padding-inline: var(--nx-space-3); }
+}
+
+@media (max-width: 400px) {
+  .budget-card-values { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budget-card-values span:last-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 340px) {
   .app-shell .primary-filters .period-filter > div { grid-template-columns: 1fr; }
+  .budgets-summary-grid, .budget-card-values { grid-template-columns: 1fr; }
+  .budget-card-header { grid-template-columns: auto minmax(0, 1fr); }
+  .budget-status-pill { grid-column: 1 / -1; justify-self: start; }
+  .budget-card-actions { flex-wrap: wrap; }
+  .budget-action-menu > div { width: min(15rem, calc(100vw - 4rem)); max-width: none; }
+  .budget-action-menu button { white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
