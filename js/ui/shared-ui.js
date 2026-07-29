@@ -57,6 +57,7 @@
     budgetMonth: toMonthInput(new Date()),
     budgetAccount: "all",
     showInactiveBudgets: false,
+    notificationFilter: "all",
     goalFilters: {
       query: "",
       status: "all",
@@ -125,6 +126,7 @@
         cloud.lastNotification = "";
       }
       updateSyncStatus();
+      refreshNotificationSurfaces();
     },
   });
   const tabChannel = core.sync.createTabChannel({
@@ -1277,23 +1279,39 @@
     app.querySelector("[data-quick-export]").addEventListener("click", exportCurrentUserData);
     app.querySelector("[data-notification-button]").addEventListener("click", openNotificationCenter);
     app.querySelectorAll("[data-notification-close]").forEach((button) => button.addEventListener("click", closeNotificationCenter));
-    app.querySelector("[data-notification-read-all]")?.addEventListener("click", () => {
-      app.querySelectorAll(".notification-center-item.is-unread").forEach((item) => item.classList.remove("is-unread"));
-      const badge = app.querySelector("[data-notification-count]");
-      if (badge) badge.textContent = "0";
-      showToast("Notificações marcadas como lidas.");
-    });
-    app.querySelector("[data-notification-list]")?.addEventListener("click", (event) => {
-      const action = event.target.closest("[data-notification-view]");
-      if (!action) return;
+    app.querySelector("[data-notification-read-all]")?.addEventListener("click", markAllNotificationsRead);
+    app.querySelector("[data-notifications-read-all]")?.addEventListener("click", markAllNotificationsRead);
+    app.querySelector("[data-notification-view-all]")?.addEventListener("click", () => {
       closeNotificationCenter();
-      if (action.dataset.notificationView === "pendencies") showCurrentMonthPendencies();
-      else setView(action.dataset.notificationView);
+      setView("notifications");
+    });
+    app.querySelector("[data-notification-list]")?.addEventListener("click", handleNotificationClick);
+    app.querySelector("[data-notifications-full-list]")?.addEventListener("click", handleNotificationClick);
+    app.querySelectorAll("[data-notification-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.notificationFilter = button.dataset.notificationFilter || "all";
+        renderNotificationsView();
+      });
     });
     app.querySelector("[data-notification-center]")?.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape") return;
-      closeNotificationCenter();
-      app.querySelector("[data-notification-button]")?.focus();
+      if (event.key === "Escape") {
+        closeNotificationCenter();
+        app.querySelector("[data-notification-button]")?.focus();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...event.currentTarget.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), summary')]
+        .filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     });
   }
 
@@ -1302,6 +1320,8 @@
     const backdrop = app.querySelector(".notification-center-backdrop");
     const button = app.querySelector("[data-notification-button]");
     if (!panel || !backdrop) return;
+    const profile = currentProfile();
+    if (profile && core.notifications.markOpened(profile, { today: new Date() })) saveStore();
     renderNotificationCenter();
     panel.hidden = false;
     backdrop.hidden = false;
@@ -1336,20 +1356,172 @@
     const list = app.querySelector("[data-notification-list]");
     if (!list) return;
     const profile = currentProfile();
-    const notifications = core.notifications.build(profile, { money, cloudReady: cloud.ready });
+    if (!profile) return;
+    try {
+      const all = currentNotificationItems();
+      const items = core.notifications.panelItems(profile, notificationOptions());
+      const unread = all.filter((item) => !item.isRead).length;
+      const count = app.querySelector("[data-notification-panel-count]");
+      if (count) count.textContent = plural(unread, "não lida", "não lidas");
+      list.innerHTML = items.length
+        ? items.map(notificationQuickItemHtml).join("")
+        : '<div class="notification-empty"><i data-lucide="bell-off" aria-hidden="true"></i><strong>Nenhum alerta ativo.</strong><span>Seus vencimentos e limites estão em dia.</span></div>';
+    } catch (error) {
+      list.innerHTML = '<div class="notification-empty is-error"><i data-lucide="triangle-alert" aria-hidden="true"></i><strong>Não foi possível atualizar os alertas.</strong><span>Tente novamente em instantes.</span></div>';
+    }
+    renderIcons();
+  }
 
-    const groups = ["Hoje", "Ontem", "Esta semana"];
-    list.innerHTML = groups.map((group) => {
-      const items = notifications.filter((item) => item.group === group);
-      if (!items.length) return "";
-      return `<section class="notification-center-group"><h3>${group}<span>${items.length}</span></h3>${items.map((item) => `
-        <article class="notification-center-item is-unread tone-${item.tone}">
+  function notificationOptions() {
+    return {
+      today: new Date(),
+      money,
+      syncStatus: syncCoordinator.getStatus(),
+    };
+  }
+
+  function currentNotificationItems() {
+    const profile = currentProfile();
+    return profile ? core.notifications.build(profile, notificationOptions()) : [];
+  }
+
+  function notificationQuickItemHtml(item) {
+    return `
+      <article class="notification-center-item ${item.isRead ? "is-read" : "is-unread"} tone-${item.tone}" data-notification-key="${escapeHtml(item.key)}">
+        <span class="notification-item-icon"><i data-lucide="${item.icon}" aria-hidden="true"></i></span>
+        <div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.description)}</p><small>${escapeHtml(item.time)} · ${escapeHtml(item.profileName)}</small></div>
+        <button class="ghost-action" data-notification-open="${escapeHtml(item.key)}" type="button">${escapeHtml(item.actionLabel)}</button>
+      </article>`;
+  }
+
+  function renderNotificationsView() {
+    const list = app.querySelector("[data-notifications-full-list]");
+    const profile = currentProfile();
+    if (!list || !profile) return;
+    try {
+      const all = currentNotificationItems();
+      const items = core.notifications.filterItems(all, state.notificationFilter);
+      const unread = all.filter((item) => !item.isRead).length;
+      const unreadElement = app.querySelector("[data-notifications-unread]");
+      const profileElement = app.querySelector("[data-notifications-profile]");
+      if (unreadElement) unreadElement.textContent = String(unread);
+      if (profileElement) profileElement.textContent = profile.name;
+      app.querySelectorAll("[data-notification-filter]").forEach((button) => {
+        const selected = button.dataset.notificationFilter === state.notificationFilter;
+        button.classList.toggle("is-active", selected);
+        button.setAttribute("aria-selected", String(selected));
+      });
+      list.innerHTML = items.length
+        ? items.map(notificationFullItemHtml).join("")
+        : '<div class="panel notification-empty"><i data-lucide="bell-off" aria-hidden="true"></i><strong>Nenhuma notificação neste filtro.</strong><span>Os alertas ativos aparecerão aqui automaticamente.</span></div>';
+    } catch (error) {
+      list.innerHTML = '<div class="panel notification-empty is-error"><i data-lucide="triangle-alert" aria-hidden="true"></i><strong>Não foi possível carregar as notificações.</strong><span>Seus dados financeiros continuam preservados.</span></div>';
+    }
+    renderIcons();
+  }
+
+  function notificationFullItemHtml(item) {
+    const value = item.amount === null || item.amount === undefined ? "" : `<span><small>Valor</small><strong>${money(item.amount)}</strong></span>`;
+    const category = item.categoryName ? `<span><small>Categoria</small><strong>${escapeHtml(item.categoryName)}</strong></span>` : "";
+    const account = item.accountName ? `<span><small>Conta</small><strong>${escapeHtml(item.accountName)}</strong></span>` : "";
+    const date = item.date && core.notifications.validDateInput(item.date)
+      ? `<span><small>Data</small><strong>${formatDate(item.date)}</strong></span>`
+      : "";
+    return `
+      <article class="panel notification-full-item ${item.isRead ? "is-read" : "is-unread"} tone-${item.tone}" data-notification-key="${escapeHtml(item.key)}">
+        <header>
           <span class="notification-item-icon"><i data-lucide="${item.icon}" aria-hidden="true"></i></span>
-          <div><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.description)}</p><small>${escapeHtml(item.time)}</small></div>
-          <button class="ghost-action" data-notification-view="${item.action}" type="button">${item.actionLabel}</button>
-        </article>`).join("")}</section>`;
-    }).join("");
-    window.lucide?.createIcons();
+          <div><span class="notification-type-label">${notificationTypeLabel(item.type)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p></div>
+          <span class="notification-priority priority-${item.priority}">${escapeHtml(item.priorityLabel)}</span>
+        </header>
+        <div class="notification-detail-grid">${value}${date}${category}${account}<span><small>Perfil</small><strong>${escapeHtml(item.profileName)}</strong></span><span><small>Prazo</small><strong>${escapeHtml(item.time)}</strong></span></div>
+        <footer>
+          <button class="ghost-action compact" data-notification-toggle-read="${escapeHtml(item.key)}" type="button"><i data-lucide="${item.isRead ? "mail" : "mail-check"}" aria-hidden="true"></i><span>${item.isRead ? "Marcar como não lida" : "Marcar como lida"}</span></button>
+          <button class="ghost-action compact" data-notification-dismiss="${escapeHtml(item.key)}" type="button"><i data-lucide="eye-off" aria-hidden="true"></i><span>Dispensar</span></button>
+          <details class="notification-snooze-menu"><summary class="ghost-action compact"><i data-lucide="clock-3" aria-hidden="true"></i><span>Adiar</span></summary><div><button data-notification-snooze="${escapeHtml(item.key)}" data-snooze-days="1" type="button">Por 1 dia</button><button data-notification-snooze="${escapeHtml(item.key)}" data-snooze-days="3" type="button">Por 3 dias</button></div></details>
+          <button class="primary-action compact" data-notification-open="${escapeHtml(item.key)}" type="button"><span>Abrir item</span><i data-lucide="arrow-up-right" aria-hidden="true"></i></button>
+        </footer>
+      </article>`;
+  }
+
+  function notificationTypeLabel(type) {
+    return ({ due: "Vencimento", budget: "Orçamento", goal: "Meta", sync: "Sincronização" })[type] || "Alerta";
+  }
+
+  function handleNotificationClick(event) {
+    const open = event.target.closest("[data-notification-open]");
+    if (open) {
+      openNotificationItem(open.dataset.notificationOpen);
+      return;
+    }
+    const toggle = event.target.closest("[data-notification-toggle-read]");
+    if (toggle) {
+      const item = currentNotificationItems().find((entry) => entry.key === toggle.dataset.notificationToggleRead);
+      persistNotificationChange(item && core.notifications.setRead(currentProfile(), item.key, !item.isRead), item?.isRead ? "Notificação marcada como não lida." : "Notificação marcada como lida.");
+      return;
+    }
+    const dismissButton = event.target.closest("[data-notification-dismiss]");
+    if (dismissButton) {
+      persistNotificationChange(core.notifications.dismiss(currentProfile(), dismissButton.dataset.notificationDismiss), "Notificação dispensada.");
+      return;
+    }
+    const snoozeButton = event.target.closest("[data-notification-snooze]");
+    if (snoozeButton) {
+      const days = Number(snoozeButton.dataset.snoozeDays);
+      persistNotificationChange(core.notifications.snooze(currentProfile(), snoozeButton.dataset.notificationSnooze, days, { today: new Date() }), `Notificação adiada por ${days} ${days === 1 ? "dia" : "dias"}.`);
+    }
+  }
+
+  function persistNotificationChange(changed, message) {
+    if (!changed) return;
+    saveStore();
+    refreshNotificationSurfaces();
+    showToast(message);
+  }
+
+  function markAllNotificationsRead() {
+    const items = currentNotificationItems();
+    persistNotificationChange(core.notifications.markAllRead(currentProfile(), items), "Todas as notificações foram marcadas como lidas.");
+  }
+
+  function openNotificationItem(key) {
+    const item = currentNotificationItems().find((entry) => entry.key === key);
+    if (!item) {
+      showToast("Este alerta não está mais ativo.");
+      refreshNotificationSurfaces();
+      return;
+    }
+    const changed = core.notifications.setRead(currentProfile(), item.key, true);
+    if (changed) saveStore();
+    closeNotificationCenter();
+    if (item.type === "due") {
+      setView("transactions");
+      openTransactionDetail(item.transactionId);
+    } else if (item.type === "budget") {
+      setView("budgets");
+      state.budgetMonth = item.date.slice(0, 7);
+      renderBudgets();
+      openBudgetComposer(item.budgetId);
+    } else if (item.type === "goal") {
+      setView("goals");
+      editGoal(item.goalId);
+    } else {
+      setView("settings");
+    }
+    refreshNotificationSurfaces();
+  }
+
+  function refreshNotificationSurfaces() {
+    const profile = currentProfile();
+    if (!profile) {
+      updateNotificationBadge({ count: 0, label: "0" });
+      return;
+    }
+    const summary = core.notifications.badge(profile, notificationOptions());
+    updateNotificationBadge(summary);
+    const panel = app.querySelector("[data-notification-center]");
+    if (panel && !panel.hidden) renderNotificationCenter();
+    if (state.view === "notifications") renderNotificationsView();
   }
 
   function bindFloatingActionButton() {
@@ -1456,6 +1628,7 @@
       transactions: "Transações",
       accounts: "Contas",
       budgets: "Orçamentos",
+      notifications: "Notificações",
       cashflow: "Fluxo de caixa",
       goals: "Metas e Objetivos",
       profiles: "Perfis",
@@ -1475,6 +1648,7 @@
     });
     if (view === "cashflow") drawCashflowCharts();
     if (view === "overview") drawMonthlyFlowChart();
+    if (view === "notifications") renderNotificationsView();
     if (enteringTransactions) resetTransactionsMonthToCurrent();
     if (enteringBudgets) {
       state.budgetMonth = toMonthInput(new Date());
@@ -1513,6 +1687,7 @@
     renderDashboardAccounts();
     renderBudgets();
     renderDashboardBudgets();
+    renderNotificationsView();
     renderRecentTransactions();
     renderTransactionsTable();
     renderCategories();
@@ -2667,6 +2842,12 @@
       app.querySelectorAll("[data-setting-toggle]").forEach((toggle) => {
         user.settings[toggle.dataset.settingToggle] = toggle.checked;
       });
+      const notificationPreferences = {};
+      app.querySelectorAll("[data-notification-preference]").forEach((toggle) => {
+        notificationPreferences[toggle.dataset.notificationPreference] = toggle.checked;
+      });
+      notificationPreferences.dueSoonDays = Number(app.querySelector("#notificationDueSoonDays")?.value);
+      core.notifications.setPreferences(profile, notificationPreferences);
       writeStorage(LANGUAGE_KEY, user.language);
       applyLanguage(user.language);
       saveStore();
@@ -2725,6 +2906,9 @@
       profile.goals = [];
       profile.imports = [];
       profile.budgets = [];
+      profile.notificationState = core.notifications.createState({
+        preferences: profile.notificationState?.preferences,
+      });
       saveStore();
       showToast("Dados do perfil limpos.");
       refreshAll();
@@ -3231,9 +3415,7 @@
     app.querySelector("[data-goal-achieved-indicator]")?.toggleAttribute("hidden", !hasAchievedGoal);
     setAmountTone(app.querySelector("[data-overview-projected-balance]"), projectedBalance);
     setAmountTone(app.querySelector("[data-month-savings]"), monthSavings);
-    const budgetAlerts = core.budgets.dashboard(profile, currentMonth.value, { limit: Number.MAX_SAFE_INTEGER });
-    const budgetAlertCount = budgetAlerts.ok ? budgetAlerts.items.filter((item) => item.status !== "healthy").length : 0;
-    updateNotificationBadge(pendingMonthTransactions.length + budgetAlertCount);
+    refreshNotificationSurfaces();
     updatePendingTone(app.querySelector("[data-pending-impact-card]"), app.querySelector("[data-pending-impact-icon]"), pendingImpact);
     updatePendingTone(app.querySelector("[data-projected-balance-card]"), app.querySelector("[data-projected-balance-icon]"), projectedBalance);
 
@@ -3938,11 +4120,14 @@
     element.classList.toggle("amount-expense", value < 0);
   }
 
-  function updateNotificationBadge(count) {
+  function updateNotificationBadge(summary) {
     const badge = app.querySelector("[data-notification-count]");
     const button = app.querySelector("[data-notification-button]");
     if (!badge || !button) return;
-    badge.textContent = String(count);
+    const count = Math.max(0, Number(summary?.count ?? summary) || 0);
+    const label = summary?.label || (count > 99 ? "99+" : String(count));
+    badge.textContent = label;
+    badge.toggleAttribute("hidden", count === 0);
     badge.setAttribute("aria-hidden", count > 0 ? "false" : "true");
     button.setAttribute("aria-label", count > 0
       ? `Abrir central de notificações, ${plural(count, "alerta pendente", "alertas pendentes")}`
@@ -5708,6 +5893,13 @@
     app.querySelectorAll("[data-setting-toggle]").forEach((toggle) => {
       toggle.checked = Boolean(user.settings?.[toggle.dataset.settingToggle]);
     });
+    core.notifications.normalizeProfile(profile);
+    const notificationState = profile.notificationState;
+    app.querySelectorAll("[data-notification-preference]").forEach((toggle) => {
+      toggle.checked = Boolean(notificationState.preferences[toggle.dataset.notificationPreference]);
+    });
+    const dueSoonDays = app.querySelector("#notificationDueSoonDays");
+    if (dueSoonDays) dueSoonDays.value = String(notificationState.preferences.dueSoonDays);
     const avatar = app.querySelector("[data-settings-avatar]");
     if (avatar) {
       avatar.textContent = user.avatar ? "" : initialsFrom(user.name);

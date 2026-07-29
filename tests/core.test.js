@@ -54,9 +54,9 @@ assert.equal(targetGoal.saved, 70);
 
 const profile = profiles.create("Principal", { uid: (prefix) => `${prefix}-fixed` });
 assert.equal(profile.categories.length, 7);
-profile.transactions.push({ type: "expense", status: "Pendente", amount: 25, date: "2026-07-22", description: "Conta" });
+profile.transactions.push({ id: "trx-pending", type: "expense", status: "Pendente", amount: 25, date: "2026-07-22", description: "Conta" });
 const notices = notifications.build(profile, { today: new Date(2026, 6, 22), money: (value) => `R$ ${value}`, cloudReady: false });
-assert.ok(notices.some((notice) => notice.action === "pendencies"));
+assert.ok(notices.some((notice) => notice.action === "transactions"));
 
 const memory = new Map();
 const adapter = {

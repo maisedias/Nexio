@@ -14,6 +14,7 @@
       goals: [],
       imports: [],
       budgets: [],
+      notificationState: core.notifications?.createState?.() || undefined,
     };
     core.accounts.normalizeProfile(profile, options);
     return profile;
@@ -29,6 +30,7 @@
       : core.categories.createDefaults(createId);
     core.categories.normalizeCategoryIcons(profile.categories);
     core.budgets.normalizeProfile(profile);
+    core.notifications?.normalizeProfile?.(profile);
     profile.goals = Array.isArray(profile.goals) ? profile.goals : [];
     profile.goals.forEach((goal) => core.goals.ensureShape(goal, profile, options));
     profile.imports = Array.isArray(profile.imports) ? profile.imports : [];
@@ -130,6 +132,9 @@
         updatedAt: new Date().toISOString(),
       };
     });
+    clone.notificationState = core.notifications?.createState?.({
+      preferences: clone.notificationState?.preferences,
+    }) || clone.notificationState;
     return clone;
   }
 
@@ -234,6 +239,7 @@
       utils.mergeUniqueBy(targetProfile.goals, incomingProfile.goals, (item) => item.id || normalizeText(item.name));
       utils.mergeUniqueBy(targetProfile.imports, incomingProfile.imports, (item) => item.id || `${item.sourceName}|${item.importedAt}`);
       core.budgets.importInto(targetProfile, incomingProfile.budgets, { ...options, uid: createId, categoryIdMap });
+      core.notifications?.importState?.(targetProfile, incomingProfile.notificationState);
     });
     if (!target.profiles.some((profile) => profile.id === target.activeProfileId)) target.activeProfileId = target.profiles[0]?.id;
     return target;
