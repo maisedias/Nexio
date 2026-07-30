@@ -9,9 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260720-transactions-compact-mobile-v3" />
-    <link rel="stylesheet" href="docs/design-system/tokens.css?v=20260717-nexio-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260720-transactions-compact-mobile-v3" />
+    <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260729-mobile-release-5" />
+    <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
   </head>
   <body>
     <div id="app"></div>
@@ -100,7 +100,7 @@
               <div class="digital-wallet-footer"><span>•••• 2026</span><i data-lucide="shield-check" aria-hidden="true">✓</i></div>
             </div>
             <div class="wallet-float wallet-secure"><i data-lucide="lock-keyhole" aria-hidden="true">◈</i><span><strong>Protegido</strong><small>Seus dados estão seguros</small></span></div>
-            <div class="wallet-float wallet-sync"><i data-lucide="refresh-cw" aria-hidden="true">↻</i><span><strong>Sincronizado</strong><small>Atualização instantânea</small></span></div>
+            <div class="wallet-float wallet-sync"><i data-lucide="refresh-cw" aria-hidden="true">↻</i><span><strong>Status de sincronização</strong><small>Acompanhamento seguro no aplicativo</small></span></div>
           </div>
           <div class="onboarding-balance-form">
             <span class="onboarding-step"><i></i> Seu ponto de partida</span>
@@ -260,6 +260,8 @@
           <nav class="nav-list" aria-label="Navegação principal">
             <button class="nav-item is-active" data-view="overview" data-tooltip="Visão geral" type="button"><span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true">▦</i></span><span>Visão geral</span></button>
             <button class="nav-item" data-view="transactions" data-tooltip="Transações" type="button"><span class="nav-icon"><i data-lucide="wallet-cards" aria-hidden="true">▤</i></span><span>Transações</span></button>
+            <button class="nav-item" data-view="accounts" data-tooltip="Contas" type="button"><span class="nav-icon"><i data-lucide="landmark" aria-hidden="true"></i></span><span>Contas</span></button>
+            <button class="nav-item" data-view="budgets" data-tooltip="Orçamentos" type="button"><span class="nav-icon"><i data-lucide="gauge" aria-hidden="true"></i></span><span>Orçamentos</span></button>
             <button class="nav-item" data-view="cashflow" data-tooltip="Fluxo de caixa" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" data-tooltip="Metas" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
             <button class="nav-item" data-view="profiles" data-tooltip="Perfis" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
@@ -294,7 +296,7 @@
               <button class="icon-button notification-button" data-notification-button type="button" aria-label="Abrir central de notificações" aria-controls="notificationCenter" aria-expanded="false" title="Notificações">
                 <i data-lucide="bell" aria-hidden="true">!</i>
                 <span class="notification-text">Notificações</span>
-                <span class="notification-badge" data-notification-count>0</span>
+                <span class="notification-badge" data-notification-count hidden>0</span>
               </button>
               <label class="select-shell profile-switcher">
                 <span>Perfil</span>
@@ -309,14 +311,14 @@
           </header>
 
           <button class="notification-center-backdrop" data-notification-close type="button" aria-label="Fechar central de notificações" hidden></button>
-          <aside class="notification-center" id="notificationCenter" data-notification-center aria-labelledby="notificationCenterTitle" aria-hidden="true" hidden>
+          <aside class="notification-center" id="notificationCenter" data-notification-center role="dialog" aria-modal="true" aria-labelledby="notificationCenterTitle" aria-hidden="true" hidden>
             <header>
               <div><span class="notification-center-kicker">Central</span><h2 id="notificationCenterTitle">Notificações</h2><p>O que merece sua atenção agora.</p></div>
               <button class="icon-button" data-notification-close type="button" aria-label="Fechar notificações"><i data-lucide="x" aria-hidden="true">×</i></button>
             </header>
-            <div class="notification-center-toolbar"><span><i></i> Atualizações em tempo real</span><button class="ghost-action" data-notification-read-all type="button">Marcar como lidas</button></div>
-            <div class="notification-center-list" data-notification-list></div>
-            <footer><i data-lucide="shield-check" aria-hidden="true">✓</i><span>Seus dados e alertas permanecem protegidos.</span></footer>
+            <div class="notification-center-toolbar"><span><i></i> <strong data-notification-panel-count>0 não lidas</strong></span><button class="ghost-action" data-notification-read-all type="button">Marcar todas como lidas</button></div>
+            <div class="notification-center-list" data-notification-list aria-live="polite"><div class="notification-loading"><i data-lucide="loader-circle" aria-hidden="true"></i><span>Atualizando alertas...</span></div></div>
+            <footer><span><i data-lucide="shield-check" aria-hidden="true">✓</i> Alertas protegidos neste perfil.</span><button class="ghost-action" data-notification-view-all type="button">Ver todas</button></footer>
           </aside>
 
           <section id="view-overview" class="view is-visible overview-dashboard" data-view-panel="overview">
@@ -449,9 +451,161 @@
                 <div class="insight-list dashboard-insights" data-dashboard-insight-list></div>
               </section>
             </div>
+
+            <section class="panel dashboard-accounts-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Contas</p><h2>Saldos separados</h2></div>
+                <button class="ghost-action" data-view-shortcut="accounts" type="button">Ver todas</button>
+              </div>
+              <div class="dashboard-account-list" data-dashboard-account-list></div>
+            </section>
+
+            <section class="panel dashboard-budgets-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">Planejamento</p><h2>Orçamentos do mês</h2></div>
+                <button class="ghost-action" data-view-shortcut="budgets" type="button">Ver todos</button>
+              </div>
+              <div class="dashboard-budget-list" data-dashboard-budget-list>
+                <div class="empty-state empty-state-compact"><strong>Carregando orçamentos...</strong></div>
+              </div>
+            </section>
+          </section>
+
+          <section id="view-notifications" class="view notifications-experience" data-view-panel="notifications">
+            <section class="panel notifications-hero-panel">
+              <div><p class="eyebrow">Central financeira</p><h2>Notificações</h2><p>Vencimentos, orçamentos, metas e sincronização do perfil atual.</p></div>
+              <div class="notifications-hero-count"><span>Não lidas</span><strong data-notifications-unread>0</strong><small data-notifications-profile>Perfil atual</small></div>
+              <button class="ghost-action" data-notifications-read-all type="button"><i data-lucide="check-check" aria-hidden="true"></i><span>Marcar todas como lidas</span></button>
+            </section>
+
+            <section class="panel notifications-toolbar" aria-label="Filtros de notificações">
+              <div class="notification-filter-list" role="tablist" aria-label="Filtrar notificações">
+                <button class="is-active" data-notification-filter="all" role="tab" aria-selected="true" type="button">Todas</button>
+                <button data-notification-filter="unread" role="tab" aria-selected="false" type="button">Não lidas</button>
+                <button data-notification-filter="due" role="tab" aria-selected="false" type="button">Vencimentos</button>
+                <button data-notification-filter="budget" role="tab" aria-selected="false" type="button">Orçamentos</button>
+                <button data-notification-filter="goal" role="tab" aria-selected="false" type="button">Metas</button>
+                <button data-notification-filter="sync" role="tab" aria-selected="false" type="button">Sincronização</button>
+              </div>
+            </section>
+
+            <section class="notification-full-list" data-notifications-full-list aria-live="polite">
+              <div class="notification-loading"><i data-lucide="loader-circle" aria-hidden="true"></i><span>Atualizando alertas...</span></div>
+            </section>
+          </section>
+
+          <section id="view-accounts" class="view accounts-experience" data-view-panel="accounts">
+            <section class="panel accounts-hero-panel">
+              <div><p class="eyebrow">Organização financeira</p><h2>Contas</h2><p>Acompanhe cada origem de dinheiro sem misturar movimentações.</p></div>
+              <div class="accounts-hero-summary"><span data-accounts-total-label>Saldo ativo consolidado</span><strong data-accounts-total-balance>R$ 0,00</strong><small data-accounts-active-count>0 contas ativas</small></div>
+              <div class="accounts-hero-actions">
+                <button class="ghost-action" data-open-transfer type="button"><i data-lucide="repeat-2" aria-hidden="true"></i><span>Transferir</span></button>
+                <button class="primary-action" data-new-account type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Nova conta</span></button>
+              </div>
+            </section>
+
+            <div class="accounts-layout">
+              <section class="panel account-form-panel">
+                <div class="panel-heading"><div><p class="eyebrow" data-account-form-mode>Nova conta</p><h2>Dados da conta</h2></div></div>
+                <form id="accountForm" class="stacked-form">
+                  <input id="accountId" type="hidden" />
+                  <label class="field"><span>Nome</span><input id="accountName" type="text" maxlength="80" placeholder="Ex.: Conta do dia a dia" required /></label>
+                  <label class="field"><span>Tipo</span><select id="accountType" required></select></label>
+                  <label class="field"><span>Saldo inicial</span><input id="accountInitialBalance" type="number" step="0.01" value="0" required /></label>
+                  <label class="field"><span>Moeda</span><input id="accountCurrency" type="text" value="BRL" readonly aria-readonly="true" /></label>
+                  <label class="checkbox-line"><input id="accountActive" type="checkbox" checked /><span>Conta ativa</span></label>
+                  <label class="checkbox-line"><input id="accountDefault" type="checkbox" /><span>Usar como conta padrão</span></label>
+                  <div class="account-form-actions"><button class="primary-action" data-save-account type="submit">Salvar conta</button><button class="ghost-action" data-reset-account-form type="button">Limpar</button></div>
+                </form>
+              </section>
+
+              <section class="panel accounts-list-panel">
+                <div class="panel-heading"><div><p class="eyebrow">Visão por conta</p><h2>Suas contas</h2></div><label class="checkbox-line compact"><input data-show-inactive-accounts type="checkbox" /><span>Mostrar inativas</span></label></div>
+                <div class="account-card-grid" data-account-list><div class="empty-state empty-state-compact"><strong>Carregando contas...</strong></div></div>
+              </section>
+            </div>
+
+            <div class="account-modal-backdrop" data-transfer-composer hidden>
+              <section class="account-modal" role="dialog" aria-modal="true" aria-labelledby="accountTransferTitle">
+                <div class="goal-modal-header"><div><span>Movimentação interna</span><h3 id="accountTransferTitle">Transferir entre contas</h3></div><button class="icon-button" data-close-transfer type="button" aria-label="Fechar">x</button></div>
+                <form id="accountTransferForm" class="stacked-form">
+                  <input id="accountTransferId" type="hidden" />
+                  <label class="field"><span>Conta de origem</span><select id="transferFromAccount" required></select></label>
+                  <label class="field"><span>Conta de destino</span><select id="transferToAccount" required></select></label>
+                  <label class="field"><span>Valor</span><input id="transferAmount" type="number" min="0.01" step="0.01" required /></label>
+                  <label class="field"><span>Data</span><input id="transferDate" type="date" required /></label>
+                  <label class="field"><span>Descrição (opcional)</span><input id="transferDescription" type="text" maxlength="120" placeholder="Ex.: Reserva do mês" /></label>
+                  <div class="account-form-actions"><button class="ghost-action" data-close-transfer type="button">Cancelar</button><button class="primary-action" type="submit">Salvar transferência</button></div>
+                </form>
+              </section>
+            </div>
+          </section>
+
+          <section id="view-budgets" class="view budgets-experience" data-view-panel="budgets">
+            <section class="panel budgets-hero-panel">
+              <div class="budgets-hero-copy">
+                <p class="eyebrow">Planejamento mensal</p>
+                <h2>Orçamentos</h2>
+                <p>Defina limites por categoria e acompanhe gastos realizados e comprometidos.</p>
+              </div>
+              <div class="budgets-summary-grid" aria-label="Resumo dos orçamentos">
+                <article><span>Planejado</span><strong data-budgets-planned>R$ 0,00</strong></article>
+                <article><span>Gasto</span><strong data-budgets-spent>R$ 0,00</strong></article>
+                <article><span>Comprometido</span><strong data-budgets-committed>R$ 0,00</strong></article>
+                <article><span>Mês</span><strong data-budgets-month-label>Este mês</strong></article>
+              </div>
+              <button class="primary-action budgets-new-action" data-new-budget type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Novo orçamento</span></button>
+            </section>
+
+            <section class="panel budgets-toolbar-panel" aria-label="Filtros de orçamento">
+              <div class="budget-month-navigation">
+                <button class="icon-button" data-budget-previous-month type="button" aria-label="Mês anterior"><i data-lucide="chevron-left" aria-hidden="true"></i></button>
+                <label class="field compact-field"><span>Mês selecionado</span><input id="budgetMonthPicker" type="month" /></label>
+                <button class="icon-button" data-budget-next-month type="button" aria-label="Próximo mês"><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+              </div>
+              <label class="field compact-field budget-account-filter"><span>Conta</span><select id="budgetAccount"></select></label>
+              <label class="checkbox-line compact"><input data-show-inactive-budgets type="checkbox" /><span>Mostrar inativos</span></label>
+              <button class="ghost-action" data-copy-all-budgets type="button"><i data-lucide="copy-plus" aria-hidden="true"></i><span>Copiar todos para o próximo mês</span></button>
+            </section>
+
+            <div class="budget-alert-list" data-budget-alerts aria-live="polite"></div>
+
+            <section class="budget-card-grid" data-budget-list aria-live="polite">
+              <div class="empty-state"><strong>Carregando orçamentos...</strong></div>
+            </section>
+
+            <details class="panel budget-report-panel">
+              <summary><span>Relatório mensal por categoria</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+              <div class="table-shell">
+                <table>
+                  <thead><tr><th>Categoria</th><th>Limite</th><th>Gasto</th><th>Comprometido</th><th>Restante</th><th>Percentual</th><th>Status</th></tr></thead>
+                  <tbody data-budget-report></tbody>
+                </table>
+              </div>
+            </details>
+
+            <div class="budget-modal-backdrop" data-budget-composer hidden>
+              <section class="budget-modal" role="dialog" aria-modal="true" aria-labelledby="budgetComposerTitle">
+                <div class="goal-modal-header">
+                  <div><span data-budget-form-mode>Novo orçamento</span><h3 id="budgetComposerTitle">Planejar categoria</h3></div>
+                  <button class="icon-button" data-close-budget type="button" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button>
+                </div>
+                <form id="budgetForm" class="stacked-form">
+                  <input id="budgetId" type="hidden" />
+                  <label class="field"><span>Categoria</span><select id="budgetCategory" required></select></label>
+                  <label class="field"><span>Mês</span><input id="budgetMonth" type="month" required /></label>
+                  <label class="field"><span>Limite mensal</span><input id="budgetLimit" type="number" min="0.01" step="0.01" inputmode="decimal" required /></label>
+                  <label class="field"><span>Alertar ao atingir (%)</span><input id="budgetAlertThreshold" type="number" min="1" max="100" step="1" value="80" required /></label>
+                  <label class="checkbox-line"><input id="budgetActive" type="checkbox" checked /><span>Orçamento ativo</span></label>
+                  <div class="account-form-actions"><button class="ghost-action" data-close-budget type="button">Cancelar</button><button class="primary-action" data-save-budget type="submit">Salvar orçamento</button></div>
+                </form>
+              </section>
+            </div>
           </section>
 
           <section id="view-transactions" class="view transactions-experience" data-view-panel="transactions">
+            <button class="mobile-sheet-backdrop transaction-composer-backdrop" data-close-transaction-composer type="button" aria-label="Fechar nova transação" hidden></button>
+            <button class="mobile-sheet-backdrop category-manager-backdrop" data-close-category-manager type="button" aria-label="Fechar gerenciamento de categorias" hidden></button>
             <div class="transactions-workspace">
               <section class="panel transaction-composer-panel">
                 <div class="panel-heading">
@@ -459,6 +613,7 @@
                     <p class="eyebrow" data-transaction-form-mode>Novo lançamento</p>
                     <h2>Nova transação</h2>
                   </div>
+                  <button class="icon-button transaction-panel-close" data-close-transaction-composer type="button" aria-label="Fechar nova transação"><i data-lucide="x" aria-hidden="true"></i></button>
                 </div>
 
                 <form id="transactionForm" class="stacked-form transaction-form-modern">
@@ -497,6 +652,10 @@
                       <span>Categoria</span>
                       <select id="transactionCategory" required></select>
                     </label>
+                    <label class="field transaction-account-field">
+                      <span>Conta</span>
+                      <select id="transactionAccount" required></select>
+                    </label>
                     <div class="split-fields">
                       <label class="field">
                         <span>Data limite</span>
@@ -520,7 +679,7 @@
                         <input id="transactionInstallmentCount" type="number" min="2" max="120" step="1" value="2" />
                       </label>
                     </div>
-                    <p class="form-hint">Ao parcelar, o valor informado é o valor de cada parcela. Parcelas pendentes mudam automaticamente para Atrasado quando a data limite passa.</p>
+                    <p class="form-hint">O valor informado corresponde a cada parcela; vencidas mudam automaticamente para Atrasado.</p>
                   </section>
 
                   <div class="transaction-form-actions">
@@ -530,12 +689,13 @@
                 </form>
               </section>
 
-              <section class="panel categories-panel">
+              <section class="panel categories-panel" role="dialog" aria-modal="true" aria-labelledby="categoryManagerTitle" hidden>
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Categorias</p>
-                    <h2>Criar categoria</h2>
+                    <h2 id="categoryManagerTitle">Gerenciar categorias</h2>
                   </div>
+                  <button class="icon-button category-panel-close" data-close-category-manager type="button" aria-label="Fechar gerenciamento de categorias"><i data-lucide="x" aria-hidden="true"></i></button>
                 </div>
                 <form id="categoryForm" class="category-create-form">
                   <input id="categoryId" type="hidden" />
@@ -564,6 +724,9 @@
                   <h2>Transações</h2>
                   <span class="transaction-results-summary" data-transaction-results-summary>0 transações</span>
                 </div>
+                <div class="transaction-list-header-actions">
+                  <button class="ghost-action compact" data-open-category-manager type="button"><i data-lucide="tags" aria-hidden="true"></i><span>Gerenciar categorias</span></button>
+                </div>
               </div>
 
               <div class="transaction-summary-grid" data-transaction-summary-grid>
@@ -591,18 +754,15 @@
                     <span>Buscar</span>
                     <input id="filterDescription" type="search" placeholder="Descrição, categoria, valor ou parcela" />
                   </label>
-                  <label class="field compact-field">
+                  <label class="field compact-field transaction-filter-category">
                     <span>Categoria</span>
                     <select id="filterCategory"></select>
                   </label>
-                  <div class="period-filter">
-                    <span>Período</span>
-                    <div>
-                      <input id="filterDateFrom" type="date" aria-label="Data inicial" />
-                      <input id="filterDateTo" type="date" aria-label="Data final" />
-                    </div>
-                  </div>
-                  <label class="field compact-field">
+                  <label class="field compact-field transaction-filter-account">
+                    <span>Conta</span>
+                    <select id="filterAccount"></select>
+                  </label>
+                  <label class="field compact-field transaction-filter-status">
                     <span>Status</span>
                     <select id="filterStatus"></select>
                   </label>
@@ -611,6 +771,13 @@
                 <details class="advanced-filters">
                   <summary><span>Mais filtros</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
                   <div class="advanced-filter-grid">
+                    <div class="period-filter transaction-period-filter">
+                      <span>Período</span>
+                      <div>
+                        <input id="filterDateFrom" type="date" aria-label="Data inicial" />
+                        <input id="filterDateTo" type="date" aria-label="Data final" />
+                      </div>
+                    </div>
                     <label class="field compact-field">
                       <span>Valor mín.</span>
                       <input id="filterValueMin" type="number" min="0" step="0.01" />
@@ -655,6 +822,7 @@
                         <option value="Atrasado">Atrasado</option>
                       </select>
                     </label>
+                    <button class="ghost-action compact" data-clear-transaction-filters type="button"><i data-lucide="filter-x" aria-hidden="true"></i><span>Limpar filtros</span></button>
                     <button class="primary-action compact" data-bulk-status-apply type="button">Atualizar mês</button>
                     <button class="danger-action compact" data-delete-filtered-transactions type="button">Excluir filtradas</button>
                   </div>
@@ -734,6 +902,10 @@
                   <label class="cashflow-month-field" for="cashflowMonth">
                     <span>Mês analisado</span>
                     <input class="month-input" id="cashflowMonth" type="month" />
+                  </label>
+                  <label class="cashflow-month-field" for="cashflowAccount">
+                    <span>Conta</span>
+                    <select id="cashflowAccount"></select>
                   </label>
                 </div>
               </div>
@@ -1205,9 +1377,16 @@
 
               <section class="panel settings-card settings-notifications-card">
                 <div class="panel-heading"><div><p class="eyebrow">Notificações</p><h2>Alertas financeiros</h2></div></div>
-                <label class="settings-switch-row"><span><strong>Vencimentos</strong><small>Avisar sobre contas próximas do prazo.</small></span><input data-setting-toggle="dueDateAlerts" type="checkbox" checked /><i aria-hidden="true"></i></label>
-                <label class="settings-switch-row"><span><strong>Metas e conquistas</strong><small>Alertas de progresso e conclusão.</small></span><input data-setting-toggle="goalAlerts" type="checkbox" checked /><i aria-hidden="true"></i></label>
-                <label class="settings-switch-row"><span><strong>Resumo mensal</strong><small>Balanço financeiro ao fechar o mês.</small></span><input data-setting-toggle="monthlySummary" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Ativar alertas no aplicativo</strong><small>Controla somente a central interna do Nexio.</small></span><input data-notification-preference="enabled" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Contas a pagar vencidas</strong><small>Despesas abertas após a data de vencimento.</small></span><input data-notification-preference="overdueExpenses" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Contas a pagar próximas</strong><small>Despesas dentro da antecedência escolhida.</small></span><input data-notification-preference="dueSoonExpenses" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Contas a receber vencidas</strong><small>Receitas abertas após a data esperada.</small></span><input data-notification-preference="overdueIncome" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Contas a receber próximas</strong><small>Receitas dentro da antecedência escolhida.</small></span><input data-notification-preference="dueSoonIncome" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Orçamentos em atenção</strong><small>Quando o comprometido alcança o alerta configurado.</small></span><input data-notification-preference="budgetAttention" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Orçamentos excedidos</strong><small>Quando o comprometido chega a 100% ou mais.</small></span><input data-notification-preference="budgetExceeded" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Metas</strong><small>Prazos próximos ou vencidos de metas incompletas.</small></span><input data-notification-preference="goals" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="settings-switch-row"><span><strong>Problemas de sincronização</strong><small>Somente conflitos ou falhas persistentes seguras.</small></span><input data-notification-preference="syncIssues" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <label class="field notification-days-field"><span>Avisar com antecedência</span><select id="notificationDueSoonDays"><option value="1">1 dia</option><option value="3">3 dias</option><option value="5">5 dias</option><option value="7">7 dias</option></select></label>
               </section>
             </form>
 
@@ -1235,6 +1414,7 @@
                     <h2>Portabilidade dos dados</h2>
                   </div>
                 </div>
+                <label class="field compact-field"><span>Conta para exportar</span><select id="exportAccount"></select></label>
                 <button class="ghost-action" data-export-data type="button">Exportar dados</button>
                 <pre class="export-box" data-export-box></pre>
               </section>
@@ -1260,7 +1440,7 @@
           </section>
 
           <footer class="app-footer">
-            <p>© 2026 Ise Dias. Nexio Gestão Financeira Inteligente. Plataforma desenvolvida para otimizar o controle, a análise e a organização financeira.</p>
+            <p>© 2026 Nexio Labs. Nexio Gestão Financeira Inteligente. Plataforma desenvolvida para otimizar o controle, a análise e a organização financeira.</p>
             <div class="footer-links">
               <a href="politica-de-privacidade.html">Política de Privacidade</a>
               <a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a>
@@ -1301,6 +1481,22 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="mobile-capacitor.js"></script>
     <script src="i18n.js?v=20260718-onboarding-skip"></script>
-    <script src="app.js?v=20260718-onboarding-skip"></script>
+    <script src="js/core/utils.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/storage.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/sync.js?v=20260727-sync-client-safety"></script>
+    <script src="js/core/categories.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/finance.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/accounts.js?v=20260728-accounts-balances"></script>
+    <script src="js/core/budgets.js?v=20260728-monthly-budgets"></script>
+    <script src="js/core/transactions.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/goals.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/profiles.js?v=20260729-notifications-center"></script>
+    <script src="js/core/reports.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
+    <script src="js/ui/shared-ui.js?v=20260729-mobile-release-5"></script>
+    <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
+    <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
+    <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>
+    <script src="app.js?v=20260722-layered-architecture"></script>
   </body>
 </html>

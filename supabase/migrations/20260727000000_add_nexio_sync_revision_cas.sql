@@ -1,24 +1,21 @@
--- Declarative Supabase schema for Nexio snapshot synchronization.
--- Apply with a trusted migration owner. Existing financial JSON is never reset.
--- Stop deployment if the resulting SECURITY DEFINER owner is not a trusted
--- administrative role, and verify that owner before production.
+-- Nexio atomic snapshot synchronization using revision compare-and-swap.
+-- Apply with a trusted migration owner that can read auth.users and write
+-- public.nexio_user_data. Do not change the function owner to anon or authenticated.
+-- STOP deployment if the resulting function owner is not a trusted administrative
+-- role. Verify the owner explicitly in a disposable environment before production.
 
-create table if not exists public.nexio_user_data (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  email text not null,
-  data jsonb not null default '{}'::jsonb,
-  updated_at timestamptz not null default pg_catalog.now(),
-  revision bigint not null default 1,
-  constraint nexio_user_data_revision_nonnegative check (revision >= 0)
-);
+begin;
 
--- Keep existing installations aligned with the declarative state.
+-- Disable a prior copy of the trigger before a possible repair backfill so an
+-- idempotent rerun does not change updated_at on existing financial snapshots.
 drop trigger if exists nexio_user_data_set_updated_at
 on public.nexio_user_data;
 
 alter table public.nexio_user_data
   add column if not exists revision bigint;
 
+-- Existing snapshots are established remote states. Revision 0 is reserved for
+-- the logical state where no row exists.
 update public.nexio_user_data
 set revision = 1
 where revision is null;
@@ -119,6 +116,8 @@ begin
     return;
   end if;
 
+  -- This transaction-level lock also serializes the no-row-yet creation race.
+  -- Hash collisions only serialize unrelated users; they cannot mix their data.
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(v_user_id::text, 0::bigint)
   );
@@ -160,6 +159,8 @@ begin
       return;
     end if;
 
+    -- Defensive handling for a trusted administrative write that did not use
+    -- the advisory lock. No primary-key detail is exposed to the caller.
     select user_data.revision
     into v_current_revision
     from public.nexio_user_data as user_data
@@ -230,6 +231,7 @@ using (
   and auth.uid() = user_id
 );
 
+-- All authenticated writes must go through the CAS function.
 drop policy if exists "Nexio users can insert own data"
 on public.nexio_user_data;
 
@@ -252,3 +254,28 @@ grant usage on schema public to authenticated;
 grant select
 on public.nexio_user_data
 to authenticated;
+
+commit;
+
+-- Manual rollback reference. Never execute automatically.
+-- New CAS-aware clients will stop synchronizing if this rollback is applied.
+-- Financial JSON is preserved, but revision metadata is removed.
+--
+-- begin;
+-- drop function if exists public.nexio_save_user_data_cas(text, jsonb);
+-- drop trigger if exists nexio_user_data_set_updated_at on public.nexio_user_data;
+-- drop function if exists public.nexio_user_data_set_updated_at();
+-- alter table public.nexio_user_data
+--   drop constraint if exists nexio_user_data_revision_nonnegative;
+-- alter table public.nexio_user_data drop column if exists revision;
+-- create policy "Nexio users can insert own data"
+--   on public.nexio_user_data for insert to authenticated
+--   with check (auth.uid() = user_id);
+-- create policy "Nexio users can update own data"
+--   on public.nexio_user_data for update to authenticated
+--   using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- create policy "Nexio users can delete own data"
+--   on public.nexio_user_data for delete to authenticated
+--   using (auth.uid() = user_id);
+-- grant insert, update, delete on public.nexio_user_data to authenticated;
+-- commit;

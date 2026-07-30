@@ -1,0 +1,4 @@
+/* Shared structural layer. Existing selectors remain unchanged in components.css. */
+body[data-ui-layout] {
+  --nexio-layout-ready: 1;
+}

@@ -1,0 +1,4 @@
+/* Shared animation extension point. Legacy keyframes remain byte-for-byte in components.css. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --nexio-motion-enabled: 0; }
+}

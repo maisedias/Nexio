@@ -1,0 +1,4 @@
+/* Mobile extension point: 767px and narrower. */
+@media (max-width: 767px) {
+  body.layout-mobile { --nexio-active-layout: mobile; }
+}

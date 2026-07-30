@@ -1,0 +1,840 @@
+/*
+ * Nexio component primitives 2.0
+ * Reusable across desktop, tablet, and mobile. All visual values resolve to tokens.
+ */
+
+/* Foundation and typography */
+:where(.app-shell, .auth-shell, .onboarding-shell) {
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line-height);
+}
+
+::selection {
+  background: var(--color-selection);
+  color: var(--color-text-primary);
+}
+
+:where(.type-display, [data-type="display"]) {
+  margin: var(--space-0);
+  font-size: var(--type-display-size);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--type-display-line-height);
+  letter-spacing: var(--letter-spacing-display);
+}
+
+:where(.type-heading, [data-type="heading"]) {
+  margin: var(--space-0);
+  font-size: var(--type-heading-size);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--type-heading-line-height);
+  letter-spacing: var(--letter-spacing-heading);
+}
+
+:where(.type-title, [data-type="title"]) {
+  margin: var(--space-0);
+  font-size: var(--type-title-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--type-title-line-height);
+  letter-spacing: var(--letter-spacing-title);
+}
+
+:where(.type-body, [data-type="body"]) {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line-height);
+  letter-spacing: var(--letter-spacing-body);
+}
+
+:where(.type-caption, [data-type="caption"]) {
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--type-caption-line-height);
+  letter-spacing: var(--letter-spacing-caption);
+}
+
+/* Shared interaction contract */
+.app-shell :is(
+  button,
+  [role="button"],
+  a.button,
+  .file-action,
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea
+) {
+  min-block-size: var(--size-touch-target) !important;
+  min-inline-size: var(--size-touch-target) !important;
+}
+
+:is(.app-shell, .auth-shell, .onboarding-shell) :is(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--border-width-medium) solid var(--color-focus) !important;
+  outline-offset: var(--border-width-medium) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+:is(.app-shell, .auth-shell, .onboarding-shell) :is(button, [role="button"], a, input, select, textarea, [tabindex]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Buttons */
+:where(.button, .primary-action, .secondary-action, .ghost-action, .danger-action, .icon-button, .file-action) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--button-height);
+  gap: var(--button-gap);
+  border: var(--border-width-thin) solid transparent;
+  border-radius: var(--button-radius);
+  padding: var(--space-0) var(--button-padding-inline);
+  font-family: var(--font-family-sans);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-compact);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--transition-normal) var(--curve-standard),
+    background-color var(--transition-normal) var(--curve-standard),
+    border-color var(--transition-normal) var(--curve-standard),
+    box-shadow var(--transition-normal) var(--curve-standard),
+    transform var(--transition-normal) var(--curve-standard);
+}
+
+:where(.button--primary, [data-button="primary"]) {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+:where(.button--primary, [data-button="primary"]):hover {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  box-shadow: var(--shadow-small);
+  transform: translateY(calc(var(--border-width-medium) * -1));
+}
+
+:where(.button--secondary, [data-button="secondary"]) {
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+:where(.button--secondary, [data-button="secondary"]):hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-soft);
+}
+
+:where(.button--ghost, [data-button="ghost"]) {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+:where(.button--ghost, [data-button="ghost"]):hover {
+  background: var(--color-surface-soft);
+  color: var(--color-text-primary);
+}
+
+:where(.button--danger, [data-button="danger"]) {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-danger);
+}
+
+:where(.button--danger, [data-button="danger"]):hover {
+  border-color: var(--color-danger-hover);
+  background: var(--color-danger-hover);
+  box-shadow: var(--shadow-small);
+}
+
+:where(.button, [data-button], .primary-action, .secondary-action, .ghost-action, .danger-action):active {
+  transform: scale(var(--scale-pressed));
+}
+
+:where(.button, [data-button], .primary-action, .secondary-action, .ghost-action, .danger-action):disabled,
+:where(.button, [data-button], .primary-action, .secondary-action, .ghost-action, .danger-action)[aria-disabled="true"] {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+:where(.button, [data-button])[data-state="loading"]::before {
+  width: var(--size-icon-small);
+  height: var(--size-icon-small);
+  border: var(--border-width-medium) solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: var(--radius-pill);
+  content: "";
+  animation: ds-spin var(--transition-page) linear infinite;
+}
+
+:where(.button, [data-button])[data-state="success"] {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  color: var(--color-on-success);
+}
+
+:where(.button--icon, .icon-button, [data-button="icon"]) {
+  width: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  height: var(--size-touch-target);
+  padding: var(--space-0);
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+:where(.button--icon, .icon-button, [data-button="icon"]):hover {
+  border-color: var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-primary);
+}
+
+:where(.button--fab, .fab-trigger, [data-button="fab"]) {
+  position: relative;
+  z-index: var(--z-fab);
+  width: var(--size-fab);
+  min-width: var(--size-fab);
+  height: var(--size-fab);
+  padding: var(--space-0);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  box-shadow: var(--shadow-large);
+  color: var(--color-on-primary);
+}
+
+/* Cards */
+:where(.card, [data-card]) {
+  border: var(--border-width-thin) solid var(--card-border);
+  border-radius: var(--card-radius);
+  background: var(--card-background);
+  box-shadow: var(--card-shadow);
+  padding: var(--card-padding);
+  color: var(--color-text-primary);
+}
+
+:where(.card--compact, [data-card="compact"]) {
+  padding: var(--card-padding-compact);
+}
+
+:where(.card--statistic, [data-card="statistic"]) {
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+:where(.card--statistic, [data-card="statistic"]) > :where(span, small) {
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line-height);
+}
+
+:where(.card--interactive, [data-card="interactive"]) {
+  cursor: pointer;
+  transition:
+    border-color var(--transition-normal) var(--curve-standard),
+    box-shadow var(--transition-normal) var(--curve-standard),
+    transform var(--transition-normal) var(--curve-standard);
+}
+
+:where(.card--interactive, [data-card="interactive"]):hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-large);
+  transform: translateY(calc(var(--border-width-medium) * -1));
+}
+
+:where(.card--interactive, [data-card="interactive"]):active {
+  transform: scale(0.97);
+}
+
+/* Lists */
+:where(.list, [data-list]) {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-0);
+  padding: var(--space-0);
+  list-style: none;
+}
+
+:where(.list-item, [data-list-item]) {
+  display: flex;
+  align-items: center;
+  min-height: var(--list-item-height);
+  gap: var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--color-divider);
+  padding: var(--list-item-padding);
+  color: var(--color-text-primary);
+}
+
+:where(.list-item--compact, [data-list-item="compact"]) {
+  min-height: var(--size-touch-target);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+:where(.list-item--clickable, [data-list-item="clickable"]) {
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast) var(--curve-standard),
+    background-color var(--transition-fast) var(--curve-standard);
+}
+
+:where(.list-item--clickable, [data-list-item="clickable"]):hover {
+  background: var(--color-surface-soft);
+}
+
+/* Inputs */
+:where(.field, [data-field]) {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+:where(.field, [data-field]) > :where(label, span:first-child) {
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--type-caption-line-height);
+}
+
+:where(.input, .select, .textarea, .search-input, .currency-input, [data-input]),
+.app-shell :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  width: 100%;
+  min-height: var(--input-height);
+  border: var(--border-width-thin) solid var(--input-border);
+  border-radius: var(--input-radius);
+  background: var(--input-background);
+  padding: var(--space-0) var(--input-padding-inline);
+  color: var(--input-text);
+  font-family: var(--font-family-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line-height);
+  transition:
+    background-color var(--transition-fast) var(--curve-standard),
+    border-color var(--transition-fast) var(--curve-standard),
+    box-shadow var(--transition-fast) var(--curve-standard);
+}
+
+:where(.textarea, textarea, [data-input="textarea"]) {
+  min-height: calc(var(--input-height) * 2);
+  padding-block: var(--space-3);
+  resize: vertical;
+}
+
+:where(.input, .select, .textarea, .search-input, .currency-input, [data-input]):focus,
+.app-shell :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+  border-color: var(--input-border-focus);
+  background: var(--input-background-focus);
+  box-shadow: var(--input-focus-ring);
+  outline: none;
+}
+
+:where(.input, .select, .textarea, .search-input, .currency-input, [data-input])::placeholder,
+.app-shell :where(input, textarea)::placeholder {
+  color: var(--input-placeholder);
+  opacity: 1;
+}
+
+:where(.search, [data-input-group="search"], .currency-field, [data-input-group="currency"]) {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+:where(.search, [data-input-group="search"]) > :where(svg, [data-lucide]),
+:where(.currency-field, [data-input-group="currency"]) > :where(span, strong) {
+  position: absolute;
+  inset-inline-start: var(--space-4);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+:where(.search, [data-input-group="search"], .currency-field, [data-input-group="currency"]) > input {
+  padding-inline-start: var(--space-10);
+}
+
+:where(.currency-input, [data-input="currency"]) {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* Checkbox, radio, and switch */
+:where(.checkbox, .radio, [data-checkable]) {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+:where(input[type="checkbox"], input[type="radio"]) {
+  width: var(--size-icon-medium);
+  height: var(--size-icon-medium);
+  margin: var(--space-0);
+  accent-color: var(--input-border-focus);
+}
+
+:where(.switch, [data-switch]) {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+:where(.switch-track, .settings-switch-row input + i, [data-switch-track]) {
+  position: relative;
+  display: inline-block;
+  width: var(--size-button);
+  height: var(--size-icon-large);
+  border-radius: var(--radius-pill);
+  background: var(--input-switch-track);
+  transition: background-color var(--transition-normal) var(--curve-standard);
+}
+
+:where(.switch-track, .settings-switch-row input + i, [data-switch-track])::after {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  width: var(--size-icon-small);
+  height: var(--size-icon-small);
+  border-radius: var(--radius-pill);
+  background: var(--input-switch-thumb);
+  box-shadow: var(--shadow-small);
+  content: "";
+  transition: transform var(--transition-normal) var(--curve-standard);
+}
+
+:where(.switch input, [data-switch] input):checked + :where(.switch-track, [data-switch-track]),
+.settings-switch-row input:checked + i {
+  background: var(--color-primary);
+}
+
+:where(.switch input, [data-switch] input):checked + :where(.switch-track, [data-switch-track])::after,
+.settings-switch-row input:checked + i::after {
+  transform: translateX(var(--size-icon-large));
+}
+
+/* Dark-theme form polish: visual states only; component geometry remains unchanged. */
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea,
+  .input,
+  .select,
+  .textarea,
+  .search-input,
+  .currency-input,
+  [data-input],
+  [role="combobox"]
+) {
+  border-color: var(--input-border);
+  background-color: var(--input-background);
+  color: var(--input-text);
+  color-scheme: var(--input-color-scheme);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea,
+  .input,
+  .select,
+  .textarea,
+  .search-input,
+  .currency-input,
+  [data-input],
+  [role="combobox"]
+):hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--input-border-hover);
+  background-color: var(--input-background-hover);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea,
+  .input,
+  .select,
+  .textarea,
+  .search-input,
+  .currency-input,
+  [data-input],
+  [role="combobox"]
+):is(:focus, :focus-visible) {
+  border-color: var(--input-border-focus);
+  background-color: var(--input-background-focus);
+  box-shadow: var(--input-focus-ring);
+  outline: none !important;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input:not([type="hidden"]),
+  select,
+  textarea,
+  [data-input],
+  [role="combobox"]
+):is(:disabled, [aria-disabled="true"]) {
+  background-color: var(--input-background-disabled);
+  color: var(--color-text-disabled);
+  opacity: var(--input-disabled-opacity);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(input, textarea)::placeholder {
+  color: var(--input-placeholder);
+  opacity: var(--input-disabled-opacity);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .global-search,
+  .goals-search-field,
+  .profiles-search-field,
+  .search,
+  [data-input-group="search"],
+  .onboarding-money-field > div,
+  .first-goal-form label > div
+) {
+  border-color: var(--input-border);
+  background-color: var(--input-background);
+  color: var(--input-text);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .global-search,
+  .goals-search-field,
+  .profiles-search-field,
+  .search,
+  [data-input-group="search"],
+  .onboarding-money-field > div,
+  .first-goal-form label > div
+):hover {
+  border-color: var(--input-border-hover);
+  background-color: var(--input-background-hover);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .global-search,
+  .goals-search-field,
+  .profiles-search-field,
+  .search,
+  [data-input-group="search"],
+  .onboarding-money-field > div,
+  .first-goal-form label > div
+):focus-within {
+  border-color: var(--input-border-focus);
+  background-color: var(--input-background-focus);
+  box-shadow: var(--input-focus-ring);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .global-search,
+  .goals-search-field,
+  .profiles-search-field,
+  .search,
+  [data-input-group="search"],
+  .onboarding-money-field > div,
+  .first-goal-form label > div
+) > input {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .global-search,
+  .goals-search-field,
+  .profiles-search-field,
+  .search,
+  [data-input-group="search"],
+  .onboarding-money-field > div,
+  .first-goal-form label > div
+) > input:is(:hover, :focus, :focus-visible) {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+body.theme-dark .app-shell .global-search > input,
+body.theme-dark .app-shell .goals-search-field > input,
+body.theme-dark .app-shell .profiles-search-field > input,
+body.theme-dark .app-shell :is(.search, [data-input-group="search"]) > input,
+body.theme-dark .onboarding-shell .onboarding-money-field > div > input,
+body.theme-dark .onboarding-shell .first-goal-form label > div > input {
+  border-color: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) select :is(option, optgroup) {
+  background-color: var(--input-option-background);
+  color: var(--input-option-text);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input[type="date"],
+  input[type="month"],
+  input[type="week"],
+  input[type="time"],
+  input[type="datetime-local"]
+) {
+  color-scheme: var(--input-color-scheme);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  input[type="date"],
+  input[type="month"],
+  input[type="week"],
+  input[type="time"],
+  input[type="datetime-local"]
+)::-webkit-calendar-picker-indicator {
+  color: var(--input-icon);
+  cursor: pointer;
+  opacity: var(--input-icon-opacity);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input[type="number"]::-webkit-inner-spin-button,
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input[type="number"]::-webkit-outer-spin-button,
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input[type="search"]::-webkit-search-cancel-button {
+  color: var(--input-icon);
+  opacity: var(--input-icon-opacity);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input:-webkit-autofill {
+  -webkit-text-fill-color: var(--input-text);
+  caret-color: var(--input-text);
+  box-shadow: 0 0 0 var(--input-autofill-fill-size) var(--input-background-autofill) inset;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input:-webkit-autofill:is(:focus, :focus-visible) {
+  box-shadow:
+    0 0 0 var(--input-autofill-fill-size) var(--input-background-autofill) inset,
+    var(--input-focus-ring) !important;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input::file-selector-button {
+  border-color: var(--input-border);
+  background-color: var(--input-background);
+  color: var(--input-text);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .checkbox-line,
+  .select-visible-control,
+  .transaction-card-check,
+  .settings-switch-row,
+  .installment-box
+) {
+  border-color: var(--input-border);
+  background-color: var(--input-background);
+  color: var(--input-text);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .checkbox-line,
+  .select-visible-control,
+  .transaction-card-check,
+  .settings-switch-row,
+  .installment-box
+):hover {
+  border-color: var(--input-border-hover);
+  background-color: var(--input-background-hover);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .checkbox-line,
+  .select-visible-control,
+  .transaction-card-check,
+  .settings-switch-row,
+  .installment-box
+):focus-within {
+  border-color: var(--input-border-focus);
+  background-color: var(--input-background-focus);
+  box-shadow: var(--input-focus-ring);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) input:is([type="checkbox"], [type="radio"]) {
+  accent-color: var(--input-border-focus);
+  color-scheme: var(--input-color-scheme);
+  vertical-align: middle;
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) .settings-switch-row > i {
+  background-color: var(--input-switch-track);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) .settings-switch-row > i::after {
+  background-color: var(--input-switch-thumb);
+}
+
+body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
+  .field,
+  .select-shell,
+  .compact-field,
+  .goals-sort-field,
+  .profiles-sort-field,
+  .cashflow-month-field
+) > :is(span, label) {
+  color: var(--input-placeholder);
+}
+
+/* Badges and tags */
+:where(.badge, .status-badge, .category-badge, .priority-badge, .tag, [data-badge], [data-tag]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--badge-height);
+  gap: var(--space-1);
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-soft);
+  padding: var(--space-0) var(--badge-padding-inline);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--type-caption-line-height);
+  white-space: nowrap;
+}
+
+:where(.badge--success, .tag--success, [data-tone="success"]) {
+  border-color: var(--color-success);
+  background: var(--color-success-subtle);
+  color: var(--color-success-text);
+}
+
+:where(.badge--warning, .tag--warning, [data-tone="warning"]) {
+  border-color: var(--color-warning);
+  background: var(--color-warning-subtle);
+  color: var(--color-warning-text);
+}
+
+:where(.badge--error, .tag--error, [data-tone="error"], [data-tone="danger"]) {
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger-text);
+}
+
+:where(.badge--info, .tag--info, [data-tone="info"]) {
+  border-color: var(--color-info);
+  background: var(--color-info-subtle);
+  color: var(--color-info-text);
+}
+
+:where(.badge--neutral, .tag--neutral, [data-tone="neutral"]) {
+  border-color: var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text-secondary);
+}
+
+/* Avatars */
+:where(.avatar, [data-avatar]) {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: var(--size-avatar-medium);
+  height: var(--size-avatar-medium);
+  overflow: hidden;
+  border: var(--border-width-thin) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary-text);
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-compact);
+}
+
+:where(.avatar, [data-avatar]) > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+:where(.avatar--small, [data-avatar="small"]) { width: var(--size-avatar-small); height: var(--size-avatar-small); }
+:where(.avatar--medium, [data-avatar="medium"]) { width: var(--size-avatar-medium); height: var(--size-avatar-medium); }
+:where(.avatar--large, [data-avatar="large"]) { width: var(--size-avatar-large); height: var(--size-avatar-large); }
+:where(.avatar--extra-large, [data-avatar="extra-large"]) { width: var(--size-avatar-extra-large); height: var(--size-avatar-extra-large); }
+
+/* Progress */
+:where(.progress, .progress-linear, [data-progress="linear"]) {
+  position: relative;
+  width: 100%;
+  height: var(--size-progress-linear);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+}
+
+:where(.progress, .progress-linear, [data-progress="linear"]) > :where(span, i, [data-progress-value]) {
+  display: block;
+  width: var(--progress-value, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--progress-color, var(--color-primary));
+  transition: width var(--transition-slow) var(--curve-enter);
+}
+
+:where(.progress-circular, [data-progress="circular"]) {
+  --progress-value: 0;
+  --progress-color: var(--color-primary);
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--size-progress-circular);
+  height: var(--size-progress-circular);
+  border-radius: var(--radius-pill);
+  background: conic-gradient(var(--progress-color) calc(var(--progress-value) * 1%), var(--color-border) 0);
+  color: var(--color-text-primary);
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-bold);
+}
+
+:where(.progress-circular, [data-progress="circular"])::before {
+  position: absolute;
+  inset: var(--space-1);
+  border-radius: inherit;
+  background: var(--color-card);
+  content: "";
+}
+
+:where(.progress-circular, [data-progress="circular"]) > * {
+  position: relative;
+  z-index: var(--z-content);
+}
+
+/* Accessibility utilities */
+.visually-hidden {
+  position: absolute !important;
+  width: var(--border-width-thin) !important;
+  height: var(--border-width-thin) !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  margin: calc(var(--border-width-thin) * -1) !important;
+  padding: var(--space-0) !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+@keyframes ds-spin { to { transform: rotate(1turn); } }
+
+@media (max-width: 767px) {
+  :where(.card, [data-card]) { padding: var(--card-padding); }
+  :where(.button, [data-button], .primary-action, .secondary-action, .ghost-action, .danger-action) { min-height: var(--size-touch-target); }
+  :where(.list-item, [data-list-item]) { gap: var(--space-2); padding: var(--list-item-padding); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.app-shell, .auth-shell, .onboarding-shell) *,
+  :where(.app-shell, .auth-shell, .onboarding-shell) *::before,
+  :where(.app-shell, .auth-shell, .onboarding-shell) *::after {
+    scroll-behavior: auto !important;
+    animation-duration: var(--transition-fast) !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: var(--transition-fast) !important;
+  }
+}
