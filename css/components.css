@@ -10713,6 +10713,10 @@ body.theme-dark .fab-option {
 .transaction-filters-card {
   display: grid;
   gap: var(--space-2);
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: var(--space-2);
 }
 
@@ -10786,6 +10790,11 @@ body.theme-dark .fab-option {
   gap: var(--space-2);
   border-top: 1px solid var(--line);
   padding: var(--space-2);
+}
+
+.advanced-filter-grid > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .advanced-filter-grid .primary-action,
@@ -11156,7 +11165,35 @@ body.theme-dark .fab-option {
   .transaction-composer-panel,
   .categories-panel,
   .transaction-list-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: var(--space-3);
+  }
+
+  .transaction-list-panel > *,
+  .transaction-filters-card,
+  .primary-filters,
+  .advanced-filters,
+  .advanced-filter-grid,
+  .transaction-list-toolbar,
+  .transaction-card-grid,
+  .transaction-card,
+  .transaction-table-details,
+  .transaction-table-footer,
+  .pagination-controls {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .primary-filters > *,
+  .advanced-filter-grid > * {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .transaction-form-actions,
@@ -11356,6 +11393,48 @@ body.theme-dark .fab-option {
 
   .transaction-summary-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 340px) {
+  .transaction-card-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transaction-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .transaction-card-footer .row-actions {
+    width: 100%;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .select-visible-control {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .pagination-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: var(--radius-lg);
+  }
+
+  .pagination-current {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pagination-controls .ghost-action {
+    width: 100%;
+    min-width: 0;
   }
 }
 

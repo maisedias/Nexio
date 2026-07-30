@@ -1543,6 +1543,9 @@
         trigger.focus();
       }
     };
+    const modalObserver = new MutationObserver((records) => {
+      if (records.some((record) => !dial.contains(record.target))) syncFloatingActionButton();
+    });
 
     trigger.addEventListener("click", (event) => {
       createFabRipple(event);
@@ -1566,10 +1569,17 @@
     document.addEventListener("click", handleDocumentClick);
     document.addEventListener("keydown", handleKeydown);
     window.addEventListener("resize", syncFloatingActionButton);
+    modalObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["hidden", "role", "aria-modal"],
+      childList: true,
+      subtree: true,
+    });
     fabCleanup = () => {
       document.removeEventListener("click", handleDocumentClick);
       document.removeEventListener("keydown", handleKeydown);
       window.removeEventListener("resize", syncFloatingActionButton);
+      modalObserver.disconnect();
     };
     setFabMenuOpen(false);
     syncFloatingActionButton();
@@ -1599,11 +1609,17 @@
     const dial = app.querySelector("[data-fab-dial]");
     if (!dial) return;
     const isWideViewport = !window.matchMedia("(max-width: 900px)").matches;
-    const isVisible = fabVisibleViews.has(state.view) && isWideViewport;
+    const isVisible = fabVisibleViews.has(state.view) && isWideViewport && !hasOpenModalDialog();
     dial.hidden = !isVisible;
     dial.classList.toggle("is-visible", isVisible);
     app.querySelector(".app-shell")?.classList.toggle("has-fab", isVisible);
     if (!isVisible) setFabMenuOpen(false);
+  }
+
+  function hasOpenModalDialog() {
+    return Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]')).some((dialog) => (
+      !dialog.closest("[hidden]") && dialog.getClientRects().length > 0
+    ));
   }
 
   function createFabRipple(event) {
@@ -2559,6 +2575,7 @@
     if (backdrop) backdrop.hidden = false;
     mobileComposerScrollY = window.scrollY;
     document.body.classList.add("has-mobile-transaction-composer");
+    syncFloatingActionButton();
   }
 
   function closeMobileTransactionComposer() {
@@ -2571,6 +2588,7 @@
     const backdrop = app.querySelector(".transaction-composer-backdrop");
     if (backdrop) backdrop.hidden = true;
     document.body.classList.remove("has-mobile-transaction-composer");
+    syncFloatingActionButton();
     if (wasOpen && isCompactTransactionLayout()) window.scrollTo(0, mobileComposerScrollY);
   }
 
@@ -2582,6 +2600,7 @@
     panel.hidden = false;
     if (backdrop) backdrop.hidden = false;
     document.body.classList.add("has-category-manager");
+    syncFloatingActionButton();
     panel.querySelector("[data-close-category-manager]")?.focus();
   }
 
@@ -2591,6 +2610,7 @@
     if (panel) panel.hidden = true;
     if (backdrop) backdrop.hidden = true;
     document.body.classList.remove("has-category-manager");
+    syncFloatingActionButton();
   }
 
   function setButtonText(selector, text) {
