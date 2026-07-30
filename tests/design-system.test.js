@@ -7,6 +7,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 
 const variables = read("css/variables.css");
 const components = read("css/design-system.css");
+const legacyComponents = read("css/components.css");
 const activeSkin = read("nexio-v2.css");
 const renderer = read("js/ui/shared-ui.js");
 const manifest = read("styles.css");
@@ -182,6 +183,7 @@ assert.ok(
 );
 
 assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.fab-speed-dial\s*\{\s*display:\s*none\s*!important;/, "The mobile layout must expose only the header primary action");
+assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.app-shell,[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\.sidebar,[\s\S]*?position:\s*fixed;[\s\S]*?transform:\s*translateX/, "The single-column shell and off-canvas sidebar must share the same breakpoint");
 assert.match(index, /data-selection-bar hidden/, "The zero-selection action bar must start hidden");
 assert.match(activeSkin, /\.app-shell \[hidden\]\s*\{\s*display:\s*none\s*!important;/, "Hidden application surfaces must not be forced back into the layout");
 assert.match(renderer, /\[toolbar, tableDetails, footer\][\s\S]*?toggleAttribute\("hidden", !total\)/, "Empty transaction lists must hide toolbars, tables, and pagination");
@@ -191,6 +193,11 @@ assert.match(activeSkin, /dashboard-flow-panel\.has-empty-chart \.chart-canvas\s
 assert.match(activeSkin, /overview-dashboard \.panel-heading\s*\{[\s\S]*?justify-content:\s*space-between;/, "Dashboard links must remain inside aligned card headers");
 assert.match(activeSkin, /transaction-composer-panel[\s\S]*?var\(--safe-area-bottom\)/, "The mobile transaction composer must respect the bottom safe area");
 assert.match(activeSkin, /\.app-footer[\s\S]*?var\(--safe-area-bottom\)/, "The compact mobile footer must respect the bottom safe area");
+assert.match(activeSkin, /@media \(max-width: 340px\)[\s\S]*?\.topbar\s*\{[\s\S]*?minmax\(0, 1fr\)[\s\S]*?\.topbar-title\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?text-overflow:\s*ellipsis;/, "Narrow mobile headers must reserve actions and truncate the title");
+assert.match(legacyComponents, /@media \(max-width: 767px\)[\s\S]*?\.transaction-filters-card,[\s\S]*?\.pagination-controls\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/, "Mobile transaction controls must remain inside the panel");
+assert.match(legacyComponents, /@media \(max-width: 340px\)[\s\S]*?\.pagination-controls\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/, "Narrow pagination must wrap without clipping either action");
+assert.match(renderer, /function hasOpenModalDialog\(\)[\s\S]*?getClientRects\(\)\.length > 0/, "Open modal dialogs must be detected from their rendered state");
+assert.match(renderer, /fabVisibleViews\.has\(state\.view\)[^;]*?!hasOpenModalDialog\(\)/, "Open dialogs must hide and disable the floating action button");
 const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
 assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
 assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");
