@@ -8,6 +8,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
 const variables = read("css/variables.css");
 const components = read("css/design-system.css");
 const activeSkin = read("nexio-v2.css");
+const renderer = read("js/ui/shared-ui.js");
 const manifest = read("styles.css");
 const index = read("index.html");
 
@@ -179,6 +180,20 @@ assert.ok(
   manifest.indexOf('css/variables.css') > manifest.indexOf('css/animations.css'),
   "Canonical tokens must load after legacy compatibility styles",
 );
+
+assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.fab-speed-dial\s*\{\s*display:\s*none\s*!important;/, "The mobile layout must expose only the header primary action");
+assert.match(index, /data-selection-bar hidden/, "The zero-selection action bar must start hidden");
+assert.match(activeSkin, /\.app-shell \[hidden\]\s*\{\s*display:\s*none\s*!important;/, "Hidden application surfaces must not be forced back into the layout");
+assert.match(renderer, /\[toolbar, tableDetails, footer\][\s\S]*?toggleAttribute\("hidden", !total\)/, "Empty transaction lists must hide toolbars, tables, and pagination");
+assert.match(index, /categories-panel[^>]*role="dialog"[^>]*hidden/, "Category management must start as a secondary dialog");
+assert.match(index, /data-open-category-manager/, "The transaction list must expose category management on demand");
+assert.match(activeSkin, /dashboard-flow-panel\.has-empty-chart \.chart-canvas\s*\{\s*display:\s*none;/, "Empty dashboard charts must collapse on mobile");
+assert.match(activeSkin, /overview-dashboard \.panel-heading\s*\{[\s\S]*?justify-content:\s*space-between;/, "Dashboard links must remain inside aligned card headers");
+assert.match(activeSkin, /transaction-composer-panel[\s\S]*?var\(--safe-area-bottom\)/, "The mobile transaction composer must respect the bottom safe area");
+assert.match(activeSkin, /\.app-footer[\s\S]*?var\(--safe-area-bottom\)/, "The compact mobile footer must respect the bottom safe area");
+const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
+assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
+assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");
 
 const luminance = (hex) => {
   const channels = hex.match(/[a-f\d]{2}/gi).map((value) => parseInt(value, 16) / 255);

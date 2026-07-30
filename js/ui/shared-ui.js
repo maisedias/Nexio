@@ -85,6 +85,8 @@
   const toast = document.getElementById("toast");
   let toastTimer = 0;
   let fabCleanup = null;
+  let mobileSurfaceCleanup = null;
+  let mobileComposerScrollY = 0;
   let authMessageTimer = 0;
   let authChartAnimation = 0;
   let dashboardEntranceTimers = [];
@@ -1077,6 +1079,7 @@
     applyTheme(user.theme);
     applyPrimaryColor(user.primaryColor);
     app.innerHTML = "";
+    document.body.classList.remove("has-mobile-transaction-composer", "has-category-manager");
     app.append(document.getElementById("dashboard-template").content.cloneNode(true));
     app.querySelector(".app-shell")?.classList.toggle("sidebar-is-collapsed", state.sidebarCollapsed);
     renderIcons();
@@ -1090,6 +1093,7 @@
     bindBudgetForms();
     bindTransactionForm();
     bindCategoryForm();
+    bindMobileTransactionSurfaces();
     bindFilters();
     bindBulkStatusControls();
     bindTransactionListControls();
@@ -1263,11 +1267,7 @@
         renderTransactionsTable();
       });
     }
-    app.querySelector("[data-quick-transaction]").addEventListener("click", () => {
-      setView("transactions");
-      resetTransactionForm();
-      app.querySelector("#transactionDescription").focus();
-    });
+    app.querySelector("[data-quick-transaction]").addEventListener("click", () => openTransactionComposer());
     app.querySelector("[data-quick-profile]").addEventListener("click", () => {
       openProfileComposer();
     });
@@ -1565,9 +1565,11 @@
 
     document.addEventListener("click", handleDocumentClick);
     document.addEventListener("keydown", handleKeydown);
+    window.addEventListener("resize", syncFloatingActionButton);
     fabCleanup = () => {
       document.removeEventListener("click", handleDocumentClick);
       document.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("resize", syncFloatingActionButton);
     };
     setFabMenuOpen(false);
     syncFloatingActionButton();
@@ -1596,7 +1598,8 @@
   function syncFloatingActionButton() {
     const dial = app.querySelector("[data-fab-dial]");
     if (!dial) return;
-    const isVisible = fabVisibleViews.has(state.view);
+    const isWideViewport = !window.matchMedia("(max-width: 900px)").matches;
+    const isVisible = fabVisibleViews.has(state.view) && isWideViewport;
     dial.hidden = !isVisible;
     dial.classList.toggle("is-visible", isVisible);
     app.querySelector(".app-shell")?.classList.toggle("has-fab", isVisible);
@@ -1620,6 +1623,11 @@
   }
 
   function setView(view) {
+    setFabMenuOpen(false);
+    if (view !== "transactions") {
+      closeMobileTransactionComposer();
+      closeCategoryManager();
+    }
     const enteringTransactions = view === "transactions" && state.view !== "transactions";
     const enteringBudgets = view === "budgets" && state.view !== "budgets";
     state.view = view;
@@ -2427,6 +2435,7 @@
       }
       saveStore();
       resetTransactionForm();
+      closeMobileTransactionComposer();
       refreshAll();
     });
     updateInstallmentControls();
@@ -2499,6 +2508,91 @@
     app.querySelector("[data-reset-category-form]").addEventListener("click", resetCategoryForm);
   }
 
+  function bindMobileTransactionSurfaces() {
+    if (typeof mobileSurfaceCleanup === "function") mobileSurfaceCleanup();
+    const openCategoryButton = app.querySelector("[data-open-category-manager]");
+    const closeTransactionButtons = app.querySelectorAll("[data-close-transaction-composer]");
+    const closeCategoryButtons = app.querySelectorAll("[data-close-category-manager]");
+    const handleKeydown = (event) => {
+      if (event.key !== "Escape") return;
+      if (document.body.classList.contains("has-category-manager")) {
+        closeCategoryManager();
+        openCategoryButton?.focus();
+        return;
+      }
+      if (document.body.classList.contains("has-mobile-transaction-composer")) {
+        closeMobileTransactionComposer();
+        app.querySelector("[data-quick-transaction]")?.focus();
+      }
+    };
+    const handleResize = () => {
+      if (!isCompactTransactionLayout()) closeMobileTransactionComposer();
+    };
+
+    openCategoryButton?.addEventListener("click", openCategoryManager);
+    closeTransactionButtons.forEach((button) => button.addEventListener("click", closeMobileTransactionComposer));
+    closeCategoryButtons.forEach((button) => button.addEventListener("click", closeCategoryManager));
+    document.addEventListener("keydown", handleKeydown);
+    window.addEventListener("resize", handleResize);
+    mobileSurfaceCleanup = () => {
+      openCategoryButton?.removeEventListener("click", openCategoryManager);
+      closeTransactionButtons.forEach((button) => button.removeEventListener("click", closeMobileTransactionComposer));
+      closeCategoryButtons.forEach((button) => button.removeEventListener("click", closeCategoryManager));
+      document.removeEventListener("keydown", handleKeydown);
+      window.removeEventListener("resize", handleResize);
+    };
+  }
+
+  function isCompactTransactionLayout() {
+    return window.matchMedia("(max-width: 900px)").matches;
+  }
+
+  function openMobileTransactionComposer() {
+    if (!isCompactTransactionLayout()) return;
+    closeCategoryManager();
+    const panel = app.querySelector(".transaction-composer-panel");
+    const backdrop = app.querySelector(".transaction-composer-backdrop");
+    panel?.classList.add("is-mobile-open");
+    panel?.setAttribute("role", "dialog");
+    panel?.setAttribute("aria-modal", "true");
+    panel?.setAttribute("aria-label", "Nova transação");
+    if (backdrop) backdrop.hidden = false;
+    mobileComposerScrollY = window.scrollY;
+    document.body.classList.add("has-mobile-transaction-composer");
+  }
+
+  function closeMobileTransactionComposer() {
+    const wasOpen = document.body.classList.contains("has-mobile-transaction-composer");
+    const panel = app.querySelector(".transaction-composer-panel");
+    panel?.classList.remove("is-mobile-open");
+    panel?.removeAttribute("role");
+    panel?.removeAttribute("aria-modal");
+    panel?.removeAttribute("aria-label");
+    const backdrop = app.querySelector(".transaction-composer-backdrop");
+    if (backdrop) backdrop.hidden = true;
+    document.body.classList.remove("has-mobile-transaction-composer");
+    if (wasOpen && isCompactTransactionLayout()) window.scrollTo(0, mobileComposerScrollY);
+  }
+
+  function openCategoryManager() {
+    closeMobileTransactionComposer();
+    const panel = app.querySelector(".categories-panel");
+    const backdrop = app.querySelector(".category-manager-backdrop");
+    if (!panel) return;
+    panel.hidden = false;
+    if (backdrop) backdrop.hidden = false;
+    document.body.classList.add("has-category-manager");
+    panel.querySelector("[data-close-category-manager]")?.focus();
+  }
+
+  function closeCategoryManager() {
+    const panel = app.querySelector(".categories-panel");
+    const backdrop = app.querySelector(".category-manager-backdrop");
+    if (panel) panel.hidden = true;
+    if (backdrop) backdrop.hidden = true;
+    document.body.classList.remove("has-category-manager");
+  }
+
   function setButtonText(selector, text) {
     const button = app.querySelector(selector);
     const label = button?.querySelector("span:last-child");
@@ -2523,8 +2617,8 @@
   function openCategoryComposer() {
     setView("transactions");
     resetCategoryForm();
+    openCategoryManager();
     app.querySelector("#categoryName")?.focus();
-    app.querySelector("#categoryForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function renderCategoryIconPicker() {
@@ -2582,6 +2676,24 @@
         state.transactionPage = 1;
         renderTransactionsTable();
       });
+    });
+    app.querySelector("[data-clear-transaction-filters]")?.addEventListener("click", () => {
+      state.filters = {
+        description: "",
+        category: "all",
+        dateFrom: "",
+        dateTo: "",
+        valueMin: "",
+        valueMax: "",
+        status: "all",
+        account: "all",
+        sort: "date-desc",
+      };
+      state.transactionPage = 1;
+      state.selectedTransactionIds.clear();
+      syncFilterInputs();
+      renderTransactionsTable();
+      showToast("Filtros limpos.");
     });
 
     const month = app.querySelector("#cashflowMonth");
@@ -3441,6 +3553,7 @@
         description: "Cadastre sua primeira receita ou despesa para começar seu controle financeiro.",
         actionLabel: "Nova Transação",
         action: openTransactionComposer,
+        compact: true,
       }));
       return;
     }
@@ -3498,22 +3611,8 @@
         description: "Cadastre sua primeira receita ou despesa para começar seu controle financeiro.",
         actionLabel: "Nova Transação",
         action: openTransactionComposer,
+        compact: true,
       }));
-
-      const row = document.createElement("tr");
-      row.className = "table-empty-row";
-      const cell = document.createElement("td");
-      cell.className = "table-empty-cell";
-      cell.colSpan = 7;
-      cell.append(emptyState({
-        icon: "receipt-text",
-        title: "Nenhuma movimentação registrada.",
-        description: "Cadastre sua primeira receita ou despesa para começar seu controle financeiro.",
-        actionLabel: "Nova Transação",
-        action: openTransactionComposer,
-      }));
-      row.append(cell);
-      tbody.append(row);
       updateTransactionSelectionControls([]);
       updateSortButtons();
       updateTransactionPagination(rows, []);
@@ -3875,6 +3974,7 @@
   function openTransactionComposer(type = "income") {
     setView("transactions");
     resetTransactionForm();
+    openMobileTransactionComposer();
     const transactionType = type === "expense" ? "expense" : "income";
     const typeInput = app.querySelector(`input[name="type"][value="${transactionType}"]`);
     if (typeInput) {
@@ -3897,6 +3997,9 @@
     const pageLabel = app.querySelector("[data-transactions-page-label]");
     const prev = app.querySelector("[data-transactions-prev-page]");
     const next = app.querySelector("[data-transactions-next-page]");
+    const toolbar = app.querySelector(".transaction-list-toolbar");
+    const tableDetails = app.querySelector(".transaction-table-details");
+    const footer = app.querySelector(".transaction-table-footer");
     const pageText = total ? `Mostrando ${start}–${end} de ${plural(total, "transação", "transações")}` : "Nenhuma transação para exibir";
     if (summary) summary.textContent = plural(total, "transação encontrada", "transações encontradas");
     if (pageSummary) pageSummary.textContent = pageText;
@@ -3904,6 +4007,7 @@
     if (pageLabel) pageLabel.textContent = `Página ${state.transactionPage} de ${totalPages}`;
     if (prev) prev.disabled = state.transactionPage <= 1 || !total;
     if (next) next.disabled = state.transactionPage >= totalPages || !total;
+    [toolbar, tableDetails, footer].forEach((element) => element?.toggleAttribute("hidden", !total));
   }
 
   function updateSortButtons() {
@@ -4201,7 +4305,9 @@
     updateInstallmentControls();
     app.querySelector("[data-transaction-form-mode]").textContent = transaction.installmentGroupId ? "Editando parcela" : "Editando lançamento";
     setButtonText("[data-save-transaction]", "Atualizar transação");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    openMobileTransactionComposer();
+    if (!isCompactTransactionLayout()) window.scrollTo({ top: 0, behavior: "smooth" });
+    app.querySelector("#transactionDescription")?.focus();
   }
 
   function duplicateTransaction(id) {
@@ -4357,6 +4463,7 @@
   function editCategory(id) {
     const category = currentProfile().categories.find((item) => item.id === id);
     if (!category) return;
+    openCategoryManager();
     state.editingCategoryId = id;
     app.querySelector("#categoryId").value = category.id;
     app.querySelector("#categoryIcon").value = category.icon;
@@ -5437,7 +5544,8 @@
     const insights = buildInsights(profile);
     app.querySelectorAll("[data-insight-list], [data-dashboard-insight-list]").forEach((box) => {
       box.innerHTML = "";
-      insights.forEach((text) => {
+      const visibleInsights = box.matches("[data-dashboard-insight-list]") ? insights.slice(0, 2) : insights;
+      visibleInsights.forEach((text) => {
         const item = document.createElement("div");
         item.className = "insight-item";
         item.innerHTML = `
