@@ -321,6 +321,11 @@
   transform: none !important;
   transition: opacity var(--nx-duration-control) var(--nx-ease) !important;
 }
+body {
+  --cashflow-chart-label: color-mix(in srgb, var(--nx-text) 78%, var(--nx-text-muted));
+  --cashflow-chart-grid: color-mix(in srgb, var(--nx-border) 68%, var(--nx-text-muted));
+}
+.cashflow-analytics :where(.chart-legend span, .calendar-caption, .calendar-weekday) { color: var(--cashflow-chart-label); }
 .app-shell :where(.chart-canvas, .goal-evolution-chart):hover { transform: none !important; filter: none !important; }
 .chart-tooltip { border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--color-surface-glass); box-shadow: var(--shadow-tooltip); backdrop-filter: blur(var(--blur-tooltip)); }
 .chart-legend { gap: var(--nx-space-3); }
@@ -565,7 +570,9 @@ body.has-notification-center { overflow: hidden; }
   body.menu-open .sidebar, body.menu-open .app-shell.sidebar-is-collapsed .sidebar { transform: translateX(0); }
   .menu-backdrop { position: fixed; z-index: var(--z-backdrop); inset: 0; display: block; border: 0; border-radius: 0; background: var(--color-backdrop); opacity: 0; pointer-events: none; }
   body.menu-open .menu-backdrop { opacity: 1; pointer-events: auto; }
+  .dashboard-main-grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-flow-panel, .dashboard-pending-panel { grid-column: 1 / -1; }
+  .dashboard-recent-panel { grid-column: 1 / -1; }
   .dashboard-bottom-grid { grid-template-columns: 1fr; }
   .settings-premium .settings-layout, .settings-premium .settings-data-grid { grid-template-columns: 1fr; }
   .accounts-layout { grid-template-columns: 1fr; }
@@ -726,15 +733,41 @@ body.has-notification-center { overflow: hidden; }
   .dashboard-insights-panel .dashboard-insights { grid-template-columns: 1fr; gap: var(--nx-space-2); }
   .dashboard-insights-panel .insight-item { min-height: 0; }
   .dashboard-account-list, .dashboard-budget-list { gap: var(--nx-space-2); }
-  .overview-dashboard .panel-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: var(--nx-space-2); }
-  .overview-dashboard .panel-heading > div { min-width: 0; }
-  .overview-dashboard .panel-heading :where(h2, .eyebrow) { overflow-wrap: anywhere; }
-  .overview-dashboard .panel-heading :where(.ghost-action, .pill) { flex: 0 0 auto; }
+  .overview-dashboard .panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--nx-space-2); }
+  .overview-dashboard .panel-heading > div { width: 100%; min-width: 0; }
+  .overview-dashboard .panel-heading :where(h2, .eyebrow) { overflow-wrap: normal; word-break: normal; }
+  .overview-dashboard .panel-heading :where(.ghost-action, .pill) { width: auto; max-width: 100%; justify-self: end; white-space: nowrap; }
   .overview-dashboard .dashboard-flow-panel .panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .overview-dashboard .dashboard-flow-panel .chart-comparison-indicator { grid-column: 1 / -1; justify-self: start; }
   .app-footer { gap: var(--nx-space-1); margin-top: 0; padding: var(--nx-space-2) var(--nx-space-3) max(var(--nx-space-2), var(--safe-area-bottom)); }
   .app-footer p { display: none; }
   .app-footer a { display: inline-flex; align-items: center; min-height: var(--size-touch-target); }
+}
+
+@media (max-width: 900px) {
+  .cashflow-premium .cashflow-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nx-space-2); }
+  .cashflow-premium .cashflow-summary-card { min-height: var(--size-layout-min-medium); gap: var(--nx-space-1); }
+  .cashflow-premium .cashflow-summary-card strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+  .cashflow-premium .cashflow-chart-panel .panel-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--nx-space-2); }
+  .cashflow-premium .cashflow-chart-panel .chart-legend,
+  .cashflow-premium .cashflow-chart-panel .chart-comparison-indicator { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
+  .cashflow-premium .cashflow-chart-panel .chart-canvas { height: clamp(var(--size-layout-min-extra-large), 56vw, var(--size-dashboard-chart)); min-height: var(--size-layout-min-extra-large); max-height: var(--size-dashboard-chart); }
+  .cashflow-premium .cashflow-chart-panel.has-empty-chart .chart-canvas { display: none; }
+  .cashflow-premium .cashflow-chart-panel [data-chart-empty-state] { min-height: var(--size-layout-min-large); margin-top: 0; padding-block: var(--nx-space-2); }
+  .cashflow-premium .cashflow-chart-panel [data-chart-empty-state] .empty-state-text { display: none; }
+  .cashflow-premium .cashflow-chart-panel [data-chart-empty-state] :where(.primary-action, .ghost-action) { width: auto; max-width: 100%; justify-self: center; }
+  .cashflow-premium .cashflow-chart-highlights { display: flex; flex-wrap: wrap; gap: var(--nx-space-1); margin-top: var(--nx-space-2); }
+  .cashflow-premium .cashflow-main-chart-panel.has-empty-chart .cashflow-chart-highlights { display: none; }
+  .cashflow-premium .cashflow-note { margin-top: var(--nx-space-2); }
+}
+
+@media (max-width: 420px) {
+  .cashflow-premium .calendar-weekday { padding: var(--nx-space-1) 0; font-size: var(--font-size-micro); }
+  .cashflow-premium .calendar-day { min-height: var(--size-touch-target); gap: var(--nx-space-1); padding: var(--nx-space-1); }
+  .cashflow-premium .calendar-day-top { gap: 0; }
+  .cashflow-premium .calendar-day strong { min-width: 0; max-width: 100%; overflow: hidden; font-size: var(--font-size-micro); text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+  .cashflow-premium .calendar-day small { display: none; }
+  .cashflow-premium .calendar-day:disabled strong { display: none; }
 }
 
 @media (max-width: 400px) {
@@ -767,6 +800,10 @@ body.has-notification-center { overflow: hidden; }
   .budget-card-actions { flex-wrap: wrap; }
   .budget-action-menu > div { width: min(15rem, calc(100vw - 4rem)); max-width: none; }
   .budget-action-menu button { white-space: normal; }
+  .topbar h1 { font-size: var(--font-size-body-sm); }
+  .overview-dashboard :is(.dashboard-pending-panel, .dashboard-recent-panel, .dashboard-goals-panel) .panel-heading { grid-template-columns: minmax(0, 1fr); }
+  .overview-dashboard :is(.dashboard-pending-panel, .dashboard-recent-panel, .dashboard-goals-panel) .panel-heading .ghost-action { justify-self: start; }
+  .cashflow-premium .calendar-day strong { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

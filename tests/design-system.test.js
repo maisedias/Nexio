@@ -190,7 +190,7 @@ assert.match(renderer, /\[toolbar, tableDetails, footer\][\s\S]*?toggleAttribute
 assert.match(index, /categories-panel[^>]*role="dialog"[^>]*hidden/, "Category management must start as a secondary dialog");
 assert.match(index, /data-open-category-manager/, "The transaction list must expose category management on demand");
 assert.match(activeSkin, /dashboard-flow-panel\.has-empty-chart \.chart-canvas\s*\{\s*display:\s*none;/, "Empty dashboard charts must collapse on mobile");
-assert.match(activeSkin, /overview-dashboard \.panel-heading\s*\{[\s\S]*?justify-content:\s*space-between;/, "Dashboard links must remain inside aligned card headers");
+assert.match(activeSkin, /overview-dashboard \.panel-heading\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto;/, "Dashboard links must remain inside aligned card headers");
 assert.match(activeSkin, /transaction-composer-panel[\s\S]*?var\(--safe-area-bottom\)/, "The mobile transaction composer must respect the bottom safe area");
 assert.match(activeSkin, /\.app-footer[\s\S]*?var\(--safe-area-bottom\)/, "The compact mobile footer must respect the bottom safe area");
 assert.match(activeSkin, /@media \(max-width: 340px\)[\s\S]*?\.topbar\s*\{[\s\S]*?minmax\(0, 1fr\)[\s\S]*?\.topbar-title\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?text-overflow:\s*ellipsis;/, "Narrow mobile headers must reserve actions and truncate the title");
@@ -198,6 +198,15 @@ assert.match(legacyComponents, /@media \(max-width: 767px\)[\s\S]*?\.transaction
 assert.match(legacyComponents, /@media \(max-width: 340px\)[\s\S]*?\.pagination-controls\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/, "Narrow pagination must wrap without clipping either action");
 assert.match(renderer, /function hasOpenModalDialog\(\)[\s\S]*?getClientRects\(\)\.length > 0/, "Open modal dialogs must be detected from their rendered state");
 assert.match(renderer, /fabVisibleViews\.has\(state\.view\)[^;]*?!hasOpenModalDialog\(\)/, "Open dialogs must hide and disable the floating action button");
+assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.dashboard-main-grid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);[\s\S]*?\.overview-dashboard \.panel-heading\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto;/, "Mobile dashboard cards must use the full row without collapsing their headings");
+assert.match(activeSkin, /overview-dashboard \.panel-heading :where\(\.ghost-action, \.pill\)[\s\S]*?width:\s*auto;[\s\S]*?white-space:\s*nowrap;/, "Dashboard header actions must override global full-width mobile buttons");
+assert.match(activeSkin, /cashflow-chart-panel\.has-empty-chart \.chart-canvas\s*\{\s*display:\s*none;/, "Empty cashflow charts must not reserve canvas height on mobile");
+assert.match(activeSkin, /cashflow-summary-card strong[\s\S]*?white-space:\s*nowrap;[\s\S]*?overflow-wrap:\s*normal;/, "Cashflow summary amounts must stay on one line");
+assert.match(activeSkin, /calendar-day:disabled strong\s*\{\s*display:\s*none;/, "Empty narrow calendar days must omit redundant zero amounts");
+assert.match(renderer, /function greetingName\(user\)[\s\S]*?\^sem login\$/, "Guest topbars must reject the local placeholder as a display name");
+assert.match(renderer, /greetingLabel\.textContent = name \? `\$\{greeting\}, \$\{name\}` : greeting/, "Guest topbars must use a natural greeting fallback");
+assert.match(renderer, /function chartLabelLimit\(width\)[\s\S]*?width < 360/, "Narrow cashflow charts must reduce their visible axis labels");
+assert.match(renderer, /responsiveLabels:\s*true/, "Cashflow forecasts must opt into responsive axis labels");
 const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
 assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
 assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");
