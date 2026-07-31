@@ -1149,12 +1149,12 @@
     const profile = currentProfile();
     const now = new Date();
     const greeting = greetingFor(now);
-    const name = (user?.name || "Nexio").split(" ")[0];
+    const name = greetingName(user);
     const initials = initialsFrom(user?.name || profile?.name || "NX");
     const today = formatLongDate(now);
 
     const greetingLabel = app.querySelector("[data-greeting-label]");
-    if (greetingLabel) greetingLabel.textContent = `${greeting}, ${name}`;
+    if (greetingLabel) greetingLabel.textContent = name ? `${greeting}, ${name}` : greeting;
     const todayLabel = app.querySelector("[data-today-label]");
     if (todayLabel) todayLabel.textContent = today;
     app.querySelectorAll("[data-user-avatar], [data-sidebar-avatar]").forEach((avatar) => {
@@ -1171,6 +1171,12 @@
     if (hour < 12) return "Bom dia";
     if (hour < 18) return "Boa tarde";
     return "Boa noite";
+  }
+
+  function greetingName(user) {
+    const name = String(user?.name || "").trim();
+    if (!name || /^sem login$/i.test(name)) return "";
+    return name.split(/\s+/)[0];
   }
 
   function initialsFrom(value) {
@@ -6202,6 +6208,8 @@
         { label: "Entradas", values: income, color: cssVar("--income") },
         { label: "Saídas", values: expense, color: cssVar("--expense") },
       ],
+      gridColor: cssVar("--cashflow-chart-grid"),
+      labelColor: cssVar("--cashflow-chart-label"),
       dense: true,
     });
     updateChartSummary(dailyCanvas, `No mês selecionado, entradas ${isForecast ? "previstas" : "realizadas"} somam ${money(income.reduce((a, b) => a + b, 0))} e saídas ${isForecast ? "previstas" : "realizadas"} somam ${money(expense.reduce((a, b) => a + b, 0))}.`);
@@ -6215,8 +6223,8 @@
       labels,
       lineColor: cssVar("--primary"),
       fillColor: `rgba(${cssVar("--primary-rgb")}, .14)`,
-      gridColor: cssVar("--line"),
-      labelColor: cssVar("--muted"),
+      gridColor: cssVar("--cashflow-chart-grid"),
+      labelColor: cssVar("--cashflow-chart-label"),
       moneyLabels: true,
       dense: true,
       tooltipLines: (index, value) => [
@@ -6249,9 +6257,10 @@
         labels: forecast.labels,
         lineColor: cssVar("--investment"),
         fillColor: colorWithAlpha(cssVar("--investment"), 0.18),
-        gridColor: cssVar("--line"),
-        labelColor: cssVar("--muted"),
+        gridColor: cssVar("--cashflow-chart-grid"),
+        labelColor: cssVar("--cashflow-chart-label"),
         moneyLabels: true,
+        responsiveLabels: true,
         tooltipLines: (index, value) => [
           `Data: ${forecast.fullLabels[index]}`,
           `Saldo previsto: ${money(value)}`,
@@ -6814,7 +6823,7 @@
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
-    drawGrid(ctx, width, height, padding, max);
+    drawGrid(ctx, width, height, padding, max, 0, config);
     const groupWidth = chartWidth / config.labels.length;
     const barWidth = Math.max(4, Math.min(26, (groupWidth - 10) / config.series.length));
     const areas = [];
@@ -6842,8 +6851,8 @@
         title: label,
         lines: groupLines,
       });
-      if (!config.dense || index % Math.ceil(config.labels.length / 10) === 0) {
-        ctx.fillStyle = cssVar("--muted");
+      if (!config.dense || index % Math.ceil(config.labels.length / chartLabelLimit(width)) === 0) {
+        ctx.fillStyle = config.labelColor || cssVar("--muted");
         ctx.font = "12px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(label, padding.left + index * groupWidth + groupWidth / 2, height - 16);
@@ -6856,7 +6865,7 @@
       ctx.fillStyle = series.color;
       roundRect(ctx, x, 14, 12, 12, 3);
       ctx.fill();
-      ctx.fillStyle = cssVar("--muted");
+      ctx.fillStyle = config.labelColor || cssVar("--muted");
       ctx.font = "12px Inter, sans-serif";
       ctx.textAlign = "left";
       ctx.fillText(series.label, x + 18, 24);
@@ -6960,7 +6969,7 @@
     });
 
     options.labels.forEach((label, index) => {
-      if (options.dense && index % Math.ceil(options.labels.length / 10) !== 0) return;
+      if ((options.dense || options.responsiveLabels) && index % Math.ceil(options.labels.length / chartLabelLimit(width)) !== 0) return;
       const x = padding.left + (chartWidth / Math.max(options.labels.length - 1, 1)) * index;
       ctx.fillStyle = options.labelColor;
       ctx.font = "12px Inter, sans-serif";
@@ -6978,6 +6987,12 @@
         : [options.moneyLabels ? money(point.value) : String(Math.round(point.value))],
     }));
     bindChartTooltip(canvas);
+  }
+
+  function chartLabelLimit(width) {
+    if (width < 360) return 4;
+    if (width < 480) return 6;
+    return 10;
   }
 
   function updateChartComparisonIndicator(canvas) {
