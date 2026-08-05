@@ -1254,6 +1254,14 @@
     onDevice: false,
   };
 
+  const assistantReceipt = {
+    service: null,
+    state: "idle",
+    source: "camera",
+    result: null,
+    draft: null,
+  };
+
   function bindAssistantFlow() {
     const modal = app.querySelector("[data-ai-voice-modal]");
     app.querySelector("[data-open-ai-voice]")?.addEventListener("click", openAssistantVoiceModal);
@@ -1288,6 +1296,42 @@
         first.focus();
       }
     });
+
+    const receiptModal = app.querySelector("[data-receipt-ocr-modal]");
+    app.querySelector("[data-open-receipt-ocr]")?.addEventListener("click", openReceiptOcrModal);
+    app.querySelectorAll("[data-receipt-source]").forEach((button) => {
+      button.addEventListener("click", () => void scanAssistantReceipt(button.dataset.receiptSource));
+    });
+    app.querySelectorAll("[data-close-receipt-ocr]").forEach((button) => {
+      button.addEventListener("click", () => void closeReceiptOcrModal());
+    });
+    app.querySelector("[data-receipt-scan-again]")?.addEventListener("click", () => void resetReceiptOcr());
+    app.querySelector("[data-receipt-edit]")?.addEventListener("click", () => void scanAssistantReceipt(assistantReceipt.source, { allowEditing: true }));
+    app.querySelector("[data-receipt-continue]")?.addEventListener("click", continueReceiptDraft);
+    app.querySelector("[data-receipt-open-settings]")?.addEventListener("click", () => void openReceiptSettings());
+    receiptModal?.addEventListener("click", (event) => {
+      if (event.target === receiptModal) void closeReceiptOcrModal();
+    });
+    receiptModal?.addEventListener("keydown", (event) => trapAssistantModalFocus(event, receiptModal, closeReceiptOcrModal));
+  }
+
+  function trapAssistantModalFocus(event, modal, close) {
+    if (event.key === "Escape") {
+      void close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...modal.querySelectorAll("button:not([disabled])")].filter((element) => element.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   function openAssistantVoiceModal() {
@@ -1448,10 +1492,166 @@
     prefillTransactionFromAssistant(assistantVoice.draft, assistantVoice.transcript);
   }
 
+  function receiptOcrService() {
+    if (assistantReceipt.service) return assistantReceipt.service;
+    const plugins = window.Capacitor?.Plugins || {};
+    const processor = window.NexioUI?.receiptImage?.createProcessor?.({
+      filesystem: plugins.Filesystem,
+      receiptCore: core.receiptOcr,
+    });
+    assistantReceipt.service = core.receiptOcr?.createService?.({
+      camera: plugins.Camera,
+      textRecognition: plugins.TextRecognition,
+      settingsPlugin: plugins.NexioSettings,
+      prepareImage: processor?.prepare,
+    }) || null;
+    return assistantReceipt.service;
+  }
+
+  function openReceiptOcrModal() {
+    const modal = app.querySelector("[data-receipt-ocr-modal]");
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    assistantReceipt.result = null;
+    assistantReceipt.draft = null;
+    setReceiptOcrState("idle");
+    requestAnimationFrame(() => modal.querySelector('[data-receipt-source="camera"]')?.focus());
+  }
+
+  async function closeReceiptOcrModal(options = {}) {
+    const modal = app.querySelector("[data-receipt-ocr-modal]");
+    const wasOpen = Boolean(modal && !modal.hidden);
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    if (assistantReceipt.service) {
+      if (["processing-image", "recognizing", "choosing"].includes(assistantReceipt.state)) await assistantReceipt.service.cancel();
+      else await assistantReceipt.service.release();
+    }
+    assistantReceipt.result = null;
+    assistantReceipt.draft = null;
+    if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-open-receipt-ocr]")?.focus();
+  }
+
+  function setReceiptOcrState(nextState, options = {}) {
+    const modal = app.querySelector("[data-receipt-ocr-modal]");
+    if (!modal) return;
+    assistantReceipt.state = nextState;
+    const dialog = modal.querySelector("[data-receipt-state]");
+    const sourceOptions = modal.querySelector("[data-receipt-source-options]");
+    const processing = modal.querySelector("[data-receipt-processing]");
+    const preview = modal.querySelector("[data-receipt-preview]");
+    const status = modal.querySelector("[data-receipt-status]");
+    const settings = modal.querySelector("[data-receipt-open-settings]");
+    const edit = modal.querySelector("[data-receipt-edit]");
+    const scanAgain = modal.querySelector("[data-receipt-scan-again]");
+    const continueButton = modal.querySelector("[data-receipt-continue]");
+    const messages = {
+      idle: "Choose Camera or Gallery. The image stays on this device and nothing is saved automatically.",
+      choosing: `Opening ${assistantReceipt.source === "gallery" ? "the gallery" : "the camera"}...`,
+      "processing-image": "Rotating, cropping, enhancing, and compressing the receipt locally...",
+      recognizing: "Reading the receipt offline with text recognition...",
+      preview: assistantReceipt.draft
+        ? "Receipt understood. Review the detected details, then continue to the editable transaction form."
+        : "Text was found, but the transaction details were incomplete. Edit the image or scan again.",
+      error: options.message || "The receipt could not be read. Try another image or source.",
+      "permission-denied": options.message || "Access is blocked. Open Android settings, allow access, and try again.",
+    };
+    if (dialog) dialog.dataset.receiptState = nextState;
+    if (sourceOptions) sourceOptions.hidden = !["idle", "error", "permission-denied"].includes(nextState);
+    if (processing) processing.hidden = !["choosing", "processing-image", "recognizing"].includes(nextState);
+    if (preview) preview.hidden = nextState !== "preview";
+    if (status) status.textContent = messages[nextState] || messages.idle;
+    if (settings) settings.hidden = nextState !== "permission-denied";
+    if (edit) edit.hidden = nextState !== "preview";
+    if (scanAgain) scanAgain.hidden = !["preview", "error", "permission-denied"].includes(nextState);
+    if (continueButton) continueButton.disabled = nextState !== "preview" || !assistantReceipt.draft;
+    renderIcons();
+  }
+
+  async function scanAssistantReceipt(source, options = {}) {
+    const service = receiptOcrService();
+    assistantReceipt.source = source === "gallery" ? "gallery" : "camera";
+    assistantReceipt.result = null;
+    assistantReceipt.draft = null;
+    if (!service) {
+      setReceiptOcrState("error", { message: "Offline receipt recognition is unavailable on this device. You can still enter the transaction manually." });
+      return;
+    }
+    setReceiptOcrState("choosing");
+    try {
+      const result = await service.scan(assistantReceipt.source, {
+        allowEditing: options.allowEditing,
+        onProcessingImage: () => setReceiptOcrState("processing-image"),
+        onRecognizing: () => setReceiptOcrState("recognizing"),
+      });
+      assistantReceipt.result = result;
+      assistantReceipt.draft = core.receiptOcr?.createDraft?.(result.text, core.aiAssistant?.parseTransaction)?.draft || null;
+      renderReceiptPreview();
+      setReceiptOcrState("preview");
+    } catch (error) {
+      const normalized = core.receiptOcr?.normalizeError?.(error, assistantReceipt.source) || error;
+      if (normalized?.code === "cancelled") {
+        setReceiptOcrState("idle");
+        return;
+      }
+      setReceiptOcrState(normalized?.code === "permission-denied" ? "permission-denied" : "error", {
+        message: normalized?.message,
+      });
+    }
+  }
+
+  function renderReceiptPreview() {
+    const modal = app.querySelector("[data-receipt-ocr-modal]");
+    const draft = assistantReceipt.draft;
+    const image = modal?.querySelector("[data-receipt-image]");
+    if (image) image.src = assistantReceipt.result?.previewUrl || "";
+    const values = {
+      amount: draft?.amount ? money(draft.amount) : "Not identified",
+      merchant: draft?.description || "Not identified",
+      payment: draft?.paymentMethod || "Not identified",
+      date: draft?.date || "Not identified",
+      category: draft?.category || "Not identified",
+    };
+    Object.entries(values).forEach(([field, value]) => {
+      const output = modal?.querySelector(`[data-receipt-detected="${field}"]`);
+      if (output) output.textContent = value;
+    });
+  }
+
+  async function resetReceiptOcr() {
+    await assistantReceipt.service?.release?.();
+    assistantReceipt.result = null;
+    assistantReceipt.draft = null;
+    setReceiptOcrState("idle");
+    app.querySelector('[data-receipt-source="camera"]')?.focus();
+  }
+
+  async function openReceiptSettings() {
+    const opened = await receiptOcrService()?.openSettings?.();
+    if (!opened) {
+      setReceiptOcrState("permission-denied", {
+        message: "Open Android Settings, choose Nexio Financeiro, and allow camera or photo access.",
+      });
+    }
+  }
+
+  function continueReceiptDraft() {
+    if (!assistantReceipt.draft || !assistantReceipt.result?.text) return;
+    prefillTransactionFromAssistant(assistantReceipt.draft, assistantReceipt.result.text);
+  }
+
   function assistantCategoryId(categoryName) {
     const aliases = {
       market: ["market", "mercado", "supermercado", "alimentacao"],
       fuel: ["fuel", "combustivel", "gasolina", "transporte"],
+      pharmacy: ["pharmacy", "farmacia", "saude"],
+      restaurant: ["restaurant", "restaurante", "alimentacao"],
+      bakery: ["bakery", "padaria", "alimentacao"],
+      store: ["store", "loja", "compras"],
+      transfer: ["transfer", "transferencia", "outros"],
       salary: ["salary", "salario"],
       income: ["income", "receita", "salario", "freelance"],
       other: ["other", "outros", "casa"],
@@ -1461,6 +1661,7 @@
   }
 
   function prefillTransactionFromAssistant(draft, sentence) {
+    closeReceiptOcrModal({ restoreFocus: false });
     closeAssistantVoiceModal({ restoreFocus: false });
     openTransactionComposer(draft.type);
     const description = app.querySelector("#transactionDescription");

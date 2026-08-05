@@ -516,6 +516,15 @@
                 </div>
                 <button class="primary-action" data-open-ai-voice type="button"><i data-lucide="mic" aria-hidden="true"></i><span>Open Voice Entry</span></button>
               </article>
+              <article class="panel assistant-option-card">
+                <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="scan-text"></i></span>
+                <div>
+                  <p class="eyebrow">Receipt OCR</p>
+                  <h3>Scan Receipt</h3>
+                  <p>Capture or choose a receipt and prepare a transaction draft with offline text recognition.</p>
+                </div>
+                <button class="primary-action" data-open-receipt-ocr type="button"><i data-lucide="scan-text" aria-hidden="true"></i><span>Scan Receipt</span></button>
+              </article>
             </section>
 
             <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
@@ -539,6 +548,63 @@
                   <button class="ghost-action" data-ai-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Open Settings</span></button>
                   <button class="ghost-action" data-ai-voice-retry type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Try Again</span></button>
                   <button class="primary-action" data-ai-voice-confirm type="button" disabled><i data-lucide="check" aria-hidden="true"></i><span>Confirm</span></button>
+                </footer>
+              </section>
+            </div>
+
+            <div class="assistant-modal-backdrop" data-receipt-ocr-modal hidden>
+              <section class="assistant-voice-modal receipt-ocr-modal" data-receipt-state="idle" role="dialog" aria-modal="true" aria-labelledby="receiptOcrTitle" aria-describedby="receiptOcrStatus">
+                <header class="assistant-modal-header">
+                  <div><span>Financial Assistant</span><h3 id="receiptOcrTitle">Scan Receipt</h3></div>
+                  <button class="icon-button" data-close-receipt-ocr type="button" aria-label="Close receipt scanner"><i data-lucide="x" aria-hidden="true"></i></button>
+                </header>
+                <div class="receipt-ocr-content">
+                  <div class="receipt-source-options" data-receipt-source-options aria-label="Choose receipt source">
+                    <button class="receipt-source-card" data-receipt-source="camera" type="button">
+                      <span aria-hidden="true"><i data-lucide="camera"></i></span>
+                      <strong>Camera</strong>
+                      <small>Photograph a receipt now</small>
+                    </button>
+                    <button class="receipt-source-card" data-receipt-source="gallery" type="button">
+                      <span aria-hidden="true"><i data-lucide="image"></i></span>
+                      <strong>Gallery</strong>
+                      <small>Choose an existing image</small>
+                    </button>
+                  </div>
+
+                  <div class="receipt-processing" data-receipt-processing hidden aria-hidden="true">
+                    <span class="receipt-processing-icon"><i data-lucide="scan-line"></i></span>
+                    <span class="receipt-processing-bar"></span>
+                  </div>
+
+                  <div class="receipt-preview" data-receipt-preview hidden>
+                    <figure class="receipt-preview-image">
+                      <img data-receipt-image alt="Processed receipt preview" />
+                      <figcaption>Image enhanced locally for recognition.</figcaption>
+                    </figure>
+                    <section class="receipt-detected-fields" aria-labelledby="receiptDetectedTitle">
+                      <div class="assistant-draft-heading">
+                        <span aria-hidden="true"><i data-lucide="scan-text"></i></span>
+                        <div><strong id="receiptDetectedTitle">Detected details</strong><small>Review the OCR interpretation before continuing.</small></div>
+                      </div>
+                      <dl>
+                        <div><dt>Amount</dt><dd data-receipt-detected="amount">Not identified</dd></div>
+                        <div><dt>Merchant</dt><dd data-receipt-detected="merchant">Not identified</dd></div>
+                        <div><dt>Payment</dt><dd data-receipt-detected="payment">Not identified</dd></div>
+                        <div><dt>Date</dt><dd data-receipt-detected="date">Not identified</dd></div>
+                        <div><dt>Category</dt><dd data-receipt-detected="category">Not identified</dd></div>
+                      </dl>
+                    </section>
+                  </div>
+
+                  <p class="assistant-voice-status" id="receiptOcrStatus" data-receipt-status role="status" aria-live="polite">Choose Camera or Gallery. The image stays on this device and nothing is saved automatically.</p>
+                </div>
+                <footer class="assistant-modal-actions receipt-ocr-actions">
+                  <button class="ghost-action" data-close-receipt-ocr type="button">Cancel</button>
+                  <button class="ghost-action" data-receipt-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Open Settings</span></button>
+                  <button class="ghost-action" data-receipt-edit type="button" hidden><i data-lucide="crop" aria-hidden="true"></i><span>Edit Image</span></button>
+                  <button class="ghost-action" data-receipt-scan-again type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Scan Again</span></button>
+                  <button class="primary-action" data-receipt-continue type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continue</span></button>
                 </footer>
               </section>
             </div>
@@ -1556,7 +1622,9 @@
     <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
     <script src="js/core/ai-assistant.js?v=20260805-voice-entry"></script>
     <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
-    <script src="js/ui/shared-ui.js?v=20260805-real-voice"></script>
+    <script src="js/core/receipt-ocr.js?v=20260805-receipt-ocr"></script>
+    <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
+    <script src="js/ui/shared-ui.js?v=20260805-receipt-ocr"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>

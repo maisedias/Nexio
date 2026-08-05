@@ -549,6 +549,7 @@ body.has-ai-assistant-modal { overflow: hidden; }
 .assistant-modal-backdrop[hidden] { display: none; }
 .assistant-modal-backdrop { position: fixed; z-index: var(--z-modal); inset: 0; display: grid; place-items: center; overflow-y: auto; background: var(--color-backdrop); padding: max(var(--nx-space-4), var(--safe-area-top)) var(--nx-space-4) max(var(--nx-space-4), var(--safe-area-bottom)); backdrop-filter: blur(var(--blur-backdrop)); }
 .assistant-voice-modal { display: grid; width: min(100%, var(--size-notification-center)); max-height: calc(100svh - (var(--nx-space-4) * 2)); overflow-y: auto; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-card-radius); background: var(--nx-surface-raised); box-shadow: var(--shadow-extra-large); }
+.assistant-voice-modal.receipt-ocr-modal { width: min(100%, var(--size-modal-max)); }
 .assistant-modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--nx-space-3); border-bottom: var(--border-width-thin) solid var(--nx-border); padding: var(--nx-space-3) var(--nx-space-4); }
 .assistant-modal-header > div { min-width: 0; }
 .assistant-modal-header span { color: var(--nx-primary); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); }
@@ -591,6 +592,33 @@ body.has-ai-assistant-modal { overflow: hidden; }
 .assistant-draft-review dt { color: var(--nx-text-muted); font-size: var(--font-size-caption); }
 .assistant-draft-review dd { margin: var(--nx-space-1) 0 0; color: var(--nx-text); font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
 .assistant-draft-review > p { margin: 0; color: var(--nx-text-muted); font-size: var(--font-size-caption); line-height: var(--line-height-caption); }
+.receipt-ocr-content { display: grid; min-width: 0; gap: var(--nx-space-3); padding: var(--nx-space-4); }
+.receipt-source-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; gap: var(--nx-space-3); }
+.receipt-source-options[hidden], .receipt-processing[hidden], .receipt-preview[hidden] { display: none; }
+.receipt-source-card { display: grid; justify-items: center; min-width: 0; min-height: calc(var(--size-touch-target) * 3); gap: var(--nx-space-2); border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); padding: var(--nx-space-4); color: var(--nx-text); text-align: center; cursor: pointer; transition: border-color var(--transition-normal) var(--nx-ease), background var(--transition-normal) var(--nx-ease), transform var(--transition-normal) var(--nx-ease); }
+.receipt-source-card:hover { transform: translateY(var(--offset-hover)); border-color: var(--nx-primary); background: var(--color-primary-active-soft); }
+.receipt-source-card:focus-visible { outline: var(--border-width-medium) solid var(--color-focus); outline-offset: var(--nx-space-1); }
+.receipt-source-card > span { display: grid; place-items: center; width: var(--size-touch-target); height: var(--size-touch-target); border-radius: var(--radius-pill); background: var(--color-primary-icon-soft); color: var(--nx-primary); }
+.receipt-source-card svg { width: var(--size-icon-medium); height: var(--size-icon-medium); }
+.receipt-source-card strong, .receipt-source-card small { max-width: 100%; overflow-wrap: anywhere; }
+.receipt-source-card small { color: var(--nx-text-muted); }
+.receipt-processing { display: grid; justify-items: center; min-height: calc(var(--size-touch-target) * 3); align-content: center; gap: var(--nx-space-3); }
+.receipt-processing-icon { display: grid; place-items: center; width: calc(var(--size-touch-target) * 1.5); height: calc(var(--size-touch-target) * 1.5); border-radius: var(--radius-pill); background: var(--color-primary-icon-soft); color: var(--nx-primary); animation: nxReceiptScanPulse var(--transition-page) var(--nx-ease) infinite; }
+.receipt-processing-icon svg { width: var(--size-icon-large); height: var(--size-icon-large); }
+.receipt-processing-bar { position: relative; width: min(100%, var(--size-layout-min-medium)); height: var(--nx-space-1); overflow: hidden; border-radius: var(--radius-pill); background: var(--nx-border); }
+.receipt-processing-bar::after { position: absolute; inset: 0 auto 0 0; width: 45%; border-radius: inherit; background: var(--nx-primary); content: ""; animation: nxReceiptScanBar var(--transition-page) var(--nx-ease) infinite alternate; }
+.receipt-preview { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); min-width: 0; gap: var(--nx-space-3); align-items: start; }
+.receipt-preview-image { display: grid; min-width: 0; gap: var(--nx-space-2); margin: 0; }
+.receipt-preview-image img { display: block; width: 100%; max-height: min(42svh, var(--size-content-footer-max)); object-fit: contain; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); }
+.receipt-preview-image figcaption { color: var(--nx-text-muted); font-size: var(--font-size-caption); text-align: center; overflow-wrap: anywhere; }
+.receipt-detected-fields { display: grid; min-width: 0; gap: var(--nx-space-3); border: var(--border-width-thin) solid var(--color-primary-border-soft); border-radius: var(--nx-control-radius); background: var(--color-primary-active-soft); padding: var(--nx-space-3); }
+.receipt-detected-fields dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--nx-space-2); margin: 0; }
+.receipt-detected-fields dl > div { min-width: 0; border-radius: var(--nx-control-radius); background: var(--nx-surface-raised); padding: var(--nx-space-2); }
+.receipt-detected-fields dt { color: var(--nx-text-muted); font-size: var(--font-size-caption); }
+.receipt-detected-fields dd { margin: var(--nx-space-1) 0 0; color: var(--nx-text); font-weight: var(--font-weight-bold); overflow-wrap: anywhere; }
+.receipt-ocr-content > .assistant-voice-status { margin: 0; text-align: center; overflow-wrap: anywhere; }
+@keyframes nxReceiptScanPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(var(--scale-confirmation)); opacity: .72; } }
+@keyframes nxReceiptScanBar { from { transform: translateX(-25%); } to { transform: translateX(145%); } }
 
 /* Compact, consistent micro UX */
 @keyframes nxSaveCheck { 50% { transform: scale(var(--scale-confirmation)); } }
@@ -738,6 +766,8 @@ body.has-ai-assistant-modal { overflow: hidden; }
   .assistant-local-badge { grid-column: 1 / -1; justify-self: start; }
   .assistant-option-card { grid-template-columns: auto minmax(0, 1fr); }
   .assistant-option-card .primary-action { grid-column: 1 / -1; justify-self: stretch; }
+  .receipt-preview { grid-template-columns: 1fr; }
+  .receipt-preview-image img { max-height: 34svh; }
 }
 
 /* Mobile release layout */
@@ -831,6 +861,8 @@ body.has-ai-assistant-modal { overflow: hidden; }
 @media (max-width: 420px) {
   .assistant-experience { gap: var(--nx-space-2); }
   .assistant-hero-panel, .assistant-option-card { grid-template-columns: 1fr; gap: var(--nx-space-2); }
+  .receipt-source-options, .receipt-detected-fields dl { grid-template-columns: 1fr; }
+  .receipt-ocr-content { padding: var(--nx-space-3); }
   .assistant-hero-icon, .assistant-option-icon { width: var(--size-touch-target); height: var(--size-touch-target); }
   .assistant-local-badge { grid-column: 1; }
   .assistant-modal-backdrop { align-items: end; padding: 0; }
