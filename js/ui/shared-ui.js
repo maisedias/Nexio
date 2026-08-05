@@ -1079,7 +1079,7 @@
     applyTheme(user.theme);
     applyPrimaryColor(user.primaryColor);
     app.innerHTML = "";
-    document.body.classList.remove("has-mobile-transaction-composer", "has-category-manager");
+    document.body.classList.remove("has-mobile-transaction-composer", "has-category-manager", "has-ai-assistant-modal");
     app.append(document.getElementById("dashboard-template").content.cloneNode(true));
     app.querySelector(".app-shell")?.classList.toggle("sidebar-is-collapsed", state.sidebarCollapsed);
     renderIcons();
@@ -1087,6 +1087,7 @@
     app.querySelector("[data-active-profile-label]").textContent = profile.name;
     updateTopbarContext();
     bindNavigation();
+    bindAssistantFlow();
     bindTopbar();
     bindFloatingActionButton();
     bindAccountForms();
@@ -1243,6 +1244,121 @@
         : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
       updateSyncStatus();
     });
+  }
+
+  const SIMULATED_VOICE_SENTENCE = "I spent 58 reais at Supermercado BH using my credit card.";
+
+  function bindAssistantFlow() {
+    const modal = app.querySelector("[data-ai-voice-modal]");
+    const simulate = () => simulateAssistantVoice(SIMULATED_VOICE_SENTENCE);
+    app.querySelector("[data-open-ai-voice]")?.addEventListener("click", openAssistantVoiceModal);
+    app.querySelector("[data-ai-voice-microphone]")?.addEventListener("click", simulate);
+    app.querySelector("[data-simulate-ai-voice]")?.addEventListener("click", simulate);
+    app.querySelectorAll("[data-close-ai-voice]").forEach((button) => {
+      button.addEventListener("click", () => closeAssistantVoiceModal());
+    });
+    modal?.addEventListener("click", (event) => {
+      if (event.target === modal) closeAssistantVoiceModal();
+    });
+    modal?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeAssistantVoiceModal();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = [...modal.querySelectorAll("button:not([disabled])")].filter((element) => element.offsetParent !== null);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
+  function openAssistantVoiceModal() {
+    const modal = app.querySelector("[data-ai-voice-modal]");
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    modal.querySelector("[data-ai-voice-transcript]")?.toggleAttribute("hidden", true);
+    const status = modal.querySelector("[data-ai-voice-status]");
+    if (status) status.textContent = "No recording is performed in this version.";
+    requestAnimationFrame(() => modal.querySelector("[data-ai-voice-microphone]")?.focus());
+  }
+
+  function closeAssistantVoiceModal(options = {}) {
+    const modal = app.querySelector("[data-ai-voice-modal]");
+    const wasOpen = Boolean(modal && !modal.hidden);
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-open-ai-voice]")?.focus();
+  }
+
+  function simulateAssistantVoice(sentence) {
+    const parser = core.aiAssistant?.parseTransaction;
+    const transcript = app.querySelector("[data-ai-voice-transcript]");
+    const status = app.querySelector("[data-ai-voice-status]");
+    if (transcript) {
+      transcript.textContent = `“${sentence}”`;
+      transcript.hidden = false;
+    }
+    const draft = typeof parser === "function" ? parser(sentence) : null;
+    if (!draft) {
+      if (status) status.textContent = "The transaction could not be understood. Nothing was changed.";
+      return;
+    }
+    if (status) status.textContent = "Draft understood. Opening the transaction form for review.";
+    prefillTransactionFromAssistant(draft, sentence);
+  }
+
+  function assistantCategoryId(categoryName) {
+    const aliases = {
+      market: ["market", "mercado", "supermercado", "alimentacao"],
+      fuel: ["fuel", "combustivel", "gasolina", "transporte"],
+      salary: ["salary", "salario"],
+      income: ["income", "receita", "salario", "freelance"],
+      other: ["other", "outros", "casa"],
+    };
+    const accepted = aliases[normalizeText(categoryName)] || [normalizeText(categoryName)];
+    return currentProfile().categories.find((category) => accepted.includes(normalizeText(category.name)))?.id || "";
+  }
+
+  function prefillTransactionFromAssistant(draft, sentence) {
+    closeAssistantVoiceModal({ restoreFocus: false });
+    openTransactionComposer(draft.type);
+    const description = app.querySelector("#transactionDescription");
+    const amount = app.querySelector("#transactionAmount");
+    const date = app.querySelector("#transactionDate");
+    const category = app.querySelector("#transactionCategory");
+    const account = app.querySelector("#transactionAccount");
+    if (description) description.value = draft.description || "";
+    if (amount) amount.value = Number.isFinite(draft.amount) ? String(draft.amount) : "";
+    if (date) date.value = draft.date || toDateInput(new Date());
+    const categoryId = assistantCategoryId(draft.category);
+    if (categoryId && category) category.value = categoryId;
+    if (account) {
+      const placeholder = new Option("Select an account to confirm", "", true, true);
+      placeholder.disabled = true;
+      account.prepend(placeholder);
+      account.value = "";
+    }
+    app.querySelector("[data-transaction-form-mode]").textContent = "Review Assistant draft";
+    const summary = app.querySelector("[data-ai-draft-summary]");
+    if (summary) {
+      summary.hidden = false;
+      summary.querySelector("[data-ai-draft-transcript]").textContent = sentence;
+      summary.querySelector("[data-ai-draft-category]").textContent = draft.category || "Not identified";
+      summary.querySelector("[data-ai-draft-payment]").textContent = draft.paymentMethod || "Not identified";
+    }
+    renderIcons();
+    showToast("Assistant draft ready. Review and confirm before saving.");
   }
 
   function bindTopbar() {
@@ -1650,6 +1766,7 @@
       closeMobileTransactionComposer();
       closeCategoryManager();
     }
+    if (view !== "assistant") closeAssistantVoiceModal({ restoreFocus: false });
     const enteringTransactions = view === "transactions" && state.view !== "transactions";
     const enteringBudgets = view === "budgets" && state.view !== "budgets";
     state.view = view;
@@ -1659,6 +1776,7 @@
       accounts: "Contas",
       budgets: "Orçamentos",
       notifications: "Notificações",
+      assistant: "Financial Assistant",
       cashflow: "Fluxo de caixa",
       goals: "Metas e Objetivos",
       profiles: "Perfis",
@@ -4422,6 +4540,8 @@
     app.querySelector("#transactionInstallmentsEnabled").checked = false;
     app.querySelector("#transactionInstallmentCount").value = 2;
     app.querySelector("[data-transaction-form-mode]").textContent = "Novo lançamento";
+    const assistantSummary = app.querySelector("[data-ai-draft-summary]");
+    if (assistantSummary) assistantSummary.hidden = true;
     setButtonText("[data-save-transaction]", "Salvar transação");
     state.editingTransactionId = "";
     populateAccountSelects();

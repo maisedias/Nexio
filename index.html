@@ -264,6 +264,7 @@
             <button class="nav-item" data-view="budgets" data-tooltip="Orçamentos" type="button"><span class="nav-icon"><i data-lucide="gauge" aria-hidden="true"></i></span><span>Orçamentos</span></button>
             <button class="nav-item" data-view="cashflow" data-tooltip="Fluxo de caixa" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" data-tooltip="Metas" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
+            <button class="nav-item" data-view="assistant" data-tooltip="Financial Assistant" type="button"><span class="nav-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Financial Assistant</span></button>
             <button class="nav-item" data-view="profiles" data-tooltip="Perfis" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
             <button class="nav-item" data-view="settings" data-tooltip="Configurações" type="button"><span class="nav-icon"><i data-lucide="settings" aria-hidden="true">⚙</i></span><span>Configurações</span></button>
           </nav>
@@ -494,6 +495,52 @@
             </section>
           </section>
 
+          <section id="view-assistant" class="view assistant-experience" data-view-panel="assistant">
+            <section class="panel assistant-hero-panel">
+              <div class="assistant-hero-icon" aria-hidden="true"><i data-lucide="sparkles"></i></div>
+              <div class="assistant-hero-copy">
+                <p class="eyebrow">Personal finance</p>
+                <h2>Financial Assistant</h2>
+                <p>Prepare a transaction draft faster and review every detail before saving.</p>
+              </div>
+              <span class="assistant-local-badge"><i data-lucide="shield-check" aria-hidden="true"></i>Runs locally</span>
+            </section>
+
+            <section class="assistant-option-grid" aria-label="Financial Assistant options">
+              <article class="panel assistant-option-card">
+                <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="mic"></i></span>
+                <div>
+                  <p class="eyebrow">First option</p>
+                  <h3>Voice Entry</h3>
+                  <p>Describe an income or expense and prepare a reviewable transaction draft.</p>
+                </div>
+                <button class="primary-action" data-open-ai-voice type="button"><i data-lucide="mic" aria-hidden="true"></i><span>Open Voice Entry</span></button>
+              </article>
+            </section>
+
+            <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
+              <section class="assistant-voice-modal" role="dialog" aria-modal="true" aria-labelledby="assistantVoiceTitle" aria-describedby="assistantVoiceInstruction">
+                <header class="assistant-modal-header">
+                  <div><span>Financial Assistant</span><h3 id="assistantVoiceTitle">Voice Entry</h3></div>
+                  <button class="icon-button" data-close-ai-voice type="button" aria-label="Close Voice Entry"><i data-lucide="x" aria-hidden="true"></i></button>
+                </header>
+                <div class="assistant-voice-content">
+                  <button class="assistant-microphone" data-ai-voice-microphone type="button" aria-label="Simulate voice entry">
+                    <i data-lucide="mic" aria-hidden="true"></i>
+                    <span class="assistant-microphone-pulse" aria-hidden="true"></span>
+                  </button>
+                  <p id="assistantVoiceInstruction">Tap the microphone and describe your transaction.</p>
+                  <blockquote data-ai-voice-transcript hidden></blockquote>
+                  <p class="assistant-voice-status" data-ai-voice-status role="status" aria-live="polite">No recording is performed in this version.</p>
+                </div>
+                <footer class="assistant-modal-actions">
+                  <button class="ghost-action" data-close-ai-voice type="button">Cancel</button>
+                  <button class="primary-action" data-simulate-ai-voice type="button"><i data-lucide="audio-lines" aria-hidden="true"></i><span>Simulate Voice</span></button>
+                </footer>
+              </section>
+            </div>
+          </section>
+
           <section id="view-accounts" class="view accounts-experience" data-view-panel="accounts">
             <section class="panel accounts-hero-panel">
               <div><p class="eyebrow">Organização financeira</p><h2>Contas</h2><p>Acompanhe cada origem de dinheiro sem misturar movimentações.</p></div>
@@ -618,6 +665,17 @@
 
                 <form id="transactionForm" class="stacked-form transaction-form-modern">
                   <input id="transactionId" type="hidden" />
+                  <aside class="assistant-draft-review" data-ai-draft-summary hidden aria-live="polite">
+                    <div class="assistant-draft-heading">
+                      <span aria-hidden="true"><i data-lucide="sparkles"></i></span>
+                      <div><strong>Draft prepared by Financial Assistant</strong><small data-ai-draft-transcript></small></div>
+                    </div>
+                    <dl>
+                      <div><dt>Detected category</dt><dd data-ai-draft-category></dd></div>
+                      <div><dt>Payment method</dt><dd data-ai-draft-payment></dd></div>
+                    </dl>
+                    <p>Select an account and review every field before saving. Nothing was saved automatically.</p>
+                  </aside>
                   <section class="transaction-form-section">
                     <div class="form-section-heading">
                       <span class="form-section-icon" aria-hidden="true"><i data-lucide="wallet-cards"></i></span>
@@ -1493,6 +1551,7 @@
     <script src="js/core/profiles.js?v=20260729-notifications-center"></script>
     <script src="js/core/reports.js?v=20260722-layered-architecture"></script>
     <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
+    <script src="js/core/ai-assistant.js?v=20260805-voice-entry"></script>
     <script src="js/ui/shared-ui.js?v=20260729-mobile-release-5"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
