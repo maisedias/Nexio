@@ -1246,23 +1246,33 @@
     });
   }
 
-  const SIMULATED_VOICE_SENTENCE = "I spent 58 reais at Supermercado BH using my credit card.";
+  const assistantVoice = {
+    service: null,
+    state: "idle",
+    transcript: "",
+    draft: null,
+    onDevice: false,
+  };
 
   function bindAssistantFlow() {
     const modal = app.querySelector("[data-ai-voice-modal]");
-    const simulate = () => simulateAssistantVoice(SIMULATED_VOICE_SENTENCE);
     app.querySelector("[data-open-ai-voice]")?.addEventListener("click", openAssistantVoiceModal);
-    app.querySelector("[data-ai-voice-microphone]")?.addEventListener("click", simulate);
-    app.querySelector("[data-simulate-ai-voice]")?.addEventListener("click", simulate);
+    app.querySelector("[data-ai-voice-microphone]")?.addEventListener("click", () => {
+      if (assistantVoice.state === "listening") void stopAssistantVoiceRecognition();
+      else void startAssistantVoiceRecognition();
+    });
+    app.querySelector("[data-ai-voice-retry]")?.addEventListener("click", () => void retryAssistantVoiceRecognition());
+    app.querySelector("[data-ai-open-settings]")?.addEventListener("click", () => void openAssistantMicrophoneSettings());
+    app.querySelector("[data-ai-voice-confirm]")?.addEventListener("click", confirmAssistantVoiceDraft);
     app.querySelectorAll("[data-close-ai-voice]").forEach((button) => {
-      button.addEventListener("click", () => closeAssistantVoiceModal());
+      button.addEventListener("click", () => void closeAssistantVoiceModal());
     });
     modal?.addEventListener("click", (event) => {
-      if (event.target === modal) closeAssistantVoiceModal();
+      if (event.target === modal) void closeAssistantVoiceModal();
     });
     modal?.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
-        closeAssistantVoiceModal();
+        void closeAssistantVoiceModal();
         return;
       }
       if (event.key !== "Tab") return;
@@ -1286,36 +1296,156 @@
     modal.hidden = false;
     document.body.classList.add("has-ai-assistant-modal");
     syncFloatingActionButton();
-    modal.querySelector("[data-ai-voice-transcript]")?.toggleAttribute("hidden", true);
-    const status = modal.querySelector("[data-ai-voice-status]");
-    if (status) status.textContent = "No recording is performed in this version.";
+    assistantVoice.transcript = "";
+    assistantVoice.draft = null;
+    setAssistantVoiceState("idle");
     requestAnimationFrame(() => modal.querySelector("[data-ai-voice-microphone]")?.focus());
   }
 
-  function closeAssistantVoiceModal(options = {}) {
+  async function closeAssistantVoiceModal(options = {}) {
     const modal = app.querySelector("[data-ai-voice-modal]");
     const wasOpen = Boolean(modal && !modal.hidden);
+    if (assistantVoice.service && ["listening", "processing"].includes(assistantVoice.state)) {
+      await assistantVoice.service.cancel();
+    }
     if (modal) modal.hidden = true;
     document.body.classList.remove("has-ai-assistant-modal");
     syncFloatingActionButton();
     if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-open-ai-voice]")?.focus();
   }
 
-  function simulateAssistantVoice(sentence) {
-    const parser = core.aiAssistant?.parseTransaction;
-    const transcript = app.querySelector("[data-ai-voice-transcript]");
-    const status = app.querySelector("[data-ai-voice-status]");
+  function assistantSpeechService() {
+    if (assistantVoice.service) return assistantVoice.service;
+    const plugins = window.Capacitor?.Plugins || {};
+    assistantVoice.service = core.speechRecognition?.createService?.({
+      plugin: plugins.SpeechRecognition,
+      settingsPlugin: plugins.NexioSettings,
+      language: window.navigator.language || "pt-BR",
+    }) || null;
+    return assistantVoice.service;
+  }
+
+  function setAssistantVoiceState(nextState, options = {}) {
+    const modal = app.querySelector("[data-ai-voice-modal]");
+    if (!modal) return;
+    assistantVoice.state = nextState;
+    const dialog = modal.querySelector("[data-ai-voice-state]");
+    const microphone = modal.querySelector("[data-ai-voice-microphone]");
+    const transcript = modal.querySelector("[data-ai-voice-transcript]");
+    const status = modal.querySelector("[data-ai-voice-status]");
+    const indicator = modal.querySelector("[data-ai-listening-indicator]");
+    const retry = modal.querySelector("[data-ai-voice-retry]");
+    const settings = modal.querySelector("[data-ai-open-settings]");
+    const confirm = modal.querySelector("[data-ai-voice-confirm]");
+    const messages = {
+      idle: "Ready to listen. Your transaction will only be saved after you review and confirm the form.",
+      listening: assistantVoice.onDevice
+        ? "Listening on this device. Tap the microphone again when you finish."
+        : "Listening. Tap the microphone again when you finish.",
+      processing: options.message || "Processing your transcription...",
+      recognized: assistantVoice.draft
+        ? "Transaction understood. Confirm to open the prefilled form for your review."
+        : "The transaction could not be understood. Nothing was changed.",
+      error: options.message || "Voice recognition could not be completed. Please try again.",
+      "permission-denied": "Microphone access is blocked. Open Android settings, allow microphone access, then try again.",
+    };
+    if (dialog) dialog.dataset.aiVoiceState = nextState;
     if (transcript) {
-      transcript.textContent = `“${sentence}”`;
-      transcript.hidden = false;
+      transcript.textContent = assistantVoice.transcript ? `“${assistantVoice.transcript}”` : "";
+      transcript.hidden = !assistantVoice.transcript;
     }
-    const draft = typeof parser === "function" ? parser(sentence) : null;
-    if (!draft) {
-      if (status) status.textContent = "The transaction could not be understood. Nothing was changed.";
+    if (status) status.textContent = messages[nextState] || messages.idle;
+    if (indicator) indicator.hidden = nextState !== "listening";
+    if (retry) retry.hidden = !["recognized", "error", "permission-denied"].includes(nextState);
+    if (settings) settings.hidden = nextState !== "permission-denied";
+    if (confirm) confirm.disabled = nextState !== "recognized" || !assistantVoice.draft;
+    if (microphone) {
+      const listening = nextState === "listening";
+      microphone.disabled = ["processing", "recognized", "permission-denied"].includes(nextState);
+      microphone.setAttribute("aria-pressed", String(listening));
+      microphone.setAttribute("aria-label", listening ? "Stop listening" : "Start listening");
+    }
+    renderIcons();
+  }
+
+  function updateAssistantTranscript(text) {
+    assistantVoice.transcript = String(text || "").trim();
+    const transcript = app.querySelector("[data-ai-voice-transcript]");
+    if (!transcript) return;
+    transcript.textContent = assistantVoice.transcript ? `“${assistantVoice.transcript}”` : "";
+    transcript.hidden = !assistantVoice.transcript;
+  }
+
+  function recognizeAssistantTranscript(text) {
+    updateAssistantTranscript(text);
+    const result = core.speechRecognition?.createDraft?.(
+      assistantVoice.transcript,
+      core.aiAssistant?.parseTransaction,
+    );
+    assistantVoice.draft = result?.draft || null;
+    setAssistantVoiceState("recognized");
+  }
+
+  function handleAssistantVoiceError(error) {
+    const normalized = core.speechRecognition?.normalizeError?.(error) || error;
+    assistantVoice.draft = null;
+    setAssistantVoiceState(normalized?.code === "permission-denied" ? "permission-denied" : "error", {
+      message: normalized?.message,
+    });
+  }
+
+  async function startAssistantVoiceRecognition() {
+    const service = assistantSpeechService();
+    if (!service) {
+      handleAssistantVoiceError({ code: "recognition-unavailable" });
       return;
     }
-    if (status) status.textContent = "Draft understood. Opening the transaction form for review.";
-    prefillTransactionFromAssistant(draft, sentence);
+    assistantVoice.transcript = "";
+    assistantVoice.draft = null;
+    setAssistantVoiceState("processing", { message: "Checking microphone permission..." });
+    try {
+      await service.start({
+        onListening: ({ onDevice }) => {
+          assistantVoice.onDevice = Boolean(onDevice);
+          setAssistantVoiceState("listening");
+        },
+        onTranscript: updateAssistantTranscript,
+        onProcessing: () => setAssistantVoiceState("processing"),
+        onComplete: recognizeAssistantTranscript,
+        onEmpty: () => handleAssistantVoiceError({ code: "no-speech" }),
+        onError: handleAssistantVoiceError,
+      });
+    } catch (error) {
+      handleAssistantVoiceError(error);
+    }
+  }
+
+  async function stopAssistantVoiceRecognition() {
+    if (!assistantVoice.service) return;
+    setAssistantVoiceState("processing");
+    await assistantVoice.service.stop();
+  }
+
+  async function retryAssistantVoiceRecognition() {
+    if (assistantVoice.service) await assistantVoice.service.cancel();
+    assistantVoice.transcript = "";
+    assistantVoice.draft = null;
+    setAssistantVoiceState("idle");
+    await startAssistantVoiceRecognition();
+  }
+
+  async function openAssistantMicrophoneSettings() {
+    const opened = await assistantSpeechService()?.openSettings?.();
+    if (!opened) {
+      setAssistantVoiceState("permission-denied");
+      const status = app.querySelector("[data-ai-voice-status]");
+      if (status) status.textContent = "Open Android Settings, choose Nexio Financeiro, and allow microphone access.";
+    }
+  }
+
+  function confirmAssistantVoiceDraft() {
+    if (!assistantVoice.draft || !assistantVoice.transcript) return;
+    prefillTransactionFromAssistant(assistantVoice.draft, assistantVoice.transcript);
   }
 
   function assistantCategoryId(categoryName) {

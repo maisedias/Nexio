@@ -519,23 +519,26 @@
             </section>
 
             <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
-              <section class="assistant-voice-modal" role="dialog" aria-modal="true" aria-labelledby="assistantVoiceTitle" aria-describedby="assistantVoiceInstruction">
+              <section class="assistant-voice-modal" data-ai-voice-state="idle" role="dialog" aria-modal="true" aria-labelledby="assistantVoiceTitle" aria-describedby="assistantVoiceInstruction assistantVoiceStatus">
                 <header class="assistant-modal-header">
                   <div><span>Financial Assistant</span><h3 id="assistantVoiceTitle">Voice Entry</h3></div>
                   <button class="icon-button" data-close-ai-voice type="button" aria-label="Close Voice Entry"><i data-lucide="x" aria-hidden="true"></i></button>
                 </header>
                 <div class="assistant-voice-content">
-                  <button class="assistant-microphone" data-ai-voice-microphone type="button" aria-label="Simulate voice entry">
+                  <button class="assistant-microphone" data-ai-voice-microphone type="button" aria-label="Start listening" aria-pressed="false">
                     <i data-lucide="mic" aria-hidden="true"></i>
                     <span class="assistant-microphone-pulse" aria-hidden="true"></span>
                   </button>
                   <p id="assistantVoiceInstruction">Tap the microphone and describe your transaction.</p>
-                  <blockquote data-ai-voice-transcript hidden></blockquote>
-                  <p class="assistant-voice-status" data-ai-voice-status role="status" aria-live="polite">No recording is performed in this version.</p>
+                  <div class="assistant-listening-indicator" data-ai-listening-indicator aria-hidden="true" hidden><span></span><span></span><span></span></div>
+                  <blockquote data-ai-voice-transcript aria-label="Current transcription" hidden></blockquote>
+                  <p class="assistant-voice-status" id="assistantVoiceStatus" data-ai-voice-status role="status" aria-live="polite">Ready to listen. Your transaction will only be saved after you review and confirm the form.</p>
                 </div>
                 <footer class="assistant-modal-actions">
                   <button class="ghost-action" data-close-ai-voice type="button">Cancel</button>
-                  <button class="primary-action" data-simulate-ai-voice type="button"><i data-lucide="audio-lines" aria-hidden="true"></i><span>Simulate Voice</span></button>
+                  <button class="ghost-action" data-ai-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Open Settings</span></button>
+                  <button class="ghost-action" data-ai-voice-retry type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Try Again</span></button>
+                  <button class="primary-action" data-ai-voice-confirm type="button" disabled><i data-lucide="check" aria-hidden="true"></i><span>Confirm</span></button>
                 </footer>
               </section>
             </div>
@@ -1552,7 +1555,8 @@
     <script src="js/core/reports.js?v=20260722-layered-architecture"></script>
     <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
     <script src="js/core/ai-assistant.js?v=20260805-voice-entry"></script>
-    <script src="js/ui/shared-ui.js?v=20260729-mobile-release-5"></script>
+    <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
+    <script src="js/ui/shared-ui.js?v=20260805-real-voice"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>
