@@ -129,6 +129,8 @@
 
   function createDraft(text, parser, options = {}) {
     const extractedText = String(text || "").trim();
+    const pipelineResult = core.financialInput?.createDraft?.(extractedText, parser, options, { source: "receipt-ocr" });
+    if (pipelineResult) return { text: pipelineResult.text, draft: pipelineResult.draft };
     if (!extractedText || typeof parser !== "function") return { text: extractedText, draft: null };
     return { text: extractedText, draft: parser(extractedText, options) || null };
   }
@@ -168,11 +170,34 @@
       return true;
     }
 
+    async function prepareAndRecognize(photo, normalizedSource, scanOptions, operation) {
+      if (!textRecognition?.processImage) throw normalizeError({ code: "ocr-plugin-unavailable" }, normalizedSource);
+      if (typeof prepareImage !== "function") throw normalizeError({ code: "image-processing-unavailable" }, normalizedSource);
+      scanOptions.onProcessingImage?.();
+      const prepared = await prepareImage(photo, { source: normalizedSource });
+      if (operation !== generation) {
+        await prepared?.cleanup?.();
+        throw normalizeError({ code: "cancelled" }, normalizedSource);
+      }
+      activeImage = prepared;
+      scanOptions.onRecognizing?.();
+      const result = await textRecognition.processImage({ path: prepared.path, script: "LATIN" });
+      if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
+      const text = String(result?.text || "").trim();
+      if (!text) throw normalizeError({ code: "no-text" }, normalizedSource);
+      return {
+        text,
+        blocks: Array.isArray(result?.blocks) ? result.blocks : [],
+        previewUrl: prepared.previewUrl || photo.webPath || photo.path || "",
+        width: prepared.width || photo.width || null,
+        height: prepared.height || photo.height || null,
+        source: normalizedSource,
+      };
+    }
+
     async function scan(source, scanOptions = {}) {
       const normalizedSource = source === "gallery" ? "gallery" : "camera";
       if (!camera?.getPhoto) throw normalizeError({ code: `${normalizedSource}-unavailable` }, normalizedSource);
-      if (!textRecognition?.processImage) throw normalizeError({ code: "ocr-plugin-unavailable" }, normalizedSource);
-      if (typeof prepareImage !== "function") throw normalizeError({ code: "image-processing-unavailable" }, normalizedSource);
       const operation = ++generation;
       await cleanupImage();
       try {
@@ -191,26 +216,20 @@
           promptLabelPicture: "Use camera",
         });
         if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
-        scanOptions.onProcessingImage?.();
-        const prepared = await prepareImage(photo, { source: normalizedSource });
-        if (operation !== generation) {
-          await prepared?.cleanup?.();
-          throw normalizeError({ code: "cancelled" }, normalizedSource);
-        }
-        activeImage = prepared;
-        scanOptions.onRecognizing?.();
-        const result = await textRecognition.processImage({ path: prepared.path, script: "LATIN" });
-        if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
-        const text = String(result?.text || "").trim();
-        if (!text) throw normalizeError({ code: "no-text" }, normalizedSource);
-        return {
-          text,
-          blocks: Array.isArray(result?.blocks) ? result.blocks : [],
-          previewUrl: prepared.previewUrl || photo.webPath || photo.path || "",
-          width: prepared.width || photo.width || null,
-          height: prepared.height || photo.height || null,
-          source: normalizedSource,
-        };
+        return await prepareAndRecognize(photo, normalizedSource, scanOptions, operation);
+      } catch (error) {
+        if (error?.code && error?.message) throw error;
+        throw normalizeError(error, normalizedSource);
+      }
+    }
+
+    async function scanFile(photo, scanOptions = {}) {
+      const normalizedSource = String(scanOptions.source || "shared-image");
+      if (!photo?.path && !photo?.webPath) throw normalizeError({ code: "missing-image" }, normalizedSource);
+      const operation = ++generation;
+      await cleanupImage();
+      try {
+        return await prepareAndRecognize(photo, normalizedSource, scanOptions, operation);
       } catch (error) {
         if (error?.code && error?.message) throw error;
         throw normalizeError(error, normalizedSource);
@@ -237,7 +256,7 @@
       }
     }
 
-    return Object.freeze({ scan, cancel, release, openSettings });
+    return Object.freeze({ scan, scanFile, cancel, release, openSettings });
   }
 
   core.receiptOcr = Object.freeze({

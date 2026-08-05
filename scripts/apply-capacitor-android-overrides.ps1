@@ -18,6 +18,7 @@ New-Item -ItemType Directory -Force -Path $MainPackage, $Values, $ValuesNight, $
 
 Copy-Item -LiteralPath (Join-Path $Overrides "MainActivity.java") -Destination (Join-Path $MainPackage "MainActivity.java") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "NexioSettingsPlugin.java") -Destination (Join-Path $MainPackage "NexioSettingsPlugin.java") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "NexioShareTargetPlugin.java") -Destination (Join-Path $MainPackage "NexioShareTargetPlugin.java") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "AndroidManifest.xml") -Destination $Manifest -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values/strings.xml") -Destination (Join-Path $Values "strings.xml") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values/colors.xml") -Destination (Join-Path $Values "colors.xml") -Force

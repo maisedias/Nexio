@@ -71,7 +71,8 @@
 
   function createDraft(transcript, parser, options = {}) {
     const text = String(transcript || "").trim();
-    const draft = text && typeof parser === "function" ? parser(text, options) : null;
+    const pipelineResult = core.financialInput?.createDraft?.(text, parser, options, { source: "voice" });
+    const draft = pipelineResult ? pipelineResult.draft : (text && typeof parser === "function" ? parser(text, options) : null);
     return Object.freeze({ transcript: text, draft, valid: Boolean(draft) });
   }
 

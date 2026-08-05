@@ -10,17 +10,29 @@
     { category: "Restaurant", pattern: /\b(restaurant|restaurante|lanchonete)\b/i },
     { category: "Bakery", pattern: /\b(bakery|padaria)\b/i },
     { category: "Store", pattern: /\b(store|shop|loja)\b/i },
-    { category: "Transfer", pattern: /\b(transfer|transferencia|ted|doc|boleto)\b/i },
+    { category: "Transfer", pattern: /\b(transfer|transferencia|ted|doc|boleto|comprovante de pix|pix (?:enviado|realizado|concluido))\b/i },
     { category: "Salary", pattern: /\b(salary|paycheck|wage|salario)\b/i },
   ]);
 
   const paymentRules = Object.freeze([
-    { paymentMethod: "Credit Card", pattern: /\b(credit card|cartao de credito|credito)\b/i },
-    { paymentMethod: "Debit Card", pattern: /\b(debit card|cartao de debito|debito)\b/i },
-    { paymentMethod: "Pix", pattern: /\bpix\b/i },
+    { paymentMethod: "Credit Card", pattern: /\b(credit card|cartao de credito|credito|compra no credito)\b/i },
+    { paymentMethod: "Debit Card", pattern: /\b(debit card|cartao de debito|debito|compra no debito)\b/i },
+    { paymentMethod: "Pix", pattern: /\b(pix|pagamento instantaneo|instant payment)\b/i },
     { paymentMethod: "Cash", pattern: /\b(cash|dinheiro|especie)\b/i },
     { paymentMethod: "Bank Transfer", pattern: /\b(transfer|transferencia|ted|doc)\b/i },
     { paymentMethod: "Boleto", pattern: /\bboleto\b/i },
+  ]);
+
+  const bankRules = Object.freeze([
+    { account: "Nubank", pattern: /\b(nubank|nu pagamentos)\b/i },
+    { account: "Banco Inter", pattern: /\b(banco inter|inter pagamentos)\b/i },
+    { account: "Itaú", pattern: /\b(itau|itau unibanco)\b/i },
+    { account: "Bradesco", pattern: /\b(bradesco)\b/i },
+    { account: "Banco do Brasil", pattern: /\b(banco do brasil)\b/i },
+    { account: "Caixa", pattern: /\b(caixa economica|caixa tem)\b/i },
+    { account: "Santander", pattern: /\b(santander)\b/i },
+    { account: "PicPay", pattern: /\b(picpay)\b/i },
+    { account: "Mercado Pago", pattern: /\b(mercado pago)\b/i },
   ]);
 
   function normalizeText(value) {
@@ -64,9 +76,9 @@
   }
 
   function inferType(sentence) {
-    if (/\b(received|earned|income|salary|paycheck|wage|recebi|ganhei|receita|salario)\b/i.test(sentence)) return "income";
-    if (/\b(spent|paid|bought|expense|gastei|paguei|comprei|despesa)\b/i.test(sentence)) return "expense";
-    if (/\b(total|valor total|a pagar|pix|debito|credito|dinheiro|mercado|supermercado|posto|combustivel|farmacia|restaurante|padaria|loja|transferencia|ted|doc|boleto)\b/i.test(sentence)) return "expense";
+    if (/\b(received|earned|income|salary|paycheck|wage|recebi|recebido|ganhei|receita|salario|creditado|deposito recebido)\b/i.test(sentence)) return "income";
+    if (/\b(spent|paid|bought|expense|gastei|paguei|comprei|despesa|enviado|pagamento efetuado|compra aprovada)\b/i.test(sentence)) return "expense";
+    if (/\b(total|valor total|a pagar|pix|pagamento instantaneo|instant payment|debito|credito|dinheiro|mercado|supermercado|posto|combustivel|farmacia|restaurante|padaria|loja|transferencia|ted|doc|boleto|comprovante)\b/i.test(sentence)) return "expense";
     return null;
   }
 
@@ -80,6 +92,17 @@
     return paymentRules.find((rule) => rule.pattern.test(sentence))?.paymentMethod || null;
   }
 
+  function inferAccount(sentence) {
+    return bankRules.find((rule) => rule.pattern.test(sentence))?.account || null;
+  }
+
+  function inferInstallments(sentence) {
+    const normalized = normalizeText(sentence);
+    const match = normalized.match(/\b(?:em\s+)?(\d{1,2})\s*x\b|\b(\d{1,2})\s+parcelas?\b|\bparcela\s+\d{1,2}\s*(?:de|\/)\s*(\d{1,2})\b/i);
+    const count = Number(match?.[1] || match?.[2] || match?.[3]);
+    return Number.isInteger(count) && count > 1 && count <= 60 ? count : null;
+  }
+
   function cleanDescription(value) {
     return String(value || "")
       .replace(/^(?:the|a|an|o|a)\s+/i, "")
@@ -89,6 +112,9 @@
   }
 
   function inferDescription(sentence, category, type) {
+    const labelledMerchant = sentence.match(/(?:merchant|estabelecimento|comercio|favorecido|recebedor|beneficiario)\s*[:\-]\s*([^\r\n]+)/i);
+    if (labelledMerchant?.[1]) return cleanDescription(labelledMerchant[1]);
+
     const merchant = sentence.match(/\b(?:at|no|na|em)\s+(.+?)(?=\s+(?:using|with|via|on|com|usando|pelo|pela)\b|[.!?]|$)/i);
     if (merchant?.[1]) return cleanDescription(merchant[1]);
 
@@ -98,7 +124,7 @@
     const receiptLine = String(sentence || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .find((line) => line && !/(?:^|\b)(?:total|subtotal|valor|r\$|brl|pix|debito|credito|dinheiro|data|hora|cnpj|cpf|cupom|nota fiscal|nfce|ted|doc|boleto)(?:\b|$)/i.test(normalizeText(line)) && !/^\d{2}[\/.\-]\d{2}[\/.\-]\d{2,4}$/.test(line));
+      .find((line) => line && !/(?:^|\b)(?:total|subtotal|valor|r\$|brl|pix|debito|credito|dinheiro|data|hora|cnpj|cpf|cupom|nota fiscal|nfce|ted|doc|boleto|comprovante|autenticacao|transacao|parcela)(?:\b|$)/i.test(normalizeText(line)) && !/^\d{2}[\/.\-]\d{2}[\/.\-]\d{2,4}$/.test(line));
     if (receiptLine) return cleanDescription(receiptLine);
 
     if (category === "Salary") return "Salary";
@@ -128,16 +154,19 @@
     if (!type || amount === null) return null;
 
     const category = inferCategory(normalized, type);
-    return {
+    const draft = {
       type,
       amount,
       currency: "BRL",
       category,
       description: inferDescription(original, category, type),
       paymentMethod: inferPaymentMethod(normalized),
-      account: null,
+      account: inferAccount(normalized),
       date: inferDate(original, options.now || new Date()),
     };
+    const installments = inferInstallments(normalized);
+    if (installments) draft.installments = installments;
+    return draft;
   }
 
   core.aiAssistant = Object.freeze({

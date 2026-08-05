@@ -1262,6 +1262,16 @@
     draft: null,
   };
 
+  const assistantShare = {
+    service: null,
+    listener: null,
+    state: "idle",
+    payload: null,
+    result: null,
+    draft: null,
+    lastKey: "",
+  };
+
   function bindAssistantFlow() {
     const modal = app.querySelector("[data-ai-voice-modal]");
     app.querySelector("[data-open-ai-voice]")?.addEventListener("click", openAssistantVoiceModal);
@@ -1313,6 +1323,18 @@
       if (event.target === receiptModal) void closeReceiptOcrModal();
     });
     receiptModal?.addEventListener("keydown", (event) => trapAssistantModalFocus(event, receiptModal, closeReceiptOcrModal));
+
+    const sharedModal = app.querySelector("[data-shared-content-modal]");
+    app.querySelectorAll("[data-close-shared-content]").forEach((button) => {
+      button.addEventListener("click", () => void closeIncomingSharedContent());
+    });
+    app.querySelector("[data-reprocess-shared-content]")?.addEventListener("click", () => void processIncomingSharedContent(assistantShare.payload));
+    app.querySelector("[data-continue-shared-content]")?.addEventListener("click", () => void continueIncomingSharedContent());
+    sharedModal?.addEventListener("click", (event) => {
+      if (event.target === sharedModal) void closeIncomingSharedContent();
+    });
+    sharedModal?.addEventListener("keydown", (event) => trapAssistantModalFocus(event, sharedModal, closeIncomingSharedContent));
+    void bindIncomingShareTarget();
   }
 
   function trapAssistantModalFocus(event, modal, close) {
@@ -1643,6 +1665,184 @@
     prefillTransactionFromAssistant(assistantReceipt.draft, assistantReceipt.result.text);
   }
 
+  function androidShareTargetService() {
+    if (assistantShare.service) return assistantShare.service;
+    const plugins = window.Capacitor?.Plugins || {};
+    if (!plugins.NexioShareTarget) return null;
+    const convertFileSrc = window.Capacitor?.convertFileSrc;
+    assistantShare.service = core.androidShareTarget?.createService?.({
+      nativeShare: plugins.NexioShareTarget,
+      receiptOcr: receiptOcrService(),
+      parser: core.aiAssistant?.parseTransaction,
+      inputPipeline: core.financialInput,
+      toWebPath: (path) => typeof convertFileSrc === "function" ? convertFileSrc(path) : path,
+    }) || null;
+    return assistantShare.service;
+  }
+
+  async function bindIncomingShareTarget() {
+    const service = androidShareTargetService();
+    if (!service) return;
+    if (!assistantShare.listener) {
+      assistantShare.listener = await service.listen((payload) => {
+        void receiveIncomingSharedContent(payload);
+      });
+    }
+    try {
+      const pending = await service.pending();
+      if (pending) await receiveIncomingSharedContent(pending);
+    } catch (error) {
+      if (app.querySelector("[data-shared-content-modal]")) {
+        await receiveIncomingSharedContent({
+          kind: "error",
+          errorCode: "missing-content",
+          errorMessage: core.androidShareTarget?.normalizeError?.(error)?.message,
+        });
+      }
+    }
+  }
+
+  function sharedPayloadKey(payload) {
+    const normalized = core.androidShareTarget?.normalizePayload?.(payload);
+    return normalized?.id || `${normalized?.kind || "unknown"}:${normalized?.path || normalized?.text || ""}`;
+  }
+
+  async function receiveIncomingSharedContent(payload) {
+    const key = sharedPayloadKey(payload);
+    if (key && key === assistantShare.lastKey && ["processing", "recognizing", "preview"].includes(assistantShare.state)) return;
+    if (assistantShare.payload && key !== assistantShare.lastKey) await assistantShare.service?.release?.();
+    assistantShare.lastKey = key;
+    assistantShare.payload = payload;
+    assistantShare.result = null;
+    assistantShare.draft = null;
+    if (!app.querySelector("[data-shared-content-modal]")) return;
+    setView("assistant");
+    openIncomingSharedContentModal();
+    await processIncomingSharedContent(payload);
+  }
+
+  function openIncomingSharedContentModal() {
+    const modal = app.querySelector("[data-shared-content-modal]");
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    setIncomingSharedContentState("processing");
+    requestAnimationFrame(() => modal.querySelector("[data-close-shared-content]")?.focus());
+  }
+
+  function setIncomingSharedContentState(nextState, options = {}) {
+    const modal = app.querySelector("[data-shared-content-modal]");
+    if (!modal) return;
+    assistantShare.state = nextState;
+    const dialog = modal.querySelector("[data-shared-content-state]");
+    const processing = modal.querySelector("[data-shared-content-processing]");
+    const preview = modal.querySelector("[data-shared-content-preview]");
+    const status = modal.querySelector("[data-shared-content-status]");
+    const reprocess = modal.querySelector("[data-reprocess-shared-content]");
+    const continueButton = modal.querySelector("[data-continue-shared-content]");
+    const messages = {
+      idle: "Waiting for shared content...",
+      processing: options.message || "Processing shared content locally...",
+      recognizing: options.message || "Reading the shared receipt offline...",
+      preview: assistantShare.draft
+        ? "Shared content understood. Review the detected details before continuing to the editable form."
+        : "The shared content could not be interpreted. Nothing was saved.",
+      error: options.message || "The shared content could not be processed. Reprocess it or cancel.",
+    };
+    if (dialog) dialog.dataset.sharedContentState = nextState;
+    if (processing) processing.hidden = !["processing", "recognizing"].includes(nextState);
+    if (preview) preview.hidden = nextState !== "preview";
+    if (status) status.textContent = messages[nextState] || messages.idle;
+    if (reprocess) reprocess.hidden = !["preview", "error"].includes(nextState);
+    if (continueButton) continueButton.disabled = nextState !== "preview" || !assistantShare.draft;
+    renderIcons();
+  }
+
+  async function processIncomingSharedContent(payload) {
+    const service = androidShareTargetService();
+    if (!service || !payload) {
+      setIncomingSharedContentState("error", { message: "Android shared-content processing is unavailable. Nothing was changed." });
+      return;
+    }
+    assistantShare.payload = payload;
+    assistantShare.result = null;
+    assistantShare.draft = null;
+    setIncomingSharedContentState("processing");
+    try {
+      const result = await service.process(payload, {
+        onState: (stateName, message) => setIncomingSharedContentState(stateName, { message }),
+      });
+      assistantShare.result = result;
+      assistantShare.draft = result.draft;
+      renderIncomingSharedContentPreview();
+      setIncomingSharedContentState("preview");
+    } catch (error) {
+      const normalized = core.androidShareTarget?.normalizeError?.(error) || error;
+      if (normalized?.code === "cancelled") return;
+      setIncomingSharedContentState("error", { message: normalized?.message });
+    }
+  }
+
+  function renderIncomingSharedContentPreview() {
+    const modal = app.querySelector("[data-shared-content-modal]");
+    const result = assistantShare.result;
+    const draft = assistantShare.draft;
+    const content = result?.content || core.androidShareTarget?.normalizePayload?.(assistantShare.payload);
+    const typeLabels = { text: "Shared text", image: "Receipt image", pdf: "PDF receipt" };
+    const values = {
+      type: typeLabels[content?.kind] || "Not identified",
+      file: content?.name || (content?.kind === "text" ? "Not applicable" : "Unnamed file"),
+      merchant: draft?.description || "Not identified",
+      amount: draft?.amount ? money(draft.amount) : "Not identified",
+      payment: draft?.paymentMethod || "Not identified",
+      category: draft?.category || "Not identified",
+    };
+    Object.entries(values).forEach(([field, value]) => {
+      const output = modal?.querySelector(`[data-shared-detected="${field}"]`);
+      if (output) output.textContent = value;
+    });
+    const thumbnailWrap = modal?.querySelector("[data-shared-thumbnail-wrap]");
+    const thumbnail = modal?.querySelector("[data-shared-thumbnail]");
+    const showThumbnail = Boolean(result?.previewUrl && ["image", "pdf"].includes(content?.kind));
+    if (thumbnailWrap) thumbnailWrap.hidden = !showThumbnail;
+    if (thumbnail) {
+      if (showThumbnail) thumbnail.src = result.previewUrl;
+      else thumbnail.removeAttribute("src");
+    }
+    const notes = [];
+    if (content?.ignoredCount) notes.push(`${content.ignoredCount} additional shared ${content.ignoredCount === 1 ? "item was" : "items were"} ignored. Process them separately.`);
+    if (result?.truncated) notes.push(`The first ${result.processedPages} of ${result.pageCount} PDF pages were processed to protect device memory.`);
+    const note = modal?.querySelector("[data-shared-content-note]");
+    if (note) {
+      note.textContent = notes.join(" ");
+      note.hidden = !notes.length;
+    }
+  }
+
+  async function closeIncomingSharedContent(options = {}) {
+    const modal = app.querySelector("[data-shared-content-modal]");
+    const wasOpen = Boolean(modal && !modal.hidden);
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    if (assistantShare.service) await assistantShare.service.release();
+    assistantShare.payload = null;
+    assistantShare.result = null;
+    assistantShare.draft = null;
+    assistantShare.lastKey = "";
+    assistantShare.state = "idle";
+    if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-share-target-option]")?.focus?.();
+  }
+
+  async function continueIncomingSharedContent() {
+    if (!assistantShare.draft || !assistantShare.result?.extractedText) return;
+    const draft = assistantShare.draft;
+    const extractedText = assistantShare.result.extractedText;
+    await closeIncomingSharedContent({ restoreFocus: false });
+    prefillTransactionFromAssistant(draft, extractedText);
+  }
+
   function assistantCategoryId(categoryName) {
     const aliases = {
       market: ["market", "mercado", "supermercado", "alimentacao"],
@@ -1669,16 +1869,34 @@
     const date = app.querySelector("#transactionDate");
     const category = app.querySelector("#transactionCategory");
     const account = app.querySelector("#transactionAccount");
+    const installmentsEnabledInput = app.querySelector("#transactionInstallmentsEnabled");
+    const installmentCountInput = app.querySelector("#transactionInstallmentCount");
     if (description) description.value = draft.description || "";
     if (amount) amount.value = Number.isFinite(draft.amount) ? String(draft.amount) : "";
     if (date) date.value = draft.date || toDateInput(new Date());
     const categoryId = assistantCategoryId(draft.category);
     if (categoryId && category) category.value = categoryId;
     if (account) {
-      const placeholder = new Option("Select an account to confirm", "", true, true);
-      placeholder.disabled = true;
-      account.prepend(placeholder);
-      account.value = "";
+      const requestedAccount = normalizeText(draft.account || "");
+      const matchedAccount = requestedAccount
+        ? currentProfile().accounts.find((item) => {
+          const candidate = normalizeText(item.name || "");
+          return candidate === requestedAccount || candidate.includes(requestedAccount) || requestedAccount.includes(candidate);
+        })
+        : null;
+      if (matchedAccount) {
+        account.value = matchedAccount.id;
+      } else {
+        const placeholder = new Option("Select an account to confirm", "", true, true);
+        placeholder.disabled = true;
+        account.prepend(placeholder);
+        account.value = "";
+      }
+    }
+    if (installmentsEnabledInput && installmentCountInput && Number(draft.installments) > 1) {
+      installmentsEnabledInput.checked = true;
+      installmentCountInput.value = String(Math.min(60, Number(draft.installments)));
+      updateInstallmentControls();
     }
     app.querySelector("[data-transaction-form-mode]").textContent = "Review Assistant draft";
     const summary = app.querySelector("[data-ai-draft-summary]");
@@ -2097,7 +2315,11 @@
       closeMobileTransactionComposer();
       closeCategoryManager();
     }
-    if (view !== "assistant") closeAssistantVoiceModal({ restoreFocus: false });
+    if (view !== "assistant") {
+      closeAssistantVoiceModal({ restoreFocus: false });
+      closeReceiptOcrModal({ restoreFocus: false });
+      closeIncomingSharedContent({ restoreFocus: false });
+    }
     const enteringTransactions = view === "transactions" && state.view !== "transactions";
     const enteringBudgets = view === "budgets" && state.view !== "budgets";
     state.view = view;

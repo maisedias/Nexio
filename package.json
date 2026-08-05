@@ -4,7 +4,7 @@
   "private": true,
   "description": "Nexio Financeiro Android app wrapper powered by Capacitor.",
   "scripts": {
-    "test": "node tests/core.test.js && node tests/design-system.test.js && node tests/security.test.js && node tests/sync.test.js && node tests/accounts.test.js && node tests/budgets.test.js && node tests/notifications.test.js && node tests/ai-assistant.test.js && node tests/speech-recognition.test.js && node tests/receipt-ocr.test.js",
+    "test": "node tests/core.test.js && node tests/design-system.test.js && node tests/security.test.js && node tests/sync.test.js && node tests/accounts.test.js && node tests/budgets.test.js && node tests/notifications.test.js && node tests/ai-assistant.test.js && node tests/speech-recognition.test.js && node tests/receipt-ocr.test.js && node tests/android-share-target.test.js",
     "android:assets:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-android-assets.ps1",
     "android:add": "npx cap add android",
     "android:assets": "npx capacitor-assets generate --android",

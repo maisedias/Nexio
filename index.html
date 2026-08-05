@@ -525,6 +525,15 @@
                 </div>
                 <button class="primary-action" data-open-receipt-ocr type="button"><i data-lucide="scan-text" aria-hidden="true"></i><span>Scan Receipt</span></button>
               </article>
+              <article class="panel assistant-option-card" data-share-target-option>
+                <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="share-2"></i></span>
+                <div>
+                  <p class="eyebrow">Android Share Target</p>
+                  <h3>Share to Nexio</h3>
+                  <p>Send transaction text, receipt images, or PDFs from another Android app for a local, reviewable draft.</p>
+                </div>
+                <span class="assistant-local-badge"><i data-lucide="smartphone" aria-hidden="true"></i>Android share sheet</span>
+              </article>
             </section>
 
             <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
@@ -605,6 +614,50 @@
                   <button class="ghost-action" data-receipt-edit type="button" hidden><i data-lucide="crop" aria-hidden="true"></i><span>Edit Image</span></button>
                   <button class="ghost-action" data-receipt-scan-again type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Scan Again</span></button>
                   <button class="primary-action" data-receipt-continue type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continue</span></button>
+                </footer>
+              </section>
+            </div>
+
+            <div class="assistant-modal-backdrop" data-shared-content-modal hidden>
+              <section class="assistant-voice-modal receipt-ocr-modal shared-content-modal" data-shared-content-state="idle" role="dialog" aria-modal="true" aria-labelledby="sharedContentTitle" aria-describedby="sharedContentStatus">
+                <header class="assistant-modal-header">
+                  <div><span>Financial Assistant</span><h3 id="sharedContentTitle">Incoming Shared Content</h3></div>
+                  <button class="icon-button" data-close-shared-content type="button" aria-label="Cancel shared content processing"><i data-lucide="x" aria-hidden="true"></i></button>
+                </header>
+                <div class="receipt-ocr-content">
+                  <div class="receipt-processing" data-shared-content-processing aria-hidden="true">
+                    <span class="receipt-processing-icon"><i data-lucide="file-scan"></i></span>
+                    <span class="receipt-processing-bar"></span>
+                  </div>
+
+                  <div class="shared-content-preview" data-shared-content-preview hidden>
+                    <figure class="receipt-preview-image" data-shared-thumbnail-wrap hidden>
+                      <img data-shared-thumbnail alt="Preview of shared receipt content" />
+                      <figcaption>Processed locally and retained only while you review.</figcaption>
+                    </figure>
+                    <section class="receipt-detected-fields" aria-labelledby="sharedDetectedTitle">
+                      <div class="assistant-draft-heading">
+                        <span aria-hidden="true"><i data-lucide="scan-text"></i></span>
+                        <div><strong id="sharedDetectedTitle">Detected details</strong><small>Nothing is saved until you confirm the existing transaction form.</small></div>
+                      </div>
+                      <dl>
+                        <div><dt>Content type</dt><dd data-shared-detected="type">Not identified</dd></div>
+                        <div><dt>File</dt><dd data-shared-detected="file">Not applicable</dd></div>
+                        <div><dt>Merchant</dt><dd data-shared-detected="merchant">Not identified</dd></div>
+                        <div><dt>Amount</dt><dd data-shared-detected="amount">Not identified</dd></div>
+                        <div><dt>Payment</dt><dd data-shared-detected="payment">Not identified</dd></div>
+                        <div><dt>Category</dt><dd data-shared-detected="category">Not identified</dd></div>
+                      </dl>
+                      <p class="shared-content-note" data-shared-content-note hidden></p>
+                    </section>
+                  </div>
+
+                  <p class="assistant-voice-status" id="sharedContentStatus" data-shared-content-status role="status" aria-live="polite">Preparing shared content locally...</p>
+                </div>
+                <footer class="assistant-modal-actions">
+                  <button class="ghost-action" data-close-shared-content type="button">Cancel</button>
+                  <button class="ghost-action" data-reprocess-shared-content type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reprocess</span></button>
+                  <button class="primary-action" data-continue-shared-content type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continue</span></button>
                 </footer>
               </section>
             </div>
@@ -1621,8 +1674,10 @@
     <script src="js/core/reports.js?v=20260722-layered-architecture"></script>
     <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
     <script src="js/core/ai-assistant.js?v=20260805-voice-entry"></script>
+    <script src="js/core/financial-input.js?v=20260805-share-target"></script>
     <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
     <script src="js/core/receipt-ocr.js?v=20260805-receipt-ocr"></script>
+    <script src="js/core/android-share-target.js?v=20260805-share-target"></script>
     <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
     <script src="js/ui/shared-ui.js?v=20260805-receipt-ocr"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
