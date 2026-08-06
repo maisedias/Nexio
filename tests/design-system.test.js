@@ -207,6 +207,10 @@ assert.match(renderer, /function greetingName\(user\)[\s\S]*?\^sem login\$/, "Gu
 assert.match(renderer, /greetingLabel\.textContent = name \? `\$\{greeting\}, \$\{name\}` : greeting/, "Guest topbars must use a natural greeting fallback");
 assert.match(renderer, /function chartLabelLimit\(width\)[\s\S]*?width < 360/, "Narrow cashflow charts must reduce their visible axis labels");
 assert.match(renderer, /responsiveLabels:\s*true/, "Cashflow forecasts must opt into responsive axis labels");
+assert.match(activeSkin, /\.assistant-option-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, var\(--size-layout-filter-wide\)\), 1fr\)\);/, "Assistant cards must reflow from the available container width before their content is compressed");
+assert.match(activeSkin, /\.assistant-option-card\s*\{[^}]*grid-template-columns:\s*auto minmax\(0, 1fr\);[^}]*grid-template-rows:\s*1fr auto;/, "Assistant card copy must retain a useful column while its action occupies a full row");
+assert.match(activeSkin, /\.assistant-option-card h3\s*\{[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/, "Assistant titles must wrap between words instead of letter by letter");
+assert.match(activeSkin, /\.assistant-option-card \.primary-action\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*min-width:\s*0;[^}]*word-break:\s*normal;/, "Assistant actions must span the card and remain legible at narrow widths");
 const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
 assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
 assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");

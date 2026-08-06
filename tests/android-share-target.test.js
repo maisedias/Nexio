@@ -203,8 +203,8 @@ test("14. incoming preview, cancel, reprocess and manual Continue flow are prese
   assert.match(renderer, /function continueIncomingSharedContent\(\)[\s\S]*prefillTransactionFromAssistant/);
   assert.doesNotMatch(renderer.match(/async function processIncomingSharedContent[\s\S]*?\n  }/)?.[0] || "", /saveStore|transactions\.push/);
   assert.match(styles, /shared-content-preview[\s\S]*grid-template-columns/);
-  assert.match(styles, /@media \(max-width: 1180px\)[\s\S]*?assistant-option-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
-  assert.match(styles, /@media \(max-width: 420px\)[\s\S]*?assistant-option-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
+  assert.match(styles, /assistant-option-grid \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, var\(--size-layout-filter-wide\)\), 1fr\)\);/);
+  assert.match(styles, /assistant-option-card \{[^}]*grid-template-columns: auto minmax\(0, 1fr\);[^}]*grid-template-rows: 1fr auto;/);
 });
 
 test("15. transaction draft integration maps account and installment fields without saving", () => {

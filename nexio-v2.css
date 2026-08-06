@@ -538,13 +538,16 @@ body.has-notification-center { overflow: hidden; }
 .assistant-hero-icon svg, .assistant-option-icon svg { width: var(--size-icon-medium); height: var(--size-icon-medium); }
 .assistant-hero-copy { min-width: 0; }
 .assistant-hero-copy h2, .assistant-option-card h3 { margin: 0; color: var(--nx-text); }
-.assistant-hero-copy > p:last-child, .assistant-option-card > div > p:last-child { margin: var(--nx-space-1) 0 0; color: var(--nx-text-muted); line-height: var(--line-height-body); overflow-wrap: anywhere; }
+.assistant-hero-copy > p:last-child { margin: var(--nx-space-1) 0 0; color: var(--nx-text-muted); line-height: var(--line-height-body); overflow-wrap: anywhere; }
+.assistant-option-card > div { min-width: 0; }
+.assistant-option-card > div > p:last-child { margin: var(--nx-space-1) 0 0; color: var(--nx-text-muted); line-height: var(--line-height-body); overflow-wrap: break-word; word-break: normal; }
 .assistant-local-badge { display: inline-flex; align-items: center; min-height: var(--size-badge-medium); gap: var(--nx-space-1); border-radius: var(--radius-pill); background: var(--color-income-soft); padding: 0 var(--nx-space-2); color: var(--nx-income); font-size: var(--font-size-caption); font-weight: var(--font-weight-bold); white-space: nowrap; }
 .assistant-local-badge svg { width: var(--size-icon-small); }
-.assistant-option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--size-layout-min-medium)), 1fr)); min-width: 0; gap: var(--nx-space-3); }
-.assistant-option-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; min-width: 0; gap: var(--nx-space-3); }
-.assistant-option-card .primary-action { white-space: nowrap; }
-.assistant-option-card[data-share-target-option] .assistant-local-badge { justify-self: end; max-width: 100%; white-space: normal; text-align: center; overflow-wrap: anywhere; }
+.assistant-option-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--size-layout-filter-wide)), 1fr)); min-width: 0; gap: var(--nx-space-3); }
+.assistant-option-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 1fr auto; align-items: start; min-width: 0; gap: var(--nx-space-3); }
+.assistant-option-card h3 { overflow-wrap: normal; word-break: normal; }
+.assistant-option-card .primary-action { grid-column: 1 / -1; align-self: end; justify-self: stretch; min-width: 0; white-space: normal; overflow-wrap: break-word; word-break: normal; }
+.assistant-option-card[data-share-target-option] .assistant-local-badge { grid-column: 1 / -1; align-self: end; justify-self: start; max-width: 100%; white-space: normal; text-align: left; overflow-wrap: break-word; word-break: normal; }
 
 body.has-ai-assistant-modal { overflow: hidden; }
 .assistant-modal-backdrop[hidden] { display: none; }
@@ -642,7 +645,6 @@ body.has-ai-assistant-modal { overflow: hidden; }
   .budgets-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
   .budgets-new-action { grid-column: 1 / -1; justify-self: start; }
   .budgets-toolbar-panel { grid-template-columns: minmax(0, 1fr) minmax(var(--size-layout-min-small), .7fr); }
-  .assistant-option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 900px) {
@@ -767,10 +769,7 @@ body.has-ai-assistant-modal { overflow: hidden; }
   .budget-modal { max-height: 94svh; border-radius: var(--nx-card-radius) var(--nx-card-radius) 0 0; }
   .notification-center > header, .notification-center-list { padding-inline: var(--nx-space-3); }
   .assistant-hero-panel { grid-template-columns: auto minmax(0, 1fr); }
-  .assistant-option-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .assistant-local-badge { grid-column: 1 / -1; justify-self: start; }
-  .assistant-option-card { grid-template-columns: auto minmax(0, 1fr); }
-  .assistant-option-card .primary-action { grid-column: 1 / -1; justify-self: stretch; }
   .assistant-option-card[data-share-target-option] .assistant-local-badge { grid-column: 1 / -1; justify-self: start; }
   .receipt-preview, .shared-content-preview { grid-template-columns: 1fr; }
   .receipt-preview-image img { max-height: 34svh; }
