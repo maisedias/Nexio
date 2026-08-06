@@ -1253,6 +1253,7 @@
     transcript: "",
     draft: null,
     onDevice: false,
+    interpretationId: 0,
   };
 
   const assistantReceipt = {
@@ -1261,6 +1262,7 @@
     source: "camera",
     result: null,
     draft: null,
+    interpretationId: 0,
   };
 
   const assistantShare = {
@@ -1271,6 +1273,11 @@
     result: null,
     draft: null,
     lastKey: "",
+    interpretationId: 0,
+  };
+
+  const assistantInterpretation = {
+    service: null,
   };
 
   const externalNavigation = {
@@ -1422,6 +1429,8 @@
     if (assistantVoice.service && ["listening", "processing"].includes(assistantVoice.state)) {
       await assistantVoice.service.cancel();
     }
+    assistantVoice.interpretationId += 1;
+    assistantInterpretation.service?.cancel?.();
     if (modal) modal.hidden = true;
     document.body.classList.remove("has-ai-assistant-modal");
     syncFloatingActionButton();
@@ -1437,6 +1446,59 @@
       language: window.navigator.language || "pt-BR",
     }) || null;
     return assistantVoice.service;
+  }
+
+  function assistantInterpreterService() {
+    const user = currentUser();
+    if (!cloud.enabled || !cloud.ready || !cloud.client || !cloud.userId || !user || isLocalOnlyUser(user)) return null;
+    if (assistantInterpretation.service) return assistantInterpretation.service;
+    assistantInterpretation.service = core.aiInterpreter?.createService?.({
+      invoke: async (payload, options = {}) => {
+        const { data, error } = await cloud.client.auth.getSession();
+        if (error || !data.session?.access_token) {
+          const unavailable = new Error("Sessão indisponível.");
+          unavailable.code = "unauthenticated";
+          throw unavailable;
+        }
+        const response = await fetch("/api/interpret-financial-input", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${data.session.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          signal: options.signal,
+        });
+        let body = null;
+        try {
+          body = await response.json();
+        } catch {}
+        if (!response.ok) {
+          const failure = new Error(body?.message || "Interpretação indisponível.");
+          failure.code = body?.code || "unavailable";
+          failure.status = response.status;
+          throw failure;
+        }
+        return body;
+      },
+    }) || null;
+    return assistantInterpretation.service;
+  }
+
+  function interpretAssistantInput(text, source, localDraft = null) {
+    const now = new Date();
+    return core.financialInput.interpret(
+      text,
+      core.aiAssistant?.parseTransaction,
+      assistantInterpreterService(),
+      {
+        now,
+        referenceDate: toDateInput(now),
+        categories: currentProfile().categories.map((category) => category.name),
+        partialParser: core.aiAssistant?.parsePartialTransaction,
+      },
+      { source, localDraft },
+    );
   }
 
   function setAssistantVoiceState(nextState, options = {}) {
@@ -1458,7 +1520,7 @@
         : "Ouvindo... Toque novamente no microfone quando terminar.",
       processing: options.message || "Processando sua transcrição...",
       recognized: assistantVoice.draft
-        ? "Lançamento identificado. Confirme para abrir o formulário preenchido e revisar."
+        ? options.message || "Lançamento identificado. Confirme para abrir o formulário preenchido e revisar."
         : "Não foi possível entender o lançamento. Nada foi alterado.",
       error: options.message || "Não foi possível concluir o reconhecimento de voz. Tente novamente.",
       "permission-denied": "O acesso ao microfone está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
@@ -1490,14 +1552,14 @@
     transcript.hidden = !assistantVoice.transcript;
   }
 
-  function recognizeAssistantTranscript(text) {
+  async function recognizeAssistantTranscript(text) {
     updateAssistantTranscript(text);
-    const result = core.speechRecognition?.createDraft?.(
-      assistantVoice.transcript,
-      core.aiAssistant?.parseTransaction,
-    );
+    const interpretationId = ++assistantVoice.interpretationId;
+    setAssistantVoiceState("processing", { message: "Interpretando lançamento..." });
+    const result = await interpretAssistantInput(assistantVoice.transcript, "voice");
+    if (interpretationId !== assistantVoice.interpretationId || result.strategy === "cancelled") return;
     assistantVoice.draft = result?.draft || null;
-    setAssistantVoiceState("recognized");
+    setAssistantVoiceState("recognized", { message: result.message });
   }
 
   function handleAssistantVoiceError(error) {
@@ -1525,7 +1587,7 @@
         },
         onTranscript: updateAssistantTranscript,
         onProcessing: () => setAssistantVoiceState("processing"),
-        onComplete: recognizeAssistantTranscript,
+        onComplete: (text) => void recognizeAssistantTranscript(text),
         onEmpty: () => handleAssistantVoiceError({ code: "no-speech" }),
         onError: handleAssistantVoiceError,
       });
@@ -1542,6 +1604,8 @@
 
   async function retryAssistantVoiceRecognition() {
     if (assistantVoice.service) await assistantVoice.service.cancel();
+    assistantVoice.interpretationId += 1;
+    assistantInterpretation.service?.cancel?.();
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
     setAssistantVoiceState("idle");
@@ -1600,6 +1664,8 @@
       if (["processing-image", "recognizing", "choosing"].includes(assistantReceipt.state)) await assistantReceipt.service.cancel();
       else await assistantReceipt.service.release();
     }
+    assistantReceipt.interpretationId += 1;
+    assistantInterpretation.service?.cancel?.();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
     if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-open-receipt-ocr]")?.focus();
@@ -1622,9 +1688,9 @@
       idle: "Escolha Câmera ou Galeria. A imagem permanece neste aparelho e nada é salvo automaticamente.",
       choosing: `Abrindo ${assistantReceipt.source === "gallery" ? "a galeria" : "a câmera"}...`,
       "processing-image": "Girando, recortando, aprimorando e comprimindo o comprovante localmente...",
-      recognizing: "Lendo o comprovante localmente com reconhecimento de texto...",
+      recognizing: options.message || "Lendo o comprovante localmente com reconhecimento de texto...",
       preview: assistantReceipt.draft
-        ? "Comprovante identificado. Revise os detalhes e continue para o formulário editável."
+        ? options.message || "Comprovante identificado. Revise os detalhes e continue para o formulário editável."
         : "O texto foi encontrado, mas os detalhes estão incompletos. Edite a imagem ou escaneie novamente.",
       error: options.message || "Não foi possível ler o comprovante. Tente outra imagem ou origem.",
       "permission-denied": options.message || "O acesso está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
@@ -1658,9 +1724,14 @@
         onRecognizing: () => setReceiptOcrState("recognizing"),
       });
       assistantReceipt.result = result;
-      assistantReceipt.draft = core.receiptOcr?.createDraft?.(result.text, core.aiAssistant?.parseTransaction)?.draft || null;
+      const localDraft = core.receiptOcr?.createDraft?.(result.text, core.aiAssistant?.parseTransaction)?.draft || null;
+      const interpretationId = ++assistantReceipt.interpretationId;
+      setReceiptOcrState("recognizing", { message: "Interpretando lançamento..." });
+      const interpretation = await interpretAssistantInput(result.text, "receipt-ocr", localDraft);
+      if (interpretationId !== assistantReceipt.interpretationId || interpretation.strategy === "cancelled") return;
+      assistantReceipt.draft = interpretation.draft;
       renderReceiptPreview();
-      setReceiptOcrState("preview");
+      setReceiptOcrState("preview", { message: interpretation.message });
     } catch (error) {
       const normalized = core.receiptOcr?.normalizeError?.(error, assistantReceipt.source) || error;
       if (normalized?.code === "cancelled") {
@@ -1692,6 +1763,8 @@
   }
 
   async function resetReceiptOcr() {
+    assistantReceipt.interpretationId += 1;
+    assistantInterpretation.service?.cancel?.();
     await assistantReceipt.service?.release?.();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
@@ -1794,7 +1867,7 @@
       processing: options.message || "Processando o conteúdo compartilhado localmente...",
       recognizing: options.message || "Lendo o comprovante compartilhado localmente...",
       preview: assistantShare.draft
-        ? "Conteúdo identificado. Revise os detalhes antes de continuar para o formulário editável."
+        ? options.message || "Conteúdo identificado. Revise os detalhes antes de continuar para o formulário editável."
         : "Não foi possível interpretar o conteúdo compartilhado. Nada foi salvo.",
       error: options.message || "Não foi possível processar o conteúdo compartilhado. Reprocesse ou cancele.",
     };
@@ -1821,10 +1894,14 @@
       const result = await service.process(payload, {
         onState: (stateName, message) => setIncomingSharedContentState(stateName, { message }),
       });
-      assistantShare.result = result;
-      assistantShare.draft = result.draft;
+      const interpretationId = ++assistantShare.interpretationId;
+      setIncomingSharedContentState("recognizing", { message: "Interpretando lançamento..." });
+      const interpretation = await interpretAssistantInput(result.extractedText, "share-target", result.draft);
+      if (interpretationId !== assistantShare.interpretationId || interpretation.strategy === "cancelled") return;
+      assistantShare.result = { ...result, draft: interpretation.draft };
+      assistantShare.draft = interpretation.draft;
       renderIncomingSharedContentPreview();
-      setIncomingSharedContentState("preview");
+      setIncomingSharedContentState("preview", { message: interpretation.message });
     } catch (error) {
       const normalized = core.androidShareTarget?.normalizeError?.(error) || error;
       if (normalized?.code === "cancelled") return;
@@ -1875,6 +1952,8 @@
     document.body.classList.remove("has-ai-assistant-modal");
     syncFloatingActionButton();
     if (assistantShare.service) await assistantShare.service.release();
+    assistantShare.interpretationId += 1;
+    assistantInterpretation.service?.cancel?.();
     assistantShare.payload = null;
     assistantShare.result = null;
     assistantShare.draft = null;
@@ -1901,8 +1980,13 @@
       store: ["store", "loja", "compras"],
       transfer: ["transfer", "transferencia", "outros"],
       salary: ["salary", "salario"],
+      freelance: ["freelance"],
       income: ["income", "receita", "salario", "freelance"],
       other: ["other", "outros", "casa"],
+      home: ["home", "casa"],
+      transport: ["transport", "transporte"],
+      health: ["health", "saude"],
+      leisure: ["leisure", "lazer"],
     };
     const accepted = aliases[normalizeText(categoryName)] || [normalizeText(categoryName)];
     return currentProfile().categories.find((category) => accepted.includes(normalizeText(category.name)))?.id || "";
@@ -1918,8 +2002,13 @@
       store: "Compras",
       transfer: "Transferência",
       salary: "Salário",
+      freelance: "Freelance",
       income: "Receita",
       other: "Outros",
+      home: "Casa",
+      transport: "Transporte",
+      health: "Saúde",
+      leisure: "Lazer",
     };
     return labels[normalizeText(categoryName)] || String(categoryName || "");
   }
@@ -1933,6 +2022,7 @@
       ted: "TED",
       doc: "DOC",
       boleto: "Boleto",
+      "bank transfer": "Transferência bancária",
     };
     return labels[normalizeText(paymentMethod)] || String(paymentMethod || "");
   }

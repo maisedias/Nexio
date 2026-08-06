@@ -131,7 +131,8 @@ test("13. ações repetidas não abrem telas duplicadas", async () => {
 
 test("14. integração de voz abre Assistente, microfone e parser existentes", () => {
   assert.match(renderer, /setView\("assistant"\);[\s\S]*openAssistantVoiceModal\(\);[\s\S]*startAssistantVoiceRecognition\(\)/);
-  assert.match(renderer, /recognizeAssistantTranscript[\s\S]*core\.speechRecognition\?\.createDraft[\s\S]*core\.aiAssistant\?\.parseTransaction/);
+  assert.match(renderer, /recognizeAssistantTranscript[\s\S]*interpretAssistantInput\(assistantVoice\.transcript, "voice"\)/);
+  assert.match(renderer, /core\.financialInput\.interpret\([\s\S]*core\.aiAssistant\?\.parseTransaction/);
 });
 
 test("15. rascunho externo continua exigindo confirmação manual", () => {

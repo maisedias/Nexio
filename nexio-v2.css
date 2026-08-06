@@ -531,6 +531,7 @@ body.has-notification-center { overflow: hidden; }
 
 /* Financial Assistant */
 .assistant-experience { display: grid; min-width: 0; gap: var(--nx-space-3); }
+.view.assistant-experience.is-visible { animation: none; transform: none; }
 .assistant-hero-panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--nx-space-4); overflow: hidden; }
 .assistant-hero-icon, .assistant-option-icon { display: grid; flex: 0 0 auto; place-items: center; border-radius: var(--nx-control-radius); background: var(--color-primary-icon-soft); color: var(--nx-primary); }
 .assistant-hero-icon { width: var(--size-notification-icon); height: var(--size-notification-icon); }

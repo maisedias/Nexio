@@ -144,15 +144,13 @@
     return dateInputValue(parsed);
   }
 
-  function parseTransaction(sentence, options = {}) {
+  function parsePartialTransaction(sentence, options = {}) {
     const original = String(sentence || "").trim();
     const normalized = normalizeText(original);
     if (!normalized) return null;
 
     const type = inferType(normalized);
     const amount = parseAmount(original);
-    if (!type || amount === null) return null;
-
     const category = inferCategory(normalized, type);
     const draft = {
       type,
@@ -169,7 +167,13 @@
     return draft;
   }
 
+  function parseTransaction(sentence, options = {}) {
+    const draft = parsePartialTransaction(sentence, options);
+    return draft?.type && draft.amount !== null ? draft : null;
+  }
+
   core.aiAssistant = Object.freeze({
+    parsePartialTransaction,
     parseTransaction,
   });
 })(globalThis);
