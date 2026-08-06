@@ -55,18 +55,18 @@
     const rawMessage = String(source.message || "").trim();
 
     if (/permission|not-allowed|denied/.test(rawCode) || /permission|permiss[aã]o/.test(rawMessage.toLowerCase())) {
-      return recognitionError("permission-denied", "Microphone access is blocked. Allow it in Android settings and try again.");
+      return recognitionError("permission-denied", "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.");
     }
     if (/no[-_ ]?speech|speech[-_ ]?timeout|no[-_ ]?match/.test(rawCode)) {
-      return recognitionError("no-speech", "No speech was detected. Try again and speak after the microphone starts listening.");
+      return recognitionError("no-speech", "Nenhuma fala foi detectada. Tente novamente e fale depois que o microfone começar a ouvir.");
     }
     if (/unavailable|not[-_ ]?present|not[-_ ]?supported|service/.test(rawCode)) {
-      return recognitionError("recognition-unavailable", "Speech recognition is unavailable on this device. Check the Android speech service and try again.");
+      return recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho. Verifique o serviço de voz do Android e tente novamente.");
     }
     if (/cancel|aborted/.test(rawCode)) {
       return recognitionError("cancelled", "Voice recognition was cancelled.");
     }
-    return recognitionError("recognition-error", rawMessage || "Voice recognition could not be completed. Please try again.");
+    return recognitionError("recognition-error", rawMessage || "Não foi possível concluir o reconhecimento de voz. Tente novamente.");
   }
 
   function createDraft(transcript, parser, options = {}) {
@@ -172,14 +172,14 @@
 
     async function ensurePermission() {
       if (typeof plugin?.checkPermissions !== "function") {
-        throw recognitionError("recognition-unavailable", "Speech recognition is unavailable on this device.");
+        throw recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho.");
       }
       let status = await plugin.checkPermissions();
       if (permissionState(status) === "prompt" || permissionState(status) === "prompt-with-rationale") {
         status = await plugin.requestPermissions();
       }
       if (permissionState(status) !== "granted") {
-        throw recognitionError("permission-denied", "Microphone access is blocked. Allow it in Android settings and try again.");
+        throw recognitionError("permission-denied", "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.");
       }
       return status;
     }
@@ -192,7 +192,7 @@
 
       const support = await availability();
       if (!support.available) {
-        throw recognitionError("recognition-unavailable", "Speech recognition is unavailable on this device. Check the Android speech service and try again.");
+        throw recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho. Verifique o serviço de voz do Android e tente novamente.");
       }
       await ensurePermission();
 

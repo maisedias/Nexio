@@ -1088,6 +1088,7 @@
     updateTopbarContext();
     bindNavigation();
     bindAssistantFlow();
+    void bindAndroidQuickActions();
     bindTopbar();
     bindFloatingActionButton();
     bindAccountForms();
@@ -1272,6 +1273,12 @@
     lastKey: "",
   };
 
+  const externalNavigation = {
+    coordinator: null,
+    listener: null,
+    plugin: null,
+  };
+
   function bindAssistantFlow() {
     const modal = app.querySelector("[data-ai-voice-modal]");
     app.querySelector("[data-open-ai-voice]")?.addEventListener("click", openAssistantVoiceModal);
@@ -1335,6 +1342,47 @@
     });
     sharedModal?.addEventListener("keydown", (event) => trapAssistantModalFocus(event, sharedModal, closeIncomingSharedContent));
     void bindIncomingShareTarget();
+  }
+
+  function externalNavigationCoordinator() {
+    if (externalNavigation.coordinator) return externalNavigation.coordinator;
+    const actions = core.externalNavigation?.ACTIONS || {};
+    externalNavigation.coordinator = core.externalNavigation?.createCoordinator?.({
+      isAuthenticated: () => Boolean(currentUser()),
+      hasActiveProfile: () => Boolean(currentUser()?.profiles?.some((profile) => profile.id === currentUser()?.activeProfileId)),
+      onAuthenticationRequired: () => showToast("Entre na sua conta ou use o modo sem login para continuar."),
+      onProfileRequired: () => showToast("Crie ou selecione um perfil antes de registrar um lançamento."),
+      handlers: {
+        [actions.ASSISTANT]: async () => setView("assistant"),
+        [actions.NEW_TRANSACTION]: async () => openTransactionComposer(),
+        [actions.NEW_EXPENSE]: async () => openTransactionComposer("expense"),
+        [actions.VOICE_ENTRY]: async () => {
+          setView("assistant");
+          const modal = app.querySelector("[data-ai-voice-modal]");
+          if (!modal || modal.hidden) openAssistantVoiceModal();
+          if (["listening", "processing"].includes(assistantVoice.state)) return;
+          await startAssistantVoiceRecognition();
+        },
+      },
+    }) || null;
+    return externalNavigation.coordinator;
+  }
+
+  async function bindAndroidQuickActions() {
+    const coordinator = externalNavigationCoordinator();
+    const plugin = window.Capacitor?.Plugins?.NexioQuickActions;
+    if (!coordinator || !plugin) return;
+    externalNavigation.plugin = plugin;
+    if (!externalNavigation.listener && typeof plugin.addListener === "function") {
+      externalNavigation.listener = await plugin.addListener("quickAction", (event) => {
+        void coordinator.receive(event).catch(() => showToast("Não foi possível abrir o atalho solicitado."));
+      });
+    }
+    if (typeof plugin.getPendingAction === "function") {
+      const pending = await plugin.getPendingAction();
+      if (pending?.action) await coordinator.receive(pending);
+    }
+    await coordinator.flush();
   }
 
   function trapAssistantModalFocus(event, modal, close) {
@@ -1404,16 +1452,16 @@
     const settings = modal.querySelector("[data-ai-open-settings]");
     const confirm = modal.querySelector("[data-ai-voice-confirm]");
     const messages = {
-      idle: "Ready to listen. Your transaction will only be saved after you review and confirm the form.",
+      idle: "Pronto para ouvir. O lançamento só será salvo depois que você revisar e confirmar o formulário.",
       listening: assistantVoice.onDevice
-        ? "Listening on this device. Tap the microphone again when you finish."
-        : "Listening. Tap the microphone again when you finish.",
-      processing: options.message || "Processing your transcription...",
+        ? "Ouvindo neste aparelho. Toque novamente no microfone quando terminar."
+        : "Ouvindo... Toque novamente no microfone quando terminar.",
+      processing: options.message || "Processando sua transcrição...",
       recognized: assistantVoice.draft
-        ? "Transaction understood. Confirm to open the prefilled form for your review."
-        : "The transaction could not be understood. Nothing was changed.",
-      error: options.message || "Voice recognition could not be completed. Please try again.",
-      "permission-denied": "Microphone access is blocked. Open Android settings, allow microphone access, then try again.",
+        ? "Lançamento identificado. Confirme para abrir o formulário preenchido e revisar."
+        : "Não foi possível entender o lançamento. Nada foi alterado.",
+      error: options.message || "Não foi possível concluir o reconhecimento de voz. Tente novamente.",
+      "permission-denied": "O acesso ao microfone está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
     };
     if (dialog) dialog.dataset.aiVoiceState = nextState;
     if (transcript) {
@@ -1429,7 +1477,7 @@
       const listening = nextState === "listening";
       microphone.disabled = ["processing", "recognized", "permission-denied"].includes(nextState);
       microphone.setAttribute("aria-pressed", String(listening));
-      microphone.setAttribute("aria-label", listening ? "Stop listening" : "Start listening");
+      microphone.setAttribute("aria-label", listening ? "Parar reconhecimento de voz" : "Iniciar reconhecimento de voz");
     }
     renderIcons();
   }
@@ -1468,7 +1516,7 @@
     }
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
-    setAssistantVoiceState("processing", { message: "Checking microphone permission..." });
+    setAssistantVoiceState("processing", { message: "Verificando a permissão do microfone..." });
     try {
       await service.start({
         onListening: ({ onDevice }) => {
@@ -1505,7 +1553,7 @@
     if (!opened) {
       setAssistantVoiceState("permission-denied");
       const status = app.querySelector("[data-ai-voice-status]");
-      if (status) status.textContent = "Open Android Settings, choose Nexio Financeiro, and allow microphone access.";
+      if (status) status.textContent = "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso ao microfone.";
     }
   }
 
@@ -1571,15 +1619,15 @@
     const scanAgain = modal.querySelector("[data-receipt-scan-again]");
     const continueButton = modal.querySelector("[data-receipt-continue]");
     const messages = {
-      idle: "Choose Camera or Gallery. The image stays on this device and nothing is saved automatically.",
-      choosing: `Opening ${assistantReceipt.source === "gallery" ? "the gallery" : "the camera"}...`,
-      "processing-image": "Rotating, cropping, enhancing, and compressing the receipt locally...",
-      recognizing: "Reading the receipt offline with text recognition...",
+      idle: "Escolha Câmera ou Galeria. A imagem permanece neste aparelho e nada é salvo automaticamente.",
+      choosing: `Abrindo ${assistantReceipt.source === "gallery" ? "a galeria" : "a câmera"}...`,
+      "processing-image": "Girando, recortando, aprimorando e comprimindo o comprovante localmente...",
+      recognizing: "Lendo o comprovante localmente com reconhecimento de texto...",
       preview: assistantReceipt.draft
-        ? "Receipt understood. Review the detected details, then continue to the editable transaction form."
-        : "Text was found, but the transaction details were incomplete. Edit the image or scan again.",
-      error: options.message || "The receipt could not be read. Try another image or source.",
-      "permission-denied": options.message || "Access is blocked. Open Android settings, allow access, and try again.",
+        ? "Comprovante identificado. Revise os detalhes e continue para o formulário editável."
+        : "O texto foi encontrado, mas os detalhes estão incompletos. Edite a imagem ou escaneie novamente.",
+      error: options.message || "Não foi possível ler o comprovante. Tente outra imagem ou origem.",
+      "permission-denied": options.message || "O acesso está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
     };
     if (dialog) dialog.dataset.receiptState = nextState;
     if (sourceOptions) sourceOptions.hidden = !["idle", "error", "permission-denied"].includes(nextState);
@@ -1599,7 +1647,7 @@
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
     if (!service) {
-      setReceiptOcrState("error", { message: "Offline receipt recognition is unavailable on this device. You can still enter the transaction manually." });
+      setReceiptOcrState("error", { message: "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." });
       return;
     }
     setReceiptOcrState("choosing");
@@ -1631,11 +1679,11 @@
     const image = modal?.querySelector("[data-receipt-image]");
     if (image) image.src = assistantReceipt.result?.previewUrl || "";
     const values = {
-      amount: draft?.amount ? money(draft.amount) : "Not identified",
-      merchant: draft?.description || "Not identified",
-      payment: draft?.paymentMethod || "Not identified",
-      date: draft?.date || "Not identified",
-      category: draft?.category || "Not identified",
+      amount: draft?.amount ? money(draft.amount) : "Não identificado",
+      merchant: draft?.description || "Não identificado",
+      payment: assistantPaymentLabel(draft?.paymentMethod) || "Não identificado",
+      date: draft?.date || "Não identificada",
+      category: assistantCategoryLabel(draft?.category) || "Não identificada",
     };
     Object.entries(values).forEach(([field, value]) => {
       const output = modal?.querySelector(`[data-receipt-detected="${field}"]`);
@@ -1655,7 +1703,7 @@
     const opened = await receiptOcrService()?.openSettings?.();
     if (!opened) {
       setReceiptOcrState("permission-denied", {
-        message: "Open Android Settings, choose Nexio Financeiro, and allow camera or photo access.",
+        message: "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso à câmera ou às fotos.",
       });
     }
   }
@@ -1742,13 +1790,13 @@
     const reprocess = modal.querySelector("[data-reprocess-shared-content]");
     const continueButton = modal.querySelector("[data-continue-shared-content]");
     const messages = {
-      idle: "Waiting for shared content...",
-      processing: options.message || "Processing shared content locally...",
-      recognizing: options.message || "Reading the shared receipt offline...",
+      idle: "Aguardando conteúdo compartilhado...",
+      processing: options.message || "Processando o conteúdo compartilhado localmente...",
+      recognizing: options.message || "Lendo o comprovante compartilhado localmente...",
       preview: assistantShare.draft
-        ? "Shared content understood. Review the detected details before continuing to the editable form."
-        : "The shared content could not be interpreted. Nothing was saved.",
-      error: options.message || "The shared content could not be processed. Reprocess it or cancel.",
+        ? "Conteúdo identificado. Revise os detalhes antes de continuar para o formulário editável."
+        : "Não foi possível interpretar o conteúdo compartilhado. Nada foi salvo.",
+      error: options.message || "Não foi possível processar o conteúdo compartilhado. Reprocesse ou cancele.",
     };
     if (dialog) dialog.dataset.sharedContentState = nextState;
     if (processing) processing.hidden = !["processing", "recognizing"].includes(nextState);
@@ -1762,7 +1810,7 @@
   async function processIncomingSharedContent(payload) {
     const service = androidShareTargetService();
     if (!service || !payload) {
-      setIncomingSharedContentState("error", { message: "Android shared-content processing is unavailable. Nothing was changed." });
+      setIncomingSharedContentState("error", { message: "O processamento de conteúdo compartilhado do Android não está disponível. Nada foi alterado." });
       return;
     }
     assistantShare.payload = payload;
@@ -1789,14 +1837,14 @@
     const result = assistantShare.result;
     const draft = assistantShare.draft;
     const content = result?.content || core.androidShareTarget?.normalizePayload?.(assistantShare.payload);
-    const typeLabels = { text: "Shared text", image: "Receipt image", pdf: "PDF receipt" };
+    const typeLabels = { text: "Texto compartilhado", image: "Imagem de comprovante", pdf: "Comprovante em PDF" };
     const values = {
-      type: typeLabels[content?.kind] || "Not identified",
-      file: content?.name || (content?.kind === "text" ? "Not applicable" : "Unnamed file"),
-      merchant: draft?.description || "Not identified",
-      amount: draft?.amount ? money(draft.amount) : "Not identified",
-      payment: draft?.paymentMethod || "Not identified",
-      category: draft?.category || "Not identified",
+      type: typeLabels[content?.kind] || "Não identificado",
+      file: content?.name || (content?.kind === "text" ? "Não se aplica" : "Arquivo sem nome"),
+      merchant: draft?.description || "Não identificado",
+      amount: draft?.amount ? money(draft.amount) : "Não identificado",
+      payment: assistantPaymentLabel(draft?.paymentMethod) || "Não identificado",
+      category: assistantCategoryLabel(draft?.category) || "Não identificada",
     };
     Object.entries(values).forEach(([field, value]) => {
       const output = modal?.querySelector(`[data-shared-detected="${field}"]`);
@@ -1811,8 +1859,8 @@
       else thumbnail.removeAttribute("src");
     }
     const notes = [];
-    if (content?.ignoredCount) notes.push(`${content.ignoredCount} additional shared ${content.ignoredCount === 1 ? "item was" : "items were"} ignored. Process them separately.`);
-    if (result?.truncated) notes.push(`The first ${result.processedPages} of ${result.pageCount} PDF pages were processed to protect device memory.`);
+    if (content?.ignoredCount) notes.push(`${content.ignoredCount} ${content.ignoredCount === 1 ? "item compartilhado adicional foi ignorado" : "itens compartilhados adicionais foram ignorados"}. Processe cada um separadamente.`);
+    if (result?.truncated) notes.push(`As primeiras ${result.processedPages} de ${result.pageCount} páginas do PDF foram processadas para proteger a memória do aparelho.`);
     const note = modal?.querySelector("[data-shared-content-note]");
     if (note) {
       note.textContent = notes.join(" ");
@@ -1860,6 +1908,35 @@
     return currentProfile().categories.find((category) => accepted.includes(normalizeText(category.name)))?.id || "";
   }
 
+  function assistantCategoryLabel(categoryName) {
+    const labels = {
+      market: "Mercado",
+      fuel: "Combustível",
+      pharmacy: "Farmácia",
+      restaurant: "Restaurante",
+      bakery: "Padaria",
+      store: "Compras",
+      transfer: "Transferência",
+      salary: "Salário",
+      income: "Receita",
+      other: "Outros",
+    };
+    return labels[normalizeText(categoryName)] || String(categoryName || "");
+  }
+
+  function assistantPaymentLabel(paymentMethod) {
+    const labels = {
+      "credit card": "Cartão de crédito",
+      "debit card": "Cartão de débito",
+      cash: "Dinheiro",
+      pix: "Pix",
+      ted: "TED",
+      doc: "DOC",
+      boleto: "Boleto",
+    };
+    return labels[normalizeText(paymentMethod)] || String(paymentMethod || "");
+  }
+
   function prefillTransactionFromAssistant(draft, sentence) {
     closeReceiptOcrModal({ restoreFocus: false });
     closeAssistantVoiceModal({ restoreFocus: false });
@@ -1887,7 +1964,7 @@
       if (matchedAccount) {
         account.value = matchedAccount.id;
       } else {
-        const placeholder = new Option("Select an account to confirm", "", true, true);
+        const placeholder = new Option("Selecione uma conta para confirmar", "", true, true);
         placeholder.disabled = true;
         account.prepend(placeholder);
         account.value = "";
@@ -1898,16 +1975,16 @@
       installmentCountInput.value = String(Math.min(60, Number(draft.installments)));
       updateInstallmentControls();
     }
-    app.querySelector("[data-transaction-form-mode]").textContent = "Review Assistant draft";
+    app.querySelector("[data-transaction-form-mode]").textContent = "Revisar rascunho do Assistente";
     const summary = app.querySelector("[data-ai-draft-summary]");
     if (summary) {
       summary.hidden = false;
       summary.querySelector("[data-ai-draft-transcript]").textContent = sentence;
-      summary.querySelector("[data-ai-draft-category]").textContent = draft.category || "Not identified";
-      summary.querySelector("[data-ai-draft-payment]").textContent = draft.paymentMethod || "Not identified";
+      summary.querySelector("[data-ai-draft-category]").textContent = assistantCategoryLabel(draft.category) || "Não identificada";
+      summary.querySelector("[data-ai-draft-payment]").textContent = assistantPaymentLabel(draft.paymentMethod) || "Não identificado";
     }
     renderIcons();
-    showToast("Assistant draft ready. Review and confirm before saving.");
+    showToast("Rascunho do Assistente pronto. Revise e confirme antes de salvar.");
   }
 
   function bindTopbar() {
@@ -2329,7 +2406,7 @@
       accounts: "Contas",
       budgets: "Orçamentos",
       notifications: "Notificações",
-      assistant: "Financial Assistant",
+      assistant: "Assistente Financeiro",
       cashflow: "Fluxo de caixa",
       goals: "Metas e Objetivos",
       profiles: "Perfis",

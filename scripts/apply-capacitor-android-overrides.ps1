@@ -12,18 +12,31 @@ $MainPackage = Join-Path $Android "app/src/main/java/br/com/nexiofinanceiro/app"
 $Values = Join-Path $Android "app/src/main/res/values"
 $ValuesNight = Join-Path $Android "app/src/main/res/values-night"
 $Drawable = Join-Path $Android "app/src/main/res/drawable"
+$Layout = Join-Path $Android "app/src/main/res/layout"
+$Xml = Join-Path $Android "app/src/main/res/xml"
 $Manifest = Join-Path $Android "app/src/main/AndroidManifest.xml"
 
-New-Item -ItemType Directory -Force -Path $MainPackage, $Values, $ValuesNight, $Drawable | Out-Null
+New-Item -ItemType Directory -Force -Path $MainPackage, $Values, $ValuesNight, $Drawable, $Layout, $Xml | Out-Null
 
 Copy-Item -LiteralPath (Join-Path $Overrides "MainActivity.java") -Destination (Join-Path $MainPackage "MainActivity.java") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "NexioSettingsPlugin.java") -Destination (Join-Path $MainPackage "NexioSettingsPlugin.java") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "NexioShareTargetPlugin.java") -Destination (Join-Path $MainPackage "NexioShareTargetPlugin.java") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "NexioQuickActionsPlugin.java") -Destination (Join-Path $MainPackage "NexioQuickActionsPlugin.java") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "NexioQuickActionsWidget.java") -Destination (Join-Path $MainPackage "NexioQuickActionsWidget.java") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "AndroidManifest.xml") -Destination $Manifest -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values/strings.xml") -Destination (Join-Path $Values "strings.xml") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values/colors.xml") -Destination (Join-Path $Values "colors.xml") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values/styles.xml") -Destination (Join-Path $Values "styles.xml") -Force
 Copy-Item -LiteralPath (Join-Path $Overrides "res/values-night/styles.xml") -Destination (Join-Path $ValuesNight "styles.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/values/widget_colors.xml") -Destination (Join-Path $Values "widget_colors.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/values-night/widget_colors.xml") -Destination (Join-Path $ValuesNight "widget_colors.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/layout/nexio_quick_actions_widget.xml") -Destination (Join-Path $Layout "nexio_quick_actions_widget.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/xml/shortcuts.xml") -Destination (Join-Path $Xml "shortcuts.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/xml/nexio_quick_actions_widget_info.xml") -Destination (Join-Path $Xml "nexio_quick_actions_widget_info.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/drawable/widget_background.xml") -Destination (Join-Path $Drawable "widget_background.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/drawable/widget_button_background.xml") -Destination (Join-Path $Drawable "widget_button_background.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/drawable/ic_shortcut_voice.xml") -Destination (Join-Path $Drawable "ic_shortcut_voice.xml") -Force
+Copy-Item -LiteralPath (Join-Path $Overrides "res/drawable/ic_shortcut_transaction.xml") -Destination (Join-Path $Drawable "ic_shortcut_transaction.xml") -Force
 
 $SplashSource = Join-Path $Root "assets/splash.png"
 if (Test-Path $SplashSource) {

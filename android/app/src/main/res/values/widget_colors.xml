@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="nexio_widget_background">#FFF7F9FC</color>
+    <color name="nexio_widget_border">#FFD9E2EF</color>
+    <color name="nexio_widget_text">#FF17202E</color>
+    <color name="nexio_widget_button">#FFE7F0FF</color>
+    <color name="nexio_widget_button_text">#FF0B4FA8</color>
+</resources>

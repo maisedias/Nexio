@@ -134,7 +134,7 @@ test("07. unsupported content fails with a recovery message", async () => {
   const harness = serviceHarness();
   await assert.rejects(
     harness.service.process({ mimeType: "application/zip", path: "receipt.zip" }),
-    (error) => error.code === "unsupported-file" && /plain text, an image, or a PDF/i.test(error.message),
+    (error) => error.code === "unsupported-file" && /texto simples, uma imagem ou um comprovante em PDF/i.test(error.message),
   );
 });
 
@@ -156,7 +156,7 @@ test("10. corrupted PDFs return a friendly typed failure", async () => {
   const harness = serviceHarness({ pdfError: new Error("corrupted pdf") });
   await assert.rejects(
     harness.service.process({ id: "bad-pdf", kind: "pdf", mimeType: "application/pdf", path: "bad.pdf" }),
-    (error) => error.code === "corrupted-pdf" && /could not be opened/i.test(error.message),
+    (error) => error.code === "corrupted-pdf" && /Não foi possível abrir/i.test(error.message),
   );
 });
 
@@ -195,7 +195,7 @@ test("14. incoming preview, cancel, reprocess and manual Continue flow are prese
   const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
   const renderer = fs.readFileSync(path.join(root, "js", "ui", "shared-ui.js"), "utf8");
   const styles = fs.readFileSync(path.join(root, "nexio-v2.css"), "utf8");
-  assert.match(html, /Incoming Shared Content/);
+  assert.match(html, /Conteúdo compartilhado/);
   assert.match(html, /data-shared-detected="type"[\s\S]*data-shared-detected="file"[\s\S]*data-shared-detected="merchant"[\s\S]*data-shared-detected="amount"[\s\S]*data-shared-detected="payment"[\s\S]*data-shared-detected="category"/);
   assert.match(html, /data-close-shared-content/);
   assert.match(html, /data-reprocess-shared-content/);

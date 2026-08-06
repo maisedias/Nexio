@@ -51,26 +51,26 @@
     const explicitCode = String(value?.code || "").toLowerCase();
     const raw = String(value?.code || value?.message || value || "").toLowerCase();
     if (/permission|denied|security/.test(raw)) {
-      return shareError("permission-denied", "Nexio could not read the shared content. Share it again and keep file access enabled.");
+      return shareError("permission-denied", "O Nexio não conseguiu ler o conteúdo compartilhado. Compartilhe novamente e mantenha o acesso ao arquivo permitido.");
     }
     if (/corrupt|malformed|password|encrypted|pdf/.test(raw)) {
-      return shareError("corrupted-pdf", "This PDF could not be opened. Try another copy or share an image of the receipt.");
+      return shareError("corrupted-pdf", "Não foi possível abrir este PDF. Tente outra cópia ou compartilhe uma imagem do comprovante.");
     }
     if (/unsupported|mime|file type/.test(raw)) {
-      return shareError("unsupported-file", "This file type is not supported. Share plain text, an image, or a PDF receipt.");
+      return shareError("unsupported-file", "Este tipo de arquivo não é compatível. Compartilhe texto simples, uma imagem ou um comprovante em PDF.");
     }
     if (/missing|empty|no content|not found/.test(raw)) {
-      return shareError("missing-content", "No shared content was found. Return to the source app and share it again.");
+      return shareError("missing-content", "Nenhum conteúdo compartilhado foi encontrado. Volte ao aplicativo de origem e compartilhe novamente.");
     }
     if (/no.?text|unreadable|ocr/.test(raw)) {
-      return shareError("unreadable-content", "No readable transaction text was found. Try a clearer image or another receipt.");
+      return shareError("unreadable-content", "Nenhum texto de lançamento legível foi encontrado. Tente uma imagem mais nítida ou outro comprovante.");
     }
     if (/parser|transaction/.test(raw)) {
-      return shareError("parser-failure", "The transaction details could not be identified. Reprocess the content or enter it manually.", { extractedText: value?.extractedText || "" });
+      return shareError("parser-failure", "Não foi possível identificar os detalhes do lançamento. Reprocesse o conteúdo ou preencha manualmente.", { extractedText: value?.extractedText || "" });
     }
     if (explicitCode === "cancelled") return value;
     if (value?.code && value?.message) return value;
-    return shareError("share-processing-error", "The shared content could not be processed. Please try again.");
+    return shareError("share-processing-error", "Não foi possível processar o conteúdo compartilhado. Tente novamente.");
   }
 
   function createService(options = {}) {
@@ -86,20 +86,20 @@
     function parseText(text, source) {
       const result = inputPipeline?.createDraft?.(text, parser, {}, { source });
       if (!result?.valid) {
-        throw shareError("parser-failure", "The transaction details could not be identified. Reprocess the content or enter it manually.", { extractedText: String(text || "").trim() });
+        throw shareError("parser-failure", "Não foi possível identificar os detalhes do lançamento. Reprocesse o conteúdo ou preencha manualmente.", { extractedText: String(text || "").trim() });
       }
       return result;
     }
 
     async function recognizeImage(payload, events = {}) {
-      if (!receiptOcr?.scanFile) throw shareError("ocr-unavailable", "Offline receipt recognition is unavailable on this device.");
+      if (!receiptOcr?.scanFile) throw shareError("ocr-unavailable", "O reconhecimento local de comprovantes não está disponível neste aparelho.");
       const result = await receiptOcr.scanFile({
         path: payload.path,
         webPath: toWebPath(payload.path),
       }, {
         source: "shared-image",
-        onProcessingImage: () => events.onState?.("processing", "Preparing the shared image..."),
-        onRecognizing: () => events.onState?.("recognizing", "Reading the shared image offline..."),
+        onProcessingImage: () => events.onState?.("processing", "Preparando a imagem compartilhada..."),
+        onRecognizing: () => events.onState?.("recognizing", "Lendo a imagem compartilhada localmente..."),
       });
       const parsed = parseText([result.text, payload.text].filter(Boolean).join("\n"), "shared-image");
       return {
@@ -112,7 +112,7 @@
 
     async function recognizePdf(payload, operation, events = {}) {
       if (!nativeShare?.renderPdfPage || !receiptOcr?.scanFile) {
-        throw shareError("pdf-unavailable", "PDF receipt processing is unavailable on this device.");
+        throw shareError("pdf-unavailable", "O processamento de comprovantes em PDF não está disponível neste aparelho.");
       }
       const extracted = [];
       let previewUrl = "";
@@ -121,7 +121,7 @@
       let pageIndex = 0;
       do {
         if (operation !== generation) throw shareError("cancelled", "Shared content processing was cancelled.");
-        events.onState?.("processing", `Preparing PDF page ${pageIndex + 1}...`);
+        events.onState?.("processing", `Preparando a página ${pageIndex + 1} do PDF...`);
         let rendered;
         try {
           rendered = await nativeShare.renderPdfPage({
@@ -141,7 +141,7 @@
             webPath: toWebPath(rendered.path),
           }, {
             source: "shared-pdf",
-            onRecognizing: () => events.onState?.("recognizing", `Reading PDF page ${pageIndex + 1} of ${pageCount}...`),
+            onRecognizing: () => events.onState?.("recognizing", `Lendo a página ${pageIndex + 1} de ${pageCount} do PDF...`),
           });
           if (result?.text) extracted.push(result.text);
         } catch (error) {
@@ -161,7 +161,7 @@
       } while (pageIndex < pageCount && pageIndex < maxPdfPages);
 
       const combined = [extracted.join("\n"), payload.text].filter(Boolean).join("\n").trim();
-      if (!combined) throw shareError("unreadable-content", "No readable text was found in this PDF receipt.");
+      if (!combined) throw shareError("unreadable-content", "Nenhum texto legível foi encontrado neste comprovante em PDF.");
       const parsed = parseText(combined, "shared-pdf");
       return {
         ...parsed,
@@ -178,16 +178,16 @@
       const payload = normalizePayload(value);
       activePayload = payload;
       const operation = ++generation;
-      events.onState?.("processing", "Processing shared content locally...");
+      events.onState?.("processing", "Processando o conteúdo compartilhado localmente...");
       try {
-        if (payload.errorCode) throw shareError(payload.errorCode, payload.errorMessage || "The shared content could not be opened.");
-        if (payload.kind === "unsupported") throw shareError("unsupported-file", "This file type is not supported. Share plain text, an image, or a PDF receipt.");
+        if (payload.errorCode) throw shareError(payload.errorCode, payload.errorMessage || "Não foi possível abrir o conteúdo compartilhado.");
+        if (payload.kind === "unsupported") throw shareError("unsupported-file", "Este tipo de arquivo não é compatível. Compartilhe texto simples, uma imagem ou um comprovante em PDF.");
         if (payload.kind === "text") {
-          if (!payload.text) throw shareError("missing-content", "No shared text was found.");
+          if (!payload.text) throw shareError("missing-content", "Nenhum texto compartilhado foi encontrado.");
           const parsed = parseText(payload.text, "shared-text");
           return { ...parsed, content: payload, previewUrl: "", extractedText: parsed.text };
         }
-        if (!payload.path) throw shareError("missing-content", "The shared file is no longer available. Share it again from the source app.");
+        if (!payload.path) throw shareError("missing-content", "O arquivo compartilhado não está mais disponível. Compartilhe-o novamente pelo aplicativo de origem.");
         const result = payload.kind === "image"
           ? await recognizeImage(payload, events)
           : await recognizePdf(payload, operation, events);

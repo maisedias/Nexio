@@ -119,14 +119,14 @@ test("06. gallery scan requests photos and enables native editing when asked", a
 test("07. permission denial blocks capture with a friendly recovery error", async () => {
   const harness = serviceHarness({ cameraPermission: "denied" });
   const service = receipt.createService(harness);
-  await assert.rejects(service.scan("camera"), (error) => error.code === "permission-denied" && /Android settings/i.test(error.message));
+  await assert.rejects(service.scan("camera"), (error) => error.code === "permission-denied" && /configurações do Android/i.test(error.message));
   assert.equal(harness.calls.photos.length, 0);
 });
 
 test("08. no text found is reported without crashing", async () => {
   const harness = serviceHarness({ text: "   " });
   const service = receipt.createService(harness);
-  await assert.rejects(service.scan("camera"), (error) => error.code === "no-text" && /No readable text/i.test(error.message));
+  await assert.rejects(service.scan("camera"), (error) => error.code === "no-text" && /Nenhum texto legível/i.test(error.message));
 });
 
 test("09. unreadable and unavailable errors provide recovery guidance", () => {

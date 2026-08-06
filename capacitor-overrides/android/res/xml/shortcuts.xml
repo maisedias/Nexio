@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="registrar_por_voz"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_voice"
+        android:shortcutShortLabel="@string/shortcut_voice_label"
+        android:shortcutLongLabel="@string/shortcut_voice_label"
+        android:shortcutDisabledMessage="@string/shortcut_unavailable">
+        <intent
+            android:action="br.com.nexiofinanceiro.app.action.VOICE_ENTRY"
+            android:targetPackage="br.com.nexiofinanceiro.app"
+            android:targetClass="br.com.nexiofinanceiro.app.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="novo_lancamento"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_transaction"
+        android:shortcutShortLabel="@string/shortcut_transaction_label"
+        android:shortcutLongLabel="@string/shortcut_transaction_label"
+        android:shortcutDisabledMessage="@string/shortcut_unavailable">
+        <intent
+            android:action="br.com.nexiofinanceiro.app.action.NEW_TRANSACTION"
+            android:targetPackage="br.com.nexiofinanceiro.app"
+            android:targetClass="br.com.nexiofinanceiro.app.MainActivity" />
+    </shortcut>
+</shortcuts>

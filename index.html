@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260729-mobile-release-5" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260806-quick-actions" />
     <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
   </head>
   <body>
@@ -264,7 +264,7 @@
             <button class="nav-item" data-view="budgets" data-tooltip="Orçamentos" type="button"><span class="nav-icon"><i data-lucide="gauge" aria-hidden="true"></i></span><span>Orçamentos</span></button>
             <button class="nav-item" data-view="cashflow" data-tooltip="Fluxo de caixa" type="button"><span class="nav-icon"><i data-lucide="trending-up" aria-hidden="true">↗</i></span><span>Fluxo de caixa</span></button>
             <button class="nav-item" data-view="goals" data-tooltip="Metas" type="button"><span class="nav-icon"><i data-lucide="target" aria-hidden="true">◎</i></span><span>Metas</span></button>
-            <button class="nav-item" data-view="assistant" data-tooltip="Financial Assistant" type="button"><span class="nav-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Financial Assistant</span></button>
+            <button class="nav-item" data-view="assistant" data-tooltip="Assistente Financeiro" type="button"><span class="nav-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span>Assistente Financeiro</span></button>
             <button class="nav-item" data-view="profiles" data-tooltip="Perfis" type="button"><span class="nav-icon"><i data-lucide="users" aria-hidden="true">☷</i></span><span>Perfis</span></button>
             <button class="nav-item" data-view="settings" data-tooltip="Configurações" type="button"><span class="nav-icon"><i data-lucide="settings" aria-hidden="true">⚙</i></span><span>Configurações</span></button>
           </nav>
@@ -499,64 +499,64 @@
             <section class="panel assistant-hero-panel">
               <div class="assistant-hero-icon" aria-hidden="true"><i data-lucide="sparkles"></i></div>
               <div class="assistant-hero-copy">
-                <p class="eyebrow">Personal finance</p>
-                <h2>Financial Assistant</h2>
-                <p>Prepare a transaction draft faster and review every detail before saving.</p>
+                <p class="eyebrow">Finanças pessoais</p>
+                <h2>Assistente Financeiro</h2>
+                <p>Prepare um rascunho de lançamento e revise todos os detalhes antes de salvar.</p>
               </div>
-              <span class="assistant-local-badge"><i data-lucide="shield-check" aria-hidden="true"></i>Runs locally</span>
+              <span class="assistant-local-badge"><i data-lucide="shield-check" aria-hidden="true"></i>Funciona localmente</span>
             </section>
 
-            <section class="assistant-option-grid" aria-label="Financial Assistant options">
+            <section class="assistant-option-grid" aria-label="Opções do Assistente Financeiro">
               <article class="panel assistant-option-card">
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="mic"></i></span>
                 <div>
-                  <p class="eyebrow">First option</p>
-                  <h3>Voice Entry</h3>
-                  <p>Describe an income or expense and prepare a reviewable transaction draft.</p>
+                  <p class="eyebrow">Entrada rápida</p>
+                  <h3>Registrar por voz</h3>
+                  <p>Descreva uma receita ou despesa e prepare um rascunho para revisão.</p>
                 </div>
-                <button class="primary-action" data-open-ai-voice type="button"><i data-lucide="mic" aria-hidden="true"></i><span>Open Voice Entry</span></button>
+                <button class="primary-action" data-open-ai-voice type="button"><i data-lucide="mic" aria-hidden="true"></i><span>Registrar por voz</span></button>
               </article>
               <article class="panel assistant-option-card">
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="scan-text"></i></span>
                 <div>
-                  <p class="eyebrow">Receipt OCR</p>
-                  <h3>Scan Receipt</h3>
-                  <p>Capture or choose a receipt and prepare a transaction draft with offline text recognition.</p>
+                  <p class="eyebrow">Leitura de comprovante</p>
+                  <h3>Escanear comprovante</h3>
+                  <p>Fotografe ou escolha um comprovante e prepare um rascunho com reconhecimento local.</p>
                 </div>
-                <button class="primary-action" data-open-receipt-ocr type="button"><i data-lucide="scan-text" aria-hidden="true"></i><span>Scan Receipt</span></button>
+                <button class="primary-action" data-open-receipt-ocr type="button"><i data-lucide="scan-text" aria-hidden="true"></i><span>Escanear comprovante</span></button>
               </article>
               <article class="panel assistant-option-card" data-share-target-option>
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="share-2"></i></span>
                 <div>
-                  <p class="eyebrow">Android Share Target</p>
-                  <h3>Share to Nexio</h3>
-                  <p>Send transaction text, receipt images, or PDFs from another Android app for a local, reviewable draft.</p>
+                  <p class="eyebrow">Compartilhamento Android</p>
+                  <h3>Compartilhar com o Nexio</h3>
+                  <p>Envie textos, imagens ou PDFs de outro aplicativo Android para criar um rascunho local.</p>
                 </div>
-                <span class="assistant-local-badge"><i data-lucide="smartphone" aria-hidden="true"></i>Android share sheet</span>
+                <span class="assistant-local-badge"><i data-lucide="smartphone" aria-hidden="true"></i>Menu de compartilhamento</span>
               </article>
             </section>
 
             <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
               <section class="assistant-voice-modal" data-ai-voice-state="idle" role="dialog" aria-modal="true" aria-labelledby="assistantVoiceTitle" aria-describedby="assistantVoiceInstruction assistantVoiceStatus">
                 <header class="assistant-modal-header">
-                  <div><span>Financial Assistant</span><h3 id="assistantVoiceTitle">Voice Entry</h3></div>
-                  <button class="icon-button" data-close-ai-voice type="button" aria-label="Close Voice Entry"><i data-lucide="x" aria-hidden="true"></i></button>
+                  <div><span>Assistente Financeiro</span><h3 id="assistantVoiceTitle">Registrar por voz</h3></div>
+                  <button class="icon-button" data-close-ai-voice type="button" aria-label="Fechar registro por voz"><i data-lucide="x" aria-hidden="true"></i></button>
                 </header>
                 <div class="assistant-voice-content">
-                  <button class="assistant-microphone" data-ai-voice-microphone type="button" aria-label="Start listening" aria-pressed="false">
+                  <button class="assistant-microphone" data-ai-voice-microphone type="button" aria-label="Iniciar reconhecimento de voz" aria-pressed="false">
                     <i data-lucide="mic" aria-hidden="true"></i>
                     <span class="assistant-microphone-pulse" aria-hidden="true"></span>
                   </button>
-                  <p id="assistantVoiceInstruction">Tap the microphone and describe your transaction.</p>
+                  <p id="assistantVoiceInstruction">Toque no microfone e descreva seu lançamento.</p>
                   <div class="assistant-listening-indicator" data-ai-listening-indicator aria-hidden="true" hidden><span></span><span></span><span></span></div>
-                  <blockquote data-ai-voice-transcript aria-label="Current transcription" hidden></blockquote>
-                  <p class="assistant-voice-status" id="assistantVoiceStatus" data-ai-voice-status role="status" aria-live="polite">Ready to listen. Your transaction will only be saved after you review and confirm the form.</p>
+                  <blockquote data-ai-voice-transcript aria-label="Transcrição atual" hidden></blockquote>
+                  <p class="assistant-voice-status" id="assistantVoiceStatus" data-ai-voice-status role="status" aria-live="polite">Pronto para ouvir. O lançamento só será salvo depois que você revisar e confirmar o formulário.</p>
                 </div>
                 <footer class="assistant-modal-actions">
-                  <button class="ghost-action" data-close-ai-voice type="button">Cancel</button>
-                  <button class="ghost-action" data-ai-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Open Settings</span></button>
-                  <button class="ghost-action" data-ai-voice-retry type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Try Again</span></button>
-                  <button class="primary-action" data-ai-voice-confirm type="button" disabled><i data-lucide="check" aria-hidden="true"></i><span>Confirm</span></button>
+                  <button class="ghost-action" data-close-ai-voice type="button">Cancelar</button>
+                  <button class="ghost-action" data-ai-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Abrir configurações</span></button>
+                  <button class="ghost-action" data-ai-voice-retry type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Tentar novamente</span></button>
+                  <button class="primary-action" data-ai-voice-confirm type="button" disabled><i data-lucide="check" aria-hidden="true"></i><span>Confirmar</span></button>
                 </footer>
               </section>
             </div>
@@ -564,20 +564,20 @@
             <div class="assistant-modal-backdrop" data-receipt-ocr-modal hidden>
               <section class="assistant-voice-modal receipt-ocr-modal" data-receipt-state="idle" role="dialog" aria-modal="true" aria-labelledby="receiptOcrTitle" aria-describedby="receiptOcrStatus">
                 <header class="assistant-modal-header">
-                  <div><span>Financial Assistant</span><h3 id="receiptOcrTitle">Scan Receipt</h3></div>
-                  <button class="icon-button" data-close-receipt-ocr type="button" aria-label="Close receipt scanner"><i data-lucide="x" aria-hidden="true"></i></button>
+                  <div><span>Assistente Financeiro</span><h3 id="receiptOcrTitle">Escanear comprovante</h3></div>
+                  <button class="icon-button" data-close-receipt-ocr type="button" aria-label="Fechar leitura de comprovante"><i data-lucide="x" aria-hidden="true"></i></button>
                 </header>
                 <div class="receipt-ocr-content">
-                  <div class="receipt-source-options" data-receipt-source-options aria-label="Choose receipt source">
+                  <div class="receipt-source-options" data-receipt-source-options aria-label="Escolher origem do comprovante">
                     <button class="receipt-source-card" data-receipt-source="camera" type="button">
                       <span aria-hidden="true"><i data-lucide="camera"></i></span>
-                      <strong>Camera</strong>
-                      <small>Photograph a receipt now</small>
+                      <strong>Câmera</strong>
+                      <small>Fotografe um comprovante agora</small>
                     </button>
                     <button class="receipt-source-card" data-receipt-source="gallery" type="button">
                       <span aria-hidden="true"><i data-lucide="image"></i></span>
-                      <strong>Gallery</strong>
-                      <small>Choose an existing image</small>
+                      <strong>Galeria</strong>
+                      <small>Escolha uma imagem existente</small>
                     </button>
                   </div>
 
@@ -588,32 +588,32 @@
 
                   <div class="receipt-preview" data-receipt-preview hidden>
                     <figure class="receipt-preview-image">
-                      <img data-receipt-image alt="Processed receipt preview" />
-                      <figcaption>Image enhanced locally for recognition.</figcaption>
+                      <img data-receipt-image alt="Prévia do comprovante processado" />
+                      <figcaption>Imagem aprimorada localmente para reconhecimento.</figcaption>
                     </figure>
                     <section class="receipt-detected-fields" aria-labelledby="receiptDetectedTitle">
                       <div class="assistant-draft-heading">
                         <span aria-hidden="true"><i data-lucide="scan-text"></i></span>
-                        <div><strong id="receiptDetectedTitle">Detected details</strong><small>Review the OCR interpretation before continuing.</small></div>
+                        <div><strong id="receiptDetectedTitle">Detalhes detectados</strong><small>Revise a interpretação antes de continuar.</small></div>
                       </div>
                       <dl>
-                        <div><dt>Amount</dt><dd data-receipt-detected="amount">Not identified</dd></div>
-                        <div><dt>Merchant</dt><dd data-receipt-detected="merchant">Not identified</dd></div>
-                        <div><dt>Payment</dt><dd data-receipt-detected="payment">Not identified</dd></div>
-                        <div><dt>Date</dt><dd data-receipt-detected="date">Not identified</dd></div>
-                        <div><dt>Category</dt><dd data-receipt-detected="category">Not identified</dd></div>
+                        <div><dt>Valor</dt><dd data-receipt-detected="amount">Não identificado</dd></div>
+                        <div><dt>Estabelecimento</dt><dd data-receipt-detected="merchant">Não identificado</dd></div>
+                        <div><dt>Pagamento</dt><dd data-receipt-detected="payment">Não identificado</dd></div>
+                        <div><dt>Data</dt><dd data-receipt-detected="date">Não identificada</dd></div>
+                        <div><dt>Categoria</dt><dd data-receipt-detected="category">Não identificada</dd></div>
                       </dl>
                     </section>
                   </div>
 
-                  <p class="assistant-voice-status" id="receiptOcrStatus" data-receipt-status role="status" aria-live="polite">Choose Camera or Gallery. The image stays on this device and nothing is saved automatically.</p>
+                  <p class="assistant-voice-status" id="receiptOcrStatus" data-receipt-status role="status" aria-live="polite">Escolha Câmera ou Galeria. A imagem permanece neste aparelho e nada é salvo automaticamente.</p>
                 </div>
                 <footer class="assistant-modal-actions receipt-ocr-actions">
-                  <button class="ghost-action" data-close-receipt-ocr type="button">Cancel</button>
-                  <button class="ghost-action" data-receipt-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Open Settings</span></button>
-                  <button class="ghost-action" data-receipt-edit type="button" hidden><i data-lucide="crop" aria-hidden="true"></i><span>Edit Image</span></button>
-                  <button class="ghost-action" data-receipt-scan-again type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Scan Again</span></button>
-                  <button class="primary-action" data-receipt-continue type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continue</span></button>
+                  <button class="ghost-action" data-close-receipt-ocr type="button">Cancelar</button>
+                  <button class="ghost-action" data-receipt-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Abrir configurações</span></button>
+                  <button class="ghost-action" data-receipt-edit type="button" hidden><i data-lucide="crop" aria-hidden="true"></i><span>Editar imagem</span></button>
+                  <button class="ghost-action" data-receipt-scan-again type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Escanear novamente</span></button>
+                  <button class="primary-action" data-receipt-continue type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continuar</span></button>
                 </footer>
               </section>
             </div>
@@ -621,8 +621,8 @@
             <div class="assistant-modal-backdrop" data-shared-content-modal hidden>
               <section class="assistant-voice-modal receipt-ocr-modal shared-content-modal" data-shared-content-state="idle" role="dialog" aria-modal="true" aria-labelledby="sharedContentTitle" aria-describedby="sharedContentStatus">
                 <header class="assistant-modal-header">
-                  <div><span>Financial Assistant</span><h3 id="sharedContentTitle">Incoming Shared Content</h3></div>
-                  <button class="icon-button" data-close-shared-content type="button" aria-label="Cancel shared content processing"><i data-lucide="x" aria-hidden="true"></i></button>
+                  <div><span>Assistente Financeiro</span><h3 id="sharedContentTitle">Conteúdo compartilhado</h3></div>
+                  <button class="icon-button" data-close-shared-content type="button" aria-label="Cancelar processamento do conteúdo compartilhado"><i data-lucide="x" aria-hidden="true"></i></button>
                 </header>
                 <div class="receipt-ocr-content">
                   <div class="receipt-processing" data-shared-content-processing aria-hidden="true">
@@ -632,32 +632,32 @@
 
                   <div class="shared-content-preview" data-shared-content-preview hidden>
                     <figure class="receipt-preview-image" data-shared-thumbnail-wrap hidden>
-                      <img data-shared-thumbnail alt="Preview of shared receipt content" />
-                      <figcaption>Processed locally and retained only while you review.</figcaption>
+                      <img data-shared-thumbnail alt="Prévia do comprovante compartilhado" />
+                      <figcaption>Processado localmente e mantido apenas durante a revisão.</figcaption>
                     </figure>
                     <section class="receipt-detected-fields" aria-labelledby="sharedDetectedTitle">
                       <div class="assistant-draft-heading">
                         <span aria-hidden="true"><i data-lucide="scan-text"></i></span>
-                        <div><strong id="sharedDetectedTitle">Detected details</strong><small>Nothing is saved until you confirm the existing transaction form.</small></div>
+                        <div><strong id="sharedDetectedTitle">Detalhes detectados</strong><small>Nada é salvo até você confirmar o formulário existente.</small></div>
                       </div>
                       <dl>
-                        <div><dt>Content type</dt><dd data-shared-detected="type">Not identified</dd></div>
-                        <div><dt>File</dt><dd data-shared-detected="file">Not applicable</dd></div>
-                        <div><dt>Merchant</dt><dd data-shared-detected="merchant">Not identified</dd></div>
-                        <div><dt>Amount</dt><dd data-shared-detected="amount">Not identified</dd></div>
-                        <div><dt>Payment</dt><dd data-shared-detected="payment">Not identified</dd></div>
-                        <div><dt>Category</dt><dd data-shared-detected="category">Not identified</dd></div>
+                        <div><dt>Tipo de conteúdo</dt><dd data-shared-detected="type">Não identificado</dd></div>
+                        <div><dt>Arquivo</dt><dd data-shared-detected="file">Não se aplica</dd></div>
+                        <div><dt>Estabelecimento</dt><dd data-shared-detected="merchant">Não identificado</dd></div>
+                        <div><dt>Valor</dt><dd data-shared-detected="amount">Não identificado</dd></div>
+                        <div><dt>Pagamento</dt><dd data-shared-detected="payment">Não identificado</dd></div>
+                        <div><dt>Categoria</dt><dd data-shared-detected="category">Não identificada</dd></div>
                       </dl>
                       <p class="shared-content-note" data-shared-content-note hidden></p>
                     </section>
                   </div>
 
-                  <p class="assistant-voice-status" id="sharedContentStatus" data-shared-content-status role="status" aria-live="polite">Preparing shared content locally...</p>
+                  <p class="assistant-voice-status" id="sharedContentStatus" data-shared-content-status role="status" aria-live="polite">Preparando conteúdo compartilhado localmente...</p>
                 </div>
                 <footer class="assistant-modal-actions">
-                  <button class="ghost-action" data-close-shared-content type="button">Cancel</button>
-                  <button class="ghost-action" data-reprocess-shared-content type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reprocess</span></button>
-                  <button class="primary-action" data-continue-shared-content type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continue</span></button>
+                  <button class="ghost-action" data-close-shared-content type="button">Cancelar</button>
+                  <button class="ghost-action" data-reprocess-shared-content type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Reprocessar</span></button>
+                  <button class="primary-action" data-continue-shared-content type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continuar</span></button>
                 </footer>
               </section>
             </div>
@@ -790,11 +790,11 @@
                   <aside class="assistant-draft-review" data-ai-draft-summary hidden aria-live="polite">
                     <div class="assistant-draft-heading">
                       <span aria-hidden="true"><i data-lucide="sparkles"></i></span>
-                      <div><strong>Draft prepared by Financial Assistant</strong><small data-ai-draft-transcript></small></div>
+                      <div><strong>Rascunho preparado pelo Assistente Financeiro</strong><small data-ai-draft-transcript></small></div>
                     </div>
                     <dl>
                       <div><dt>Detected category</dt><dd data-ai-draft-category></dd></div>
-                      <div><dt>Payment method</dt><dd data-ai-draft-payment></dd></div>
+                      <div><dt>Forma de pagamento</dt><dd data-ai-draft-payment></dd></div>
                     </dl>
                     <p>Select an account and review every field before saving. Nothing was saved automatically.</p>
                   </aside>
@@ -1678,8 +1678,9 @@
     <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
     <script src="js/core/receipt-ocr.js?v=20260805-receipt-ocr"></script>
     <script src="js/core/android-share-target.js?v=20260805-share-target"></script>
+    <script src="js/core/external-navigation.js?v=20260806-quick-actions"></script>
     <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
-    <script src="js/ui/shared-ui.js?v=20260805-receipt-ocr"></script>
+    <script src="js/ui/shared-ui.js?v=20260806-quick-actions"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>

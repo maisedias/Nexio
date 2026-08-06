@@ -72,13 +72,13 @@ test("03. extracts partial and accumulated transcriptions", () => {
 test("04. maps permission denial to a friendly error", () => {
   const error = speech.normalizeError({ code: "permission-denied" });
   assert.equal(error.code, "permission-denied");
-  assert.match(error.message, /Android settings/i);
+  assert.match(error.message, /configurações do Android/i);
 });
 
 test("05. maps no-speech timeout without crashing", () => {
   const error = speech.normalizeError({ code: "speech-timeout" });
   assert.equal(error.code, "no-speech");
-  assert.match(error.message, /No speech was detected/i);
+  assert.match(error.message, /Nenhuma fala foi detectada/i);
 });
 
 test("06. integrates a successful transcript with the existing parser", () => {

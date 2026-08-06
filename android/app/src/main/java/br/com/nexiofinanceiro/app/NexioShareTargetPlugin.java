@@ -146,12 +146,12 @@ public class NexioShareTargetPlugin extends Plugin {
             try {
                 publish(readIntent(intent));
             } catch (SecurityException error) {
-                publish(errorPayload("permission-denied", "Nexio could not read the shared file."));
+                publish(errorPayload("permission-denied", "O Nexio não conseguiu ler o arquivo compartilhado."));
             } catch (IOException error) {
                 String code = String.valueOf(error.getMessage()).contains("unsupported") ? "unsupported-file" : "missing-content";
-                publish(errorPayload(code, "The shared content could not be copied safely."));
+                publish(errorPayload(code, "Não foi possível copiar o conteúdo compartilhado com segurança."));
             } catch (Exception error) {
-                publish(errorPayload("missing-content", "The shared content is unavailable."));
+                publish(errorPayload("missing-content", "O conteúdo compartilhado não está disponível."));
             }
         });
     }
@@ -170,8 +170,8 @@ public class NexioShareTargetPlugin extends Plugin {
         }
 
         if (streams.isEmpty()) {
-            if (sharedText == null || sharedText.trim().isEmpty()) return errorPayload("missing-content", "No shared content was found.");
-            if (!suppliedMime.isEmpty() && !suppliedMime.startsWith("text/")) return errorPayload("unsupported-file", "This shared content type is not supported.");
+            if (sharedText == null || sharedText.trim().isEmpty()) return errorPayload("missing-content", "Nenhum conteúdo compartilhado foi encontrado.");
+            if (!suppliedMime.isEmpty() && !suppliedMime.startsWith("text/")) return errorPayload("unsupported-file", "Este tipo de conteúdo compartilhado não é compatível.");
             JSObject textPayload = basePayload("text", suppliedMime.isEmpty() ? "text/plain" : suppliedMime, UUID.randomUUID().toString());
             textPayload.put("text", sharedText.trim());
             textPayload.put("ignoredCount", 0);
@@ -185,7 +185,7 @@ public class NexioShareTargetPlugin extends Plugin {
         String name = displayName(resolver, uri);
         if (mime.isEmpty()) mime = mimeFromName(name);
         String kind = kindForMime(mime);
-        if ("unsupported".equals(kind)) return errorPayload("unsupported-file", "Share plain text, an image, or a PDF receipt.");
+        if ("unsupported".equals(kind)) return errorPayload("unsupported-file", "Compartilhe texto simples, uma imagem ou um comprovante em PDF.");
 
         String id = UUID.randomUUID().toString();
         File cached = copyToCache(resolver, uri, id, name, mime);

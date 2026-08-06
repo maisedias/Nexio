@@ -4,4 +4,14 @@
     <string name="title_activity_main">Nexio Financeiro</string>
     <string name="package_name">br.com.nexiofinanceiro.app</string>
     <string name="custom_url_scheme">br.com.nexiofinanceiro.app</string>
+    <string name="shortcut_voice_label">Registrar por voz</string>
+    <string name="shortcut_transaction_label">Novo lançamento</string>
+    <string name="shortcut_unavailable">Atalho temporariamente indisponível</string>
+    <string name="widget_name">Atalhos do Nexio</string>
+    <string name="widget_title">NEXIO</string>
+    <string name="widget_description">Widget de atalhos rápidos do Nexio Financeiro</string>
+    <string name="widget_expense_label">+ Registrar gasto</string>
+    <string name="widget_voice_label">🎤 Registrar por voz</string>
+    <string name="widget_expense_accessibility">Abrir o formulário para registrar um gasto</string>
+    <string name="widget_voice_accessibility">Abrir o Assistente Financeiro e registrar por voz</string>
 </resources>

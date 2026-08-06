@@ -38,27 +38,27 @@
   function normalizeError(error, source = "camera") {
     const raw = String(error?.code || error?.message || error || "").toLowerCase();
     if (/permission|denied|restricted|not authorized/.test(raw)) {
-      return { code: "permission-denied", message: `${source === "gallery" ? "Photo library" : "Camera"} access is blocked. Allow access in Android settings and try again.` };
+      return { code: "permission-denied", message: `O acesso à ${source === "gallery" ? "galeria" : "câmera"} está bloqueado. Permita o acesso nas configurações do Android e tente novamente.` };
     }
     if (/cancel|canceled|cancelled|user cancelled/.test(raw)) {
       return { code: "cancelled", message: "Receipt selection was cancelled." };
     }
     if (/camera.*unavailable|no camera|not available/.test(raw) && source === "camera") {
-      return { code: "camera-unavailable", message: "The camera is unavailable on this device. Choose a receipt from the gallery instead." };
+      return { code: "camera-unavailable", message: "A câmera não está disponível neste aparelho. Escolha um comprovante da galeria." };
     }
     if (/gallery.*unavailable|photo.*unavailable|pick.*unavailable/.test(raw) && source === "gallery") {
-      return { code: "gallery-unavailable", message: "The gallery is unavailable on this device. Try the camera instead." };
+      return { code: "gallery-unavailable", message: "A galeria não está disponível neste aparelho. Tente usar a câmera." };
     }
     if (/no.?text|empty.?text/.test(raw)) {
-      return { code: "no-text", message: "No readable text was found. Flatten the receipt, improve the lighting, and scan again." };
+      return { code: "no-text", message: "Nenhum texto legível foi encontrado. Deixe o comprovante plano, melhore a iluminação e tente novamente." };
     }
     if (/blur|unreadable|low.?quality/.test(raw)) {
-      return { code: "unreadable", message: "The receipt looks blurry or unreadable. Hold the camera steady and scan again." };
+      return { code: "unreadable", message: "O comprovante parece desfocado ou ilegível. Mantenha a câmera firme e tente novamente." };
     }
     if (/ocr|text recognition|plugin.*unavailable|not implemented|unsupported/.test(raw)) {
-      return { code: "ocr-unavailable", message: "Offline receipt recognition is unavailable on this device. You can still enter the transaction manually." };
+      return { code: "ocr-unavailable", message: "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." };
     }
-    return { code: "ocr-error", message: "The receipt could not be read. Check the image and try again." };
+    return { code: "ocr-error", message: "Não foi possível ler o comprovante. Verifique a imagem e tente novamente." };
   }
 
   function constrainDimensions(width, height, options = {}) {
@@ -211,8 +211,8 @@
           correctOrientation: true,
           allowEditing: Boolean(scanOptions.allowEditing),
           saveToGallery: false,
-          promptLabelHeader: "Scan receipt",
-          promptLabelPhoto: "Choose from gallery",
+          promptLabelHeader: "Escanear comprovante",
+          promptLabelPhoto: "Escolher da galeria",
           promptLabelPicture: "Use camera",
         });
         if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);

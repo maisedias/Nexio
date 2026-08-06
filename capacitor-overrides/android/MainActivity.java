@@ -35,6 +35,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NexioSettingsPlugin.class);
         registerPlugin(NexioShareTargetPlugin.class);
+        registerPlugin(NexioQuickActionsPlugin.class);
         Window window = getWindow();
         WindowCompat.setDecorFitsSystemWindows(window, false);
         window.setStatusBarColor(SYSTEM_BAR_COLOR);
