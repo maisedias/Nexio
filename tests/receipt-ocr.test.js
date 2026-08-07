@@ -102,7 +102,7 @@ test("05. OCR service processes a camera image and extracts text offline", async
   assert.equal(harness.calls.photos[0].source, "CAMERA");
   assert.equal(harness.calls.photos[0].correctOrientation, true);
   assert.equal(harness.calls.photos[0].width, 2048);
-  assert.deepEqual(harness.calls.ocr[0], { path: "file:///processed.jpg", script: "LATIN" });
+  assert.deepEqual(harness.calls.ocr[0], { path: "file:///processed.jpg", image: "file:///processed.jpg", script: "LATIN" });
   await service.release();
   assert.equal(harness.calls.cleanup, 1);
 });

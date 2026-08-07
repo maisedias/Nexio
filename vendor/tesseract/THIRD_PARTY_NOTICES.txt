@@ -1,0 +1,8 @@
+Nexio packages the following components only for local, in-browser OCR:
+
+- Tesseract.js 7.0.0 — Apache License 2.0
+- tesseract.js-core 7.0.0 — Apache License 2.0
+- @tesseract.js-data/por 1.0.0 — MIT License
+
+The Apache License 2.0 text is included as LICENSE-TESSERACT-CORE.txt.
+No receipt image is transmitted to these projects or to a remote OCR service.

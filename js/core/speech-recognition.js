@@ -43,9 +43,10 @@
     return String(status?.speechRecognition || "prompt").toLowerCase();
   }
 
-  function recognitionError(code, message) {
+  function recognitionError(code, message, details = {}) {
     const error = new Error(message);
     error.code = code;
+    Object.assign(error, details);
     return error;
   }
 
@@ -55,18 +56,22 @@
     const rawMessage = String(source.message || "").trim();
 
     if (/permission|not-allowed|denied/.test(rawCode) || /permission|permiss[aã]o/.test(rawMessage.toLowerCase())) {
-      return recognitionError("permission-denied", "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.");
+      return recognitionError("permission-denied", source.platform === "web"
+        ? "A permissão do microfone foi negada. Autorize o acesso nas configurações do navegador ou digite o lançamento."
+        : "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.", { platform: source.platform });
     }
     if (/no[-_ ]?speech|speech[-_ ]?timeout|no[-_ ]?match/.test(rawCode)) {
-      return recognitionError("no-speech", "Nenhuma fala foi detectada. Tente novamente e fale depois que o microfone começar a ouvir.");
+      return recognitionError("no-speech", "Nenhuma fala foi detectada. Tente novamente e fale depois que o microfone começar a ouvir.", { platform: source.platform });
     }
     if (/unavailable|not[-_ ]?present|not[-_ ]?supported|service/.test(rawCode)) {
-      return recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho. Verifique o serviço de voz do Android e tente novamente.");
+      return recognitionError("recognition-unavailable", source.platform === "web"
+        ? "O reconhecimento de voz não está disponível neste navegador."
+        : "O reconhecimento de voz não está disponível neste aparelho. Verifique o serviço de voz do Android e tente novamente.", { platform: source.platform });
     }
     if (/cancel|aborted/.test(rawCode)) {
-      return recognitionError("cancelled", "Voice recognition was cancelled.");
+      return recognitionError("cancelled", "O reconhecimento de voz foi cancelado.", { platform: source.platform });
     }
-    return recognitionError("recognition-error", rawMessage || "Não foi possível concluir o reconhecimento de voz. Tente novamente.");
+    return recognitionError("recognition-error", rawMessage || "Não foi possível concluir o reconhecimento de voz. Tente novamente.", { platform: source.platform });
   }
 
   function createDraft(transcript, parser, options = {}) {
@@ -80,6 +85,7 @@
     const plugin = options.plugin;
     const settingsPlugin = options.settingsPlugin;
     const language = String(options.language || "").trim() || undefined;
+    const providerPlatform = options.platform === "web" ? "web" : "android";
     let handles = [];
     let handlers = {};
     let active = false;
@@ -146,7 +152,7 @@
       active = false;
       await removeListeners();
       if (cancelled) return;
-      handlers.onError?.(normalizeError(value));
+      handlers.onError?.(normalizeError({ ...value, platform: value?.platform || providerPlatform }));
     }
 
     async function addListener(eventName, listener) {
@@ -172,14 +178,16 @@
 
     async function ensurePermission() {
       if (typeof plugin?.checkPermissions !== "function") {
-        throw recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho.");
+        throw recognitionError("recognition-unavailable", providerPlatform === "web"
+          ? "O reconhecimento de voz não está disponível neste navegador."
+          : "O reconhecimento de voz não está disponível neste aparelho.", { platform: providerPlatform });
       }
       let status = await plugin.checkPermissions();
       if (permissionState(status) === "prompt" || permissionState(status) === "prompt-with-rationale") {
         status = await plugin.requestPermissions();
       }
       if (permissionState(status) !== "granted") {
-        throw recognitionError("permission-denied", "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.");
+        throw normalizeError({ code: "permission-denied", platform: providerPlatform });
       }
       return status;
     }
@@ -192,7 +200,7 @@
 
       const support = await availability();
       if (!support.available) {
-        throw recognitionError("recognition-unavailable", "O reconhecimento de voz não está disponível neste aparelho. Verifique o serviço de voz do Android e tente novamente.");
+        throw normalizeError({ code: "recognition-unavailable", platform: providerPlatform });
       }
       await ensurePermission();
 
@@ -223,7 +231,7 @@
       } catch (error) {
         active = false;
         await removeListeners();
-        throw normalizeError(error);
+        throw normalizeError({ ...error, platform: error?.platform || providerPlatform });
       }
     }
 

@@ -1252,6 +1252,9 @@
 
   const assistantVoice = {
     service: null,
+    provider: "unavailable",
+    errorCode: "",
+    manualVisible: false,
     state: "idle",
     transcript: "",
     draft: null,
@@ -1262,6 +1265,8 @@
 
   const assistantReceipt = {
     service: null,
+    pickerProvider: "unavailable",
+    ocrProvider: "unavailable",
     state: "idle",
     source: "camera",
     result: null,
@@ -1286,6 +1291,18 @@
     service: null,
   };
 
+  const assistantPlatform = {
+    services: null,
+  };
+
+  function assistantPlatformServices() {
+    if (assistantPlatform.services) return assistantPlatform.services;
+    assistantPlatform.services = window.NexioPlatform?.resolveAssistantCapabilities?.({
+      fileInput: app.querySelector("[data-receipt-web-file]"),
+    }) || null;
+    return assistantPlatform.services;
+  }
+
   const externalNavigation = {
     coordinator: null,
     listener: null,
@@ -1301,6 +1318,14 @@
     });
     app.querySelector("[data-ai-voice-retry]")?.addEventListener("click", () => void retryAssistantVoiceRecognition());
     app.querySelector("[data-ai-open-settings]")?.addEventListener("click", () => void openAssistantMicrophoneSettings());
+    app.querySelector("[data-ai-voice-manual-toggle]")?.addEventListener("click", () => toggleAssistantManualEntry());
+    app.querySelector("[data-ai-voice-manual-process]")?.addEventListener("click", () => void processAssistantManualEntry());
+    app.querySelector("[data-ai-voice-manual-input]")?.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        event.preventDefault();
+        void processAssistantManualEntry();
+      }
+    });
     app.querySelector("[data-ai-voice-confirm]")?.addEventListener("click", confirmAssistantVoiceDraft);
     app.querySelectorAll("[data-close-ai-voice]").forEach((button) => {
       button.addEventListener("click", () => void closeAssistantVoiceModal());
@@ -1339,6 +1364,7 @@
     app.querySelector("[data-receipt-edit]")?.addEventListener("click", () => void scanAssistantReceipt(assistantReceipt.source, { allowEditing: true }));
     app.querySelector("[data-receipt-continue]")?.addEventListener("click", continueReceiptDraft);
     app.querySelector("[data-receipt-open-settings]")?.addEventListener("click", () => void openReceiptSettings());
+    app.querySelector("[data-receipt-manual]")?.addEventListener("click", () => void openManualEntryFromReceipt());
     receiptModal?.addEventListener("click", (event) => {
       if (event.target === receiptModal) void closeReceiptOcrModal();
     });
@@ -1426,6 +1452,10 @@
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
     assistantVoice.personalization = null;
+    assistantVoice.errorCode = "";
+    assistantVoice.manualVisible = false;
+    const manualInput = modal.querySelector("[data-ai-voice-manual-input]");
+    if (manualInput) manualInput.value = "";
     setAssistantVoiceState("idle");
     requestAnimationFrame(() => modal.querySelector("[data-ai-voice-microphone]")?.focus());
   }
@@ -1446,11 +1476,13 @@
 
   function assistantSpeechService() {
     if (assistantVoice.service) return assistantVoice.service;
-    const plugins = window.Capacitor?.Plugins || {};
+    const capability = assistantPlatformServices()?.speech;
+    assistantVoice.provider = capability?.provider || "unavailable";
     assistantVoice.service = core.speechRecognition?.createService?.({
-      plugin: plugins.SpeechRecognition,
-      settingsPlugin: plugins.NexioSettings,
-      language: window.navigator.language || "pt-BR",
+      plugin: capability?.plugin,
+      settingsPlugin: capability?.settingsPlugin,
+      language: "pt-BR",
+      platform: assistantVoice.provider,
     }) || null;
     return assistantVoice.service;
   }
@@ -1546,6 +1578,8 @@
     const indicator = modal.querySelector("[data-ai-listening-indicator]");
     const retry = modal.querySelector("[data-ai-voice-retry]");
     const settings = modal.querySelector("[data-ai-open-settings]");
+    const manual = modal.querySelector("[data-ai-voice-manual]");
+    const manualToggle = modal.querySelector("[data-ai-voice-manual-toggle]");
     const confirm = modal.querySelector("[data-ai-voice-confirm]");
     const messages = {
       idle: "Pronto para ouvir. O lançamento só será salvo depois que você revisar e confirmar o formulário.",
@@ -1557,7 +1591,9 @@
         ? options.message || "Lançamento identificado. Confirme para abrir o formulário preenchido e revisar."
         : "Não foi possível entender o lançamento. Nada foi alterado.",
       error: options.message || "Não foi possível concluir o reconhecimento de voz. Tente novamente.",
-      "permission-denied": "O acesso ao microfone está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
+      "permission-denied": assistantVoice.provider === "web"
+        ? "A permissão do microfone foi negada. Autorize o acesso nas configurações do navegador ou digite o lançamento."
+        : "O acesso ao microfone está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
     };
     if (dialog) dialog.dataset.aiVoiceState = nextState;
     if (transcript) {
@@ -1567,7 +1603,14 @@
     if (status) status.textContent = messages[nextState] || messages.idle;
     if (indicator) indicator.hidden = nextState !== "listening";
     if (retry) retry.hidden = !["recognized", "error", "permission-denied"].includes(nextState);
-    if (settings) settings.hidden = nextState !== "permission-denied";
+    if (settings) settings.hidden = nextState !== "permission-denied" || assistantVoice.provider !== "android";
+    if (manual) manual.hidden = !assistantVoice.manualVisible;
+    if (manualToggle) {
+      const needsFallback = ["recognition-unavailable", "permission-denied"].includes(assistantVoice.errorCode);
+      manualToggle.hidden = !needsFallback && !assistantVoice.manualVisible;
+      const label = manualToggle.querySelector("span");
+      if (label) label.textContent = assistantVoice.manualVisible ? "Ocultar digitação" : "Digitar lançamento";
+    }
     if (confirm) confirm.disabled = nextState !== "recognized" || !assistantVoice.draft;
     if (microphone) {
       const listening = nextState === "listening";
@@ -1598,9 +1641,13 @@
   }
 
   function handleAssistantVoiceError(error) {
-    const normalized = core.speechRecognition?.normalizeError?.(error) || error;
+    const normalized = core.speechRecognition?.normalizeError?.({
+      ...error,
+      platform: error?.platform || assistantVoice.provider,
+    }) || error;
     assistantVoice.draft = null;
     assistantVoice.personalization = null;
+    assistantVoice.errorCode = normalized?.code || "recognition-error";
     setAssistantVoiceState(normalized?.code === "permission-denied" ? "permission-denied" : "error", {
       message: normalized?.message,
     });
@@ -1608,10 +1655,11 @@
 
   async function startAssistantVoiceRecognition() {
     const service = assistantSpeechService();
-    if (!service) {
-      handleAssistantVoiceError({ code: "recognition-unavailable" });
+    if (!service || assistantVoice.provider === "unavailable") {
+      handleAssistantVoiceError({ code: "recognition-unavailable", platform: "web" });
       return;
     }
+    assistantVoice.errorCode = "";
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
     assistantVoice.personalization = null;
@@ -1645,6 +1693,8 @@
     assistantInterpretation.service?.cancel?.();
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
+    assistantVoice.errorCode = "";
+    assistantVoice.manualVisible = false;
     setAssistantVoiceState("idle");
     await startAssistantVoiceRecognition();
   }
@@ -1654,8 +1704,29 @@
     if (!opened) {
       setAssistantVoiceState("permission-denied");
       const status = app.querySelector("[data-ai-voice-status]");
-      if (status) status.textContent = "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso ao microfone.";
+      if (status) status.textContent = assistantVoice.provider === "web"
+        ? "Autorize o microfone nas configurações do navegador ou use Digitar lançamento."
+        : "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso ao microfone.";
     }
+  }
+
+  function toggleAssistantManualEntry(force) {
+    assistantVoice.manualVisible = typeof force === "boolean" ? force : !assistantVoice.manualVisible;
+    setAssistantVoiceState(assistantVoice.state);
+    if (assistantVoice.manualVisible) requestAnimationFrame(() => app.querySelector("[data-ai-voice-manual-input]")?.focus());
+  }
+
+  async function processAssistantManualEntry() {
+    const input = app.querySelector("[data-ai-voice-manual-input]");
+    const text = String(input?.value || "").trim();
+    if (!text) {
+      assistantVoice.errorCode = "empty-transcription";
+      setAssistantVoiceState("error", { message: "Digite uma descrição do lançamento para continuar." });
+      toggleAssistantManualEntry(true);
+      return;
+    }
+    assistantVoice.errorCode = "";
+    await recognizeAssistantTranscript(text);
   }
 
   function confirmAssistantVoiceDraft() {
@@ -1665,16 +1736,19 @@
 
   function receiptOcrService() {
     if (assistantReceipt.service) return assistantReceipt.service;
-    const plugins = window.Capacitor?.Plugins || {};
+    const capability = assistantPlatformServices()?.receipt;
+    assistantReceipt.pickerProvider = capability?.pickerProvider || "unavailable";
+    assistantReceipt.ocrProvider = capability?.ocrProvider || "unavailable";
     const processor = window.NexioUI?.receiptImage?.createProcessor?.({
-      filesystem: plugins.Filesystem,
+      filesystem: capability?.filesystem,
       receiptCore: core.receiptOcr,
     });
     assistantReceipt.service = core.receiptOcr?.createService?.({
-      camera: plugins.Camera,
-      textRecognition: plugins.TextRecognition,
-      settingsPlugin: plugins.NexioSettings,
+      camera: capability?.camera,
+      textRecognition: capability?.textRecognition,
+      settingsPlugin: capability?.settingsPlugin,
       prepareImage: processor?.prepare,
+      platform: assistantReceipt.pickerProvider === "web" ? "web" : "android",
     }) || null;
     return assistantReceipt.service;
   }
@@ -1688,8 +1762,15 @@
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
     assistantReceipt.personalization = null;
+    receiptOcrService();
+    const galleryLabel = modal.querySelector("[data-receipt-gallery-label]");
+    const galleryDescription = modal.querySelector("[data-receipt-gallery-description]");
+    if (galleryLabel) galleryLabel.textContent = assistantReceipt.pickerProvider === "web" ? "Escolher imagem" : "Galeria";
+    if (galleryDescription) galleryDescription.textContent = assistantReceipt.pickerProvider === "web"
+      ? "Abra uma imagem JPG, PNG ou WEBP"
+      : "Escolha uma imagem existente";
     setReceiptOcrState("idle");
-    requestAnimationFrame(() => modal.querySelector('[data-receipt-source="camera"]')?.focus());
+    requestAnimationFrame(() => modal.querySelector(`[data-receipt-source="${assistantReceipt.pickerProvider === "web" ? "gallery" : "camera"}"]`)?.focus());
   }
 
   async function closeReceiptOcrModal(options = {}) {
@@ -1720,26 +1801,34 @@
     const preview = modal.querySelector("[data-receipt-preview]");
     const status = modal.querySelector("[data-receipt-status]");
     const settings = modal.querySelector("[data-receipt-open-settings]");
+    const manual = modal.querySelector("[data-receipt-manual]");
     const edit = modal.querySelector("[data-receipt-edit]");
     const scanAgain = modal.querySelector("[data-receipt-scan-again]");
     const continueButton = modal.querySelector("[data-receipt-continue]");
     const messages = {
-      idle: "Escolha Câmera ou Galeria. A imagem permanece neste aparelho e nada é salvo automaticamente.",
-      choosing: `Abrindo ${assistantReceipt.source === "gallery" ? "a galeria" : "a câmera"}...`,
+      idle: assistantReceipt.pickerProvider === "web"
+        ? "Escolha Câmera ou uma imagem JPG, PNG ou WEBP. O OCR é executado localmente e nada é salvo automaticamente."
+        : "Escolha Câmera ou Galeria. A imagem permanece neste aparelho e nada é salvo automaticamente.",
+      choosing: assistantReceipt.pickerProvider === "web"
+        ? "Abrindo o seletor de imagens do sistema..."
+        : `Abrindo ${assistantReceipt.source === "gallery" ? "a galeria" : "a câmera"}...`,
       "processing-image": "Girando, recortando, aprimorando e comprimindo o comprovante localmente...",
       recognizing: options.message || "Lendo o comprovante localmente com reconhecimento de texto...",
       preview: assistantReceipt.draft
         ? options.message || "Comprovante identificado. Revise os detalhes e continue para o formulário editável."
         : "O texto foi encontrado, mas os detalhes estão incompletos. Edite a imagem ou escaneie novamente.",
       error: options.message || "Não foi possível ler o comprovante. Tente outra imagem ou origem.",
-      "permission-denied": options.message || "O acesso está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
+      "permission-denied": options.message || (assistantReceipt.pickerProvider === "web"
+        ? "A seleção da imagem foi bloqueada pelo navegador. Tente novamente."
+        : "O acesso está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente."),
     };
     if (dialog) dialog.dataset.receiptState = nextState;
     if (sourceOptions) sourceOptions.hidden = !["idle", "error", "permission-denied"].includes(nextState);
     if (processing) processing.hidden = !["choosing", "processing-image", "recognizing"].includes(nextState);
     if (preview) preview.hidden = nextState !== "preview";
     if (status) status.textContent = messages[nextState] || messages.idle;
-    if (settings) settings.hidden = nextState !== "permission-denied";
+    if (settings) settings.hidden = nextState !== "permission-denied" || assistantReceipt.pickerProvider !== "android";
+    if (manual) manual.hidden = assistantReceipt.pickerProvider !== "web" || !["error", "permission-denied"].includes(nextState);
     if (edit) edit.hidden = nextState !== "preview";
     if (scanAgain) scanAgain.hidden = !["preview", "error", "permission-denied"].includes(nextState);
     if (continueButton) continueButton.disabled = nextState !== "preview" || !assistantReceipt.draft;
@@ -1753,7 +1842,9 @@
     assistantReceipt.draft = null;
     assistantReceipt.personalization = null;
     if (!service) {
-      setReceiptOcrState("error", { message: "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." });
+      setReceiptOcrState("error", { message: assistantReceipt.pickerProvider === "web"
+        ? "O OCR local não está disponível neste navegador. Escolha outra imagem ou digite o lançamento manualmente."
+        : "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." });
       return;
     }
     setReceiptOcrState("choosing");
@@ -1774,7 +1865,11 @@
       renderReceiptPreview();
       setReceiptOcrState("preview", { message: interpretation.message });
     } catch (error) {
-      const normalized = core.receiptOcr?.normalizeError?.(error, assistantReceipt.source) || error;
+      const normalized = core.receiptOcr?.normalizeError?.(
+        error,
+        assistantReceipt.source,
+        assistantReceipt.pickerProvider === "web" ? "web" : "android",
+      ) || error;
       if (normalized?.code === "cancelled") {
         setReceiptOcrState("idle");
         return;
@@ -1811,16 +1906,26 @@
     assistantReceipt.draft = null;
     assistantReceipt.personalization = null;
     setReceiptOcrState("idle");
-    app.querySelector('[data-receipt-source="camera"]')?.focus();
+    app.querySelector(`[data-receipt-source="${assistantReceipt.pickerProvider === "web" ? "gallery" : "camera"}"]`)?.focus();
   }
 
   async function openReceiptSettings() {
     const opened = await receiptOcrService()?.openSettings?.();
     if (!opened) {
       setReceiptOcrState("permission-denied", {
-        message: "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso à câmera ou às fotos.",
+        message: assistantReceipt.pickerProvider === "web"
+          ? "Use as configurações do navegador para permitir o seletor de arquivos e tente novamente."
+          : "Abra as configurações do Android, escolha Nexio Financeiro e permita o acesso à câmera ou às fotos.",
       });
     }
+  }
+
+  async function openManualEntryFromReceipt() {
+    await closeReceiptOcrModal({ restoreFocus: false });
+    openAssistantVoiceModal();
+    assistantVoice.provider = assistantPlatformServices()?.speech?.provider || "unavailable";
+    assistantVoice.errorCode = "recognition-unavailable";
+    toggleAssistantManualEntry(true);
   }
 
   function continueReceiptDraft() {

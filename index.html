@@ -550,11 +550,17 @@
                   <p id="assistantVoiceInstruction">Toque no microfone e descreva seu lançamento.</p>
                   <div class="assistant-listening-indicator" data-ai-listening-indicator aria-hidden="true" hidden><span></span><span></span><span></span></div>
                   <blockquote data-ai-voice-transcript aria-label="Transcrição atual" hidden></blockquote>
+                  <div class="assistant-manual-entry" data-ai-voice-manual hidden>
+                    <label for="assistantManualEntry">Digite o lançamento</label>
+                    <textarea id="assistantManualEntry" data-ai-voice-manual-input rows="3" placeholder="Ex.: Gastei 58 reais no mercado pelo cartão de crédito."></textarea>
+                    <button class="primary-action" data-ai-voice-manual-process type="button">Interpretar lançamento</button>
+                  </div>
                   <p class="assistant-voice-status" id="assistantVoiceStatus" data-ai-voice-status role="status" aria-live="polite">Pronto para ouvir. O lançamento só será salvo depois que você revisar e confirmar o formulário.</p>
                 </div>
                 <footer class="assistant-modal-actions">
                   <button class="ghost-action" data-close-ai-voice type="button">Cancelar</button>
                   <button class="ghost-action" data-ai-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Abrir configurações</span></button>
+                  <button class="ghost-action" data-ai-voice-manual-toggle type="button" hidden><i data-lucide="keyboard" aria-hidden="true"></i><span>Digitar lançamento</span></button>
                   <button class="ghost-action" data-ai-voice-retry type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Tentar novamente</span></button>
                   <button class="primary-action" data-ai-voice-confirm type="button" disabled><i data-lucide="check" aria-hidden="true"></i><span>Confirmar</span></button>
                 </footer>
@@ -576,10 +582,11 @@
                     </button>
                     <button class="receipt-source-card" data-receipt-source="gallery" type="button">
                       <span aria-hidden="true"><i data-lucide="image"></i></span>
-                      <strong>Galeria</strong>
-                      <small>Escolha uma imagem existente</small>
+                      <strong data-receipt-gallery-label>Galeria</strong>
+                      <small data-receipt-gallery-description>Escolha uma imagem existente</small>
                     </button>
                   </div>
+                  <input class="assistant-file-input" data-receipt-web-file type="file" accept="image/jpeg,image/png,image/webp" tabindex="-1" aria-hidden="true" hidden />
 
                   <div class="receipt-processing" data-receipt-processing hidden aria-hidden="true">
                     <span class="receipt-processing-icon"><i data-lucide="scan-line"></i></span>
@@ -611,6 +618,7 @@
                 <footer class="assistant-modal-actions receipt-ocr-actions">
                   <button class="ghost-action" data-close-receipt-ocr type="button">Cancelar</button>
                   <button class="ghost-action" data-receipt-open-settings type="button" hidden><i data-lucide="settings" aria-hidden="true"></i><span>Abrir configurações</span></button>
+                  <button class="ghost-action" data-receipt-manual type="button" hidden><i data-lucide="keyboard" aria-hidden="true"></i><span>Digitar lançamento</span></button>
                   <button class="ghost-action" data-receipt-edit type="button" hidden><i data-lucide="crop" aria-hidden="true"></i><span>Editar imagem</span></button>
                   <button class="ghost-action" data-receipt-scan-again type="button" hidden><i data-lucide="rotate-ccw" aria-hidden="true"></i><span>Escanear novamente</span></button>
                   <button class="primary-action" data-receipt-continue type="button" disabled><i data-lucide="arrow-right" aria-hidden="true"></i><span>Continuar</span></button>
@@ -1728,12 +1736,13 @@
     <script src="js/core/ai-interpreter.js?v=20260806-smart-interpretation"></script>
     <script src="js/core/financial-input.js?v=20260806-smart-interpretation"></script>
     <script src="js/core/personalization.js?v=20260807-assistant-personalization"></script>
-    <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
-    <script src="js/core/receipt-ocr.js?v=20260805-receipt-ocr"></script>
+    <script src="js/core/speech-recognition.js?v=20260807-web-android-parity"></script>
+    <script src="js/core/receipt-ocr.js?v=20260807-web-android-parity"></script>
     <script src="js/core/android-share-target.js?v=20260805-share-target"></script>
     <script src="js/core/external-navigation.js?v=20260806-quick-actions"></script>
-    <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
-    <script src="js/ui/shared-ui.js?v=20260807-profiles-mobile-chart"></script>
+    <script src="js/ui/receipt-image.js?v=20260807-web-android-parity"></script>
+    <script src="js/services/assistant-platform.js?v=20260807-web-android-parity"></script>
+    <script src="js/ui/shared-ui.js?v=20260807-web-android-parity"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>

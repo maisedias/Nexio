@@ -35,19 +35,21 @@
     return "prompt";
   }
 
-  function normalizeError(error, source = "camera") {
+  function normalizeError(error, source = "camera", platform = error?.platform === "web" ? "web" : "android") {
     const raw = String(error?.code || error?.message || error || "").toLowerCase();
     if (/permission|denied|restricted|not authorized/.test(raw)) {
-      return { code: "permission-denied", message: `O acesso à ${source === "gallery" ? "galeria" : "câmera"} está bloqueado. Permita o acesso nas configurações do Android e tente novamente.` };
+      return { code: "permission-denied", message: platform === "web"
+        ? "A permissão para selecionar a imagem foi negada pelo navegador."
+        : `O acesso à ${source === "gallery" ? "galeria" : "câmera"} está bloqueado. Permita o acesso nas configurações do Android e tente novamente.` };
     }
     if (/cancel|canceled|cancelled|user cancelled/.test(raw)) {
-      return { code: "cancelled", message: "Receipt selection was cancelled." };
+      return { code: "cancelled", message: "A seleção do comprovante foi cancelada." };
     }
     if (/camera.*unavailable|no camera|not available/.test(raw) && source === "camera") {
-      return { code: "camera-unavailable", message: "A câmera não está disponível neste aparelho. Escolha um comprovante da galeria." };
+      return { code: "camera-unavailable", message: "A câmera não está disponível. Escolha uma imagem do comprovante." };
     }
     if (/gallery.*unavailable|photo.*unavailable|pick.*unavailable/.test(raw) && source === "gallery") {
-      return { code: "gallery-unavailable", message: "A galeria não está disponível neste aparelho. Tente usar a câmera." };
+      return { code: "gallery-unavailable", message: "Não foi possível abrir o seletor de imagens. Tente novamente." };
     }
     if (/no.?text|empty.?text/.test(raw)) {
       return { code: "no-text", message: "Nenhum texto legível foi encontrado. Deixe o comprovante plano, melhore a iluminação e tente novamente." };
@@ -56,7 +58,12 @@
       return { code: "unreadable", message: "O comprovante parece desfocado ou ilegível. Mantenha a câmera firme e tente novamente." };
     }
     if (/ocr|text recognition|plugin.*unavailable|not implemented|unsupported/.test(raw)) {
-      return { code: "ocr-unavailable", message: "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." };
+      return { code: "ocr-unavailable", message: platform === "web"
+        ? "O OCR local não está disponível neste navegador. Escolha outra imagem ou digite o lançamento manualmente."
+        : "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." };
+    }
+    if (/invalid-file|file-too-large|missing-image/.test(raw)) {
+      return { code: error?.code || "invalid-file", message: String(error?.message || "Escolha uma imagem JPG, JPEG, PNG ou WEBP.") };
     }
     return { code: "ocr-error", message: "Não foi possível ler o comprovante. Verifique a imagem e tente novamente." };
   }
@@ -140,6 +147,7 @@
     const textRecognition = options.textRecognition;
     const prepareImage = options.prepareImage;
     const settingsPlugin = options.settingsPlugin;
+    const platform = options.platform === "web" ? "web" : "android";
     let generation = 0;
     let activeImage = null;
 
@@ -181,7 +189,7 @@
       }
       activeImage = prepared;
       scanOptions.onRecognizing?.();
-      const result = await textRecognition.processImage({ path: prepared.path, script: "LATIN" });
+      const result = await textRecognition.processImage({ path: prepared.path, image: prepared.blob || prepared.path, script: "LATIN" });
       if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
       const text = String(result?.text || "").trim();
       if (!text) throw normalizeError({ code: "no-text" }, normalizedSource);
@@ -213,13 +221,13 @@
           saveToGallery: false,
           promptLabelHeader: "Escanear comprovante",
           promptLabelPhoto: "Escolher da galeria",
-          promptLabelPicture: "Use camera",
+          promptLabelPicture: "Usar câmera",
         });
         if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
         return await prepareAndRecognize(photo, normalizedSource, scanOptions, operation);
       } catch (error) {
-        if (error?.code && error?.message) throw error;
-        throw normalizeError(error, normalizedSource);
+        if (error?.code && error?.message && error.code !== "ocr-error") throw error;
+        throw normalizeError(error, normalizedSource, platform);
       }
     }
 
@@ -231,18 +239,20 @@
       try {
         return await prepareAndRecognize(photo, normalizedSource, scanOptions, operation);
       } catch (error) {
-        if (error?.code && error?.message) throw error;
-        throw normalizeError(error, normalizedSource);
+        if (error?.code && error?.message && error.code !== "ocr-error") throw error;
+        throw normalizeError(error, normalizedSource, platform);
       }
     }
 
     async function cancel() {
       generation += 1;
+      await textRecognition?.cancel?.();
       await cleanupImage();
       return { cancelled: true };
     }
 
     async function release() {
+      await textRecognition?.release?.();
       await cleanupImage();
     }
 

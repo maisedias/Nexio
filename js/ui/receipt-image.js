@@ -36,8 +36,13 @@
 
     async function prepare(photo) {
       const source = photo?.webPath || photo?.path;
-      if (!source || !filesystem?.writeFile || !filesystem?.getUri) throw new Error("image-processing-unavailable");
-      const image = await loadImage(source);
+      if (!source) throw new Error("image-processing-unavailable");
+      let image;
+      try {
+        image = await loadImage(source);
+      } finally {
+        await photo?.cleanup?.();
+      }
       const dimensions = receiptCore.constrainDimensions(image.naturalWidth, image.naturalHeight);
       const working = document.createElement("canvas");
       working.width = dimensions.width;
@@ -63,13 +68,25 @@
       outputContext.putImageData(outputPixels, 0, 0);
 
       const blob = await canvasBlob(output);
+      const previewUrl = URL.createObjectURL(blob);
+      if (!filesystem?.writeFile || !filesystem?.getUri) {
+        return {
+          path: previewUrl,
+          blob,
+          previewUrl,
+          width: output.width,
+          height: output.height,
+          async cleanup() { URL.revokeObjectURL(previewUrl); },
+        };
+      }
+
       const data = await blobBase64(blob);
       const path = `nexio-receipts/receipt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
       await filesystem.writeFile({ path, data, directory: "CACHE", recursive: true });
       const local = await filesystem.getUri({ path, directory: "CACHE" });
-      const previewUrl = URL.createObjectURL(blob);
       return {
         path: local.uri,
+        blob,
         previewUrl,
         width: output.width,
         height: output.height,
