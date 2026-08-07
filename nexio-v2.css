@@ -330,6 +330,26 @@ body {
 .chart-tooltip { border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--color-surface-glass); box-shadow: var(--shadow-tooltip); backdrop-filter: blur(var(--blur-tooltip)); }
 .chart-legend { gap: var(--nx-space-3); }
 
+/* Profiles consolidated chart */
+.profiles-stats-panel { min-width: 0; }
+.profiles-stats-panel .panel-heading { gap: var(--nx-space-3); }
+.profiles-stats-panel .panel-heading > div:first-child { min-width: 0; }
+.profiles-stats-summary { min-width: 0; }
+.profiles-stats-summary span { min-width: var(--size-layout-min-medium); }
+.profiles-stats-summary strong { white-space: nowrap; overflow-wrap: normal; }
+.profiles-chart-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; min-width: 0; gap: var(--nx-space-2); margin-bottom: var(--nx-space-2); }
+.profiles-chart-toolbar .chart-legend { justify-content: flex-start; min-width: 0; }
+.profiles-chart-toolbar .chart-legend span { color: var(--nx-text-muted); font-size: var(--font-size-caption); }
+.profiles-chart-comparison { display: flex; align-items: center; min-width: 0; }
+.profiles-chart-comparison .chart-comparison-indicator { justify-self: start; margin: 0; }
+.profiles-chart-stage { min-width: 0; }
+.profiles-stats-panel .chart-canvas { display: block; width: 100%; height: var(--size-dashboard-chart); min-height: var(--size-dashboard-chart); max-height: var(--size-dashboard-chart); }
+.profiles-chart-empty { display: grid; place-items: center; align-content: center; min-width: 0; min-height: var(--size-layout-min-large); gap: var(--nx-space-2); border: var(--border-width-thin) dashed var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); padding: var(--nx-space-3); color: var(--nx-text-muted); text-align: center; }
+.profiles-chart-empty[hidden] { display: none; }
+.profiles-chart-empty strong { color: var(--nx-text); font-size: var(--font-size-body-md); overflow-wrap: normal; word-break: normal; }
+.profiles-chart-empty span { max-width: var(--size-content-footer-max); font-size: var(--font-size-caption); line-height: var(--line-height-caption); overflow-wrap: normal; word-break: normal; }
+.profiles-chart-empty small { color: var(--nx-text-muted); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); letter-spacing: var(--letter-spacing-label); white-space: nowrap; }
+
 /* Forms and data tools */
 .app-shell :where(input, select, textarea) { border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); color: var(--nx-text); box-shadow: none; }
 .app-shell :where(input, select) { min-height: var(--nx-input-height); }
@@ -871,6 +891,20 @@ body.has-ai-assistant-modal { overflow: hidden; }
   .cashflow-premium .cashflow-chart-highlights { display: flex; flex-wrap: wrap; gap: var(--nx-space-1); margin-top: var(--nx-space-2); }
   .cashflow-premium .cashflow-main-chart-panel.has-empty-chart .cashflow-chart-highlights { display: none; }
   .cashflow-premium .cashflow-note { margin-top: var(--nx-space-2); }
+}
+
+@media (max-width: 767px) {
+  .profiles-stats-panel .panel-heading { display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: var(--nx-space-2); margin-bottom: var(--nx-space-2); }
+  .profiles-stats-panel .panel-heading > div:first-child { width: 100%; }
+  .profiles-stats-summary { width: 100%; gap: var(--nx-space-1); }
+  .profiles-stats-summary span { min-width: 0; padding: var(--nx-space-2) var(--nx-space-3); }
+  .profiles-stats-summary small { font-size: var(--font-size-micro); }
+  .profiles-stats-summary strong { font-size: var(--font-size-body-sm); }
+  .profiles-chart-toolbar { align-items: flex-start; margin-bottom: var(--nx-space-1); }
+  .profiles-chart-toolbar .chart-legend { width: 100%; justify-content: flex-start; }
+  .profiles-chart-comparison { width: 100%; }
+  .profiles-stats-panel .chart-canvas { height: var(--size-layout-min-extra-large); min-height: var(--size-layout-min-extra-large); max-height: var(--size-layout-min-extra-large); }
+  .profiles-chart-empty { min-height: var(--size-layout-min-large); padding: var(--nx-space-2); }
 }
 
 @media (max-width: 420px) {

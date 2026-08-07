@@ -6944,24 +6944,59 @@
     setView("profiles");
   }
 
+  function profileStatsSeries(profiles, months, totalForMonth = monthlyTotal) {
+    const income = months.map((month) => profiles.reduce((total, profile) => total + totalForMonth(profile.transactions, month.value, "income"), 0));
+    const expense = months.map((month) => profiles.reduce((total, profile) => total + totalForMonth(profile.transactions, month.value, "expense"), 0));
+    const net = income.map((value, index) => value - expense[index]);
+    const totalIncome = income.reduce((total, value) => total + value, 0);
+    const totalExpense = expense.reduce((total, value) => total + value, 0);
+    return {
+      income,
+      expense,
+      net,
+      totalIncome,
+      totalExpense,
+      totalBalance: net.reduce((total, value) => total + value, 0),
+      hasData: income.some((value) => value !== 0) || expense.some((value) => value !== 0),
+    };
+  }
+
   function renderProfileStatsChart(profiles) {
     const canvas = document.getElementById("profileStatsChart");
     if (!canvas) return;
     const months = lastMonths(6);
-    const income = months.map((month) => profiles.reduce((total, profile) => total + monthlyTotal(profile.transactions, month.value, "income"), 0));
-    const expense = months.map((month) => profiles.reduce((total, profile) => total + monthlyTotal(profile.transactions, month.value, "expense"), 0));
-    const net = income.map((value, index) => value - expense[index]);
-    drawGroupedBarChart(canvas.getContext("2d"), canvas, {
-      labels: months.map((month) => month.label),
-      series: [
-        { label: "Receitas", values: income, color: cssVar("--income") },
-        { label: "Despesas", values: expense, color: cssVar("--expense") },
-      ],
-    });
-    setAnimatedMoney("[data-profiles-stats-income]", income.reduce((a, b) => a + b, 0));
-    setAnimatedMoney("[data-profiles-stats-expense]", expense.reduce((a, b) => a + b, 0));
-    setAnimatedMoney("[data-profiles-stats-balance]", net.reduce((a, b) => a + b, 0));
-    updateChartSummary(canvas, `Nos últimos 6 meses, receitas consolidadas somam ${money(income.reduce((a, b) => a + b, 0))}, despesas somam ${money(expense.reduce((a, b) => a + b, 0))} e saldo líquido soma ${money(net.reduce((a, b) => a + b, 0))}.`);
+    const labels = months.map((month) => month.label);
+    const stats = profileStatsSeries(profiles, months);
+    const panel = canvas.closest(".profiles-stats-panel");
+    const emptyState = panel?.querySelector("[data-profiles-chart-empty]");
+    const emptyMonths = panel?.querySelector("[data-profiles-chart-empty-months]");
+    panel?.classList.toggle("has-empty-chart", !stats.hasData);
+    canvas.hidden = !stats.hasData;
+    if (emptyState) emptyState.hidden = stats.hasData;
+    if (emptyMonths) emptyMonths.textContent = labels.join(" · ");
+
+    if (stats.hasData) {
+      drawGroupedBarChart(canvas.getContext("2d"), canvas, {
+        labels,
+        series: [
+          { label: "Receitas", values: stats.income, color: cssVar("--income") },
+          { label: "Despesas", values: stats.expense, color: cssVar("--expense") },
+        ],
+        compact: canvas.getBoundingClientRect().width < 480,
+        moneyLabels: true,
+        showLegend: false,
+      });
+    } else {
+      cancelAnimationFrame(canvas.__chartAnimationFrame);
+      canvas.__chartSeries = null;
+      canvas.__chartAreas = [];
+      canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+      updateChartComparisonIndicator(canvas);
+    }
+    setAnimatedMoney("[data-profiles-stats-income]", stats.totalIncome);
+    setAnimatedMoney("[data-profiles-stats-expense]", stats.totalExpense);
+    setAnimatedMoney("[data-profiles-stats-balance]", stats.totalBalance);
+    updateChartSummary(canvas, `Nos últimos 6 meses, receitas consolidadas somam ${money(stats.totalIncome)}, despesas somam ${money(stats.totalExpense)} e saldo líquido soma ${money(stats.totalBalance)}.`);
   }
 
   function profileActivityLabel(profile) {
@@ -7796,11 +7831,13 @@
   }
 
   function renderGroupedBarChartFrame(ctx, canvas, config) {
-    const size = resizeCanvas(canvas);
+    const size = resizeCanvas(canvas, { minWidth: config.compact ? 180 : 300 });
     ctx = size.ctx;
     const width = size.width;
     const height = size.height;
-    const padding = { top: 34, right: 24, bottom: 42, left: 62 };
+    const padding = config.compact
+      ? { top: 12, right: 10, bottom: 34, left: 62 }
+      : { top: 34, right: 24, bottom: 42, left: 62 };
     ctx.clearRect(0, 0, width, height);
     const allValues = config.series.flatMap((series) => series.values);
     const max = Math.max(...allValues, 1) * 1.14;
@@ -7843,18 +7880,20 @@
       }
     });
 
-    let legendX = padding.left;
-    config.series.forEach((series) => {
-      const x = legendX;
-      ctx.fillStyle = series.color;
-      roundRect(ctx, x, 14, 12, 12, 3);
-      ctx.fill();
-      ctx.fillStyle = config.labelColor || cssVar("--muted");
-      ctx.font = "12px Inter, sans-serif";
-      ctx.textAlign = "left";
-      ctx.fillText(series.label, x + 18, 24);
-      legendX += Math.max(ctx.measureText(series.label).width + 48, 92);
-    });
+    if (config.showLegend !== false) {
+      let legendX = padding.left;
+      config.series.forEach((series) => {
+        const x = legendX;
+        ctx.fillStyle = series.color;
+        roundRect(ctx, x, 14, 12, 12, 3);
+        ctx.fill();
+        ctx.fillStyle = config.labelColor || cssVar("--muted");
+        ctx.font = "12px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(series.label, x + 18, 24);
+        legendX += Math.max(ctx.measureText(series.label).width + 48, 92);
+      });
+    }
     canvas.__chartAreas = areas;
     bindChartTooltip(canvas);
   }
@@ -7991,15 +8030,18 @@
     const previousValue = previous.income - previous.expense;
     const delta = currentValue - previousValue;
     const percent = previousValue ? Math.round((delta / Math.abs(previousValue)) * 100) : 0;
-    let badge = canvas.closest(".panel, .goal-evolution-panel")?.querySelector(`[data-chart-comparison="${canvas.id || "goal"}"]`);
+    const panel = canvas.closest(".panel, .goal-evolution-panel");
+    const comparisonSlot = panel?.querySelector(`[data-chart-comparison-slot="${canvas.id || "goal"}"]`);
+    let badge = panel?.querySelector(`[data-chart-comparison="${canvas.id || "goal"}"]`);
     if (!badge) {
       badge = document.createElement("span");
       badge.className = "chart-comparison-indicator";
       badge.dataset.chartComparison = canvas.id || "goal";
-      const heading = canvas.closest(".panel")?.querySelector(".panel-heading") || canvas.parentElement;
-      heading?.append(badge);
+      const heading = panel?.querySelector(".panel-heading") || canvas.parentElement;
+      (comparisonSlot || heading)?.append(badge);
     }
     if (!badge) return;
+    if (comparisonSlot && badge.parentElement !== comparisonSlot) comparisonSlot.append(badge);
     badge.classList.toggle("is-negative", delta < 0);
     badge.classList.toggle("is-neutral", !previousValue || delta === 0);
     badge.textContent = !previousValue
@@ -8025,7 +8067,10 @@
       ctx.stroke();
       ctx.globalAlpha = 1;
       const value = max - ((max - min) / steps) * index;
-      ctx.fillText(options.moneyLabels ? compactMoney(value) : Math.round(value), padding.left - 10, y + 4);
+      const label = options.moneyLabels
+        ? (options.compact ? compactAxisMoney(value) : compactMoney(value))
+        : Math.round(value);
+      ctx.fillText(label, padding.left - 10, y + 4);
     }
   }
 
@@ -8057,9 +8102,9 @@
     return normalized;
   }
 
-  function resizeCanvas(canvas) {
+  function resizeCanvas(canvas, options = {}) {
     const rect = canvas.getBoundingClientRect();
-    const width = Math.max(Math.round(rect.width || canvas.clientWidth || 640), 300);
+    const width = Math.max(Math.round(rect.width || canvas.clientWidth || 640), Number(options.minWidth) || 300);
     const height = Math.max(Math.round(rect.height || Number(canvas.getAttribute("height") || 280)), 180);
     const ratio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 3);
     const pixelWidth = Math.round(width * ratio);
@@ -8152,6 +8197,17 @@
     if (absolute >= 1000000) return `${money(value / 1000000)} mi`;
     if (absolute >= 1000) return `${money(value / 1000)} mil`;
     return money(value);
+  }
+
+  function compactAxisMoney(value) {
+    const user = currentUser();
+    const currency = user?.currency || "BRL";
+    return new Intl.NumberFormat(languageLocale(), {
+      style: "currency",
+      currency,
+      notation: Math.abs(value) >= 1000 ? "compact" : "standard",
+      maximumFractionDigits: 0,
+    }).format(value);
   }
 
   function formatDate(value) {
@@ -8532,6 +8588,7 @@
     if (currentUser()) {
       drawMonthlyFlowChart();
       drawCashflowCharts();
+      if (state.view === "profiles") renderProfileStatsChart(currentUser().profiles);
     } else {
       drawAuthChart();
     }

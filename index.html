@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260807-assistant-personalization" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260807-profiles-mobile-chart" />
     <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
   </head>
   <body>
@@ -1420,7 +1420,21 @@
                   <span><small>Saldo</small><strong data-profiles-stats-balance>R$ 0,00</strong></span>
                 </div>
               </div>
-              <canvas id="profileStatsChart" class="chart-canvas" height="220" role="img" aria-label="Receitas, despesas e saldo dos perfis nos últimos 6 meses"></canvas>
+              <div class="profiles-chart-toolbar">
+                <div class="chart-legend" aria-label="Legenda do gráfico">
+                  <span><i class="legend-dot legend-income" aria-hidden="true"></i>Receitas</span>
+                  <span><i class="legend-dot legend-expense" aria-hidden="true"></i>Despesas</span>
+                </div>
+                <div class="profiles-chart-comparison" data-chart-comparison-slot="profileStatsChart"></div>
+              </div>
+              <div class="profiles-chart-stage">
+                <canvas id="profileStatsChart" class="chart-canvas" height="240" role="img" aria-label="Receitas, despesas e saldo dos perfis nos últimos 6 meses"></canvas>
+                <div class="profiles-chart-empty" data-profiles-chart-empty hidden role="status">
+                  <strong>Sem movimentações nos últimos 6 meses</strong>
+                  <span>Os meses permanecem como referência para os próximos lançamentos.</span>
+                  <small data-profiles-chart-empty-months></small>
+                </div>
+              </div>
               <p class="sr-only" data-chart-summary="profileStatsChart">Estatísticas dos perfis.</p>
             </section>
 
@@ -1719,7 +1733,7 @@
     <script src="js/core/android-share-target.js?v=20260805-share-target"></script>
     <script src="js/core/external-navigation.js?v=20260806-quick-actions"></script>
     <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
-    <script src="js/ui/shared-ui.js?v=20260807-assistant-personalization"></script>
+    <script src="js/ui/shared-ui.js?v=20260807-profiles-mobile-chart"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>
