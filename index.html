@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260806-ai-smart-interpretation" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260807-assistant-personalization" />
     <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
   </head>
   <body>
@@ -793,10 +793,11 @@
                       <div><strong>Rascunho preparado pelo Assistente Financeiro</strong><small data-ai-draft-transcript></small></div>
                     </div>
                     <dl>
-                      <div><dt>Detected category</dt><dd data-ai-draft-category></dd></div>
+                      <div><dt>Categoria identificada</dt><dd data-ai-draft-category></dd></div>
                       <div><dt>Forma de pagamento</dt><dd data-ai-draft-payment></dd></div>
                     </dl>
-                    <p>Select an account and review every field before saving. Nothing was saved automatically.</p>
+                    <p data-ai-personalization-suggestion hidden></p>
+                    <p>Selecione uma conta e revise todos os campos antes de salvar. Nada foi salvo automaticamente.</p>
                   </aside>
                   <section class="transaction-form-section">
                     <div class="form-section-heading">
@@ -1555,6 +1556,23 @@
                 <div class="settings-security-status"><i data-lucide="shield-check"></i><span><strong>Sessão protegida</strong><small data-settings-session-type>Dados locais</small></span></div>
               </section>
 
+              <section class="panel settings-card settings-assistant-personalization-card">
+                <div class="panel-heading">
+                  <div>
+                    <p class="eyebrow">Assistente Financeiro</p>
+                    <h2>Personalização do Assistente</h2>
+                  </div>
+                </div>
+                <p class="settings-personalization-copy">O Nexio pode reconhecer padrões confirmados neste perfil para sugerir categoria, conta e forma de pagamento. Valores e datas nunca são reaproveitados.</p>
+                <label class="settings-switch-row">
+                  <span><strong>Usar sugestões baseadas no meu histórico</strong><small>As sugestões ficam somente neste aparelho e nunca confirmam ou salvam por você.</small></span>
+                  <input data-assistant-personalization-toggle type="checkbox" checked />
+                  <i aria-hidden="true"></i>
+                </label>
+                <small class="settings-personalization-count" data-assistant-personalization-count>Nenhuma preferência aprendida neste perfil.</small>
+                <button class="ghost-action settings-personalization-clear" data-clear-assistant-personalization type="button">Limpar preferências aprendidas</button>
+              </section>
+
               <section class="panel settings-card settings-notifications-card">
                 <div class="panel-heading"><div><p class="eyebrow">Notificações</p><h2>Alertas financeiros</h2></div></div>
                 <label class="settings-switch-row"><span><strong>Ativar alertas no aplicativo</strong><small>Controla somente a central interna do Nexio.</small></span><input data-notification-preference="enabled" type="checkbox" checked /><i aria-hidden="true"></i></label>
@@ -1627,6 +1645,25 @@
             </div>
           </footer>
 
+          <div class="assistant-modal-backdrop" data-assistant-personalization-modal hidden>
+            <section class="assistant-voice-modal assistant-personalization-modal" role="dialog" aria-modal="true" aria-labelledby="assistantPersonalizationClearTitle" aria-describedby="assistantPersonalizationClearDescription">
+              <header class="assistant-modal-header">
+                <div>
+                  <span>Privacidade local</span>
+                  <h2 id="assistantPersonalizationClearTitle">Limpar preferências aprendidas?</h2>
+                </div>
+                <button class="icon-button" data-cancel-clear-assistant-personalization type="button" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button>
+              </header>
+              <div class="assistant-personalization-modal-content">
+                <p id="assistantPersonalizationClearDescription">O Nexio deixará de usar os padrões aprendidos até formar novas preferências com seus próximos lançamentos. Suas transações não serão excluídas.</p>
+              </div>
+              <footer class="assistant-modal-actions">
+                <button class="ghost-action" data-cancel-clear-assistant-personalization type="button">Cancelar</button>
+                <button class="danger-action" data-confirm-clear-assistant-personalization type="button">Limpar</button>
+              </footer>
+            </section>
+          </div>
+
           <div class="fab-speed-dial" data-fab-dial hidden>
             <div class="fab-menu" id="quickActionMenu" data-fab-menu role="menu" aria-label="A&ccedil;&otilde;es r&aacute;pidas" aria-hidden="true">
               <button class="fab-option" data-fab-action="income" role="menuitem" type="button">
@@ -1676,12 +1713,13 @@
     <script src="js/core/ai-assistant.js?v=20260806-smart-interpretation"></script>
     <script src="js/core/ai-interpreter.js?v=20260806-smart-interpretation"></script>
     <script src="js/core/financial-input.js?v=20260806-smart-interpretation"></script>
+    <script src="js/core/personalization.js?v=20260807-assistant-personalization"></script>
     <script src="js/core/speech-recognition.js?v=20260805-real-voice"></script>
     <script src="js/core/receipt-ocr.js?v=20260805-receipt-ocr"></script>
     <script src="js/core/android-share-target.js?v=20260805-share-target"></script>
     <script src="js/core/external-navigation.js?v=20260806-quick-actions"></script>
     <script src="js/ui/receipt-image.js?v=20260805-receipt-ocr"></script>
-    <script src="js/ui/shared-ui.js?v=20260806-smart-interpretation"></script>
+    <script src="js/ui/shared-ui.js?v=20260807-assistant-personalization"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>

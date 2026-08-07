@@ -212,6 +212,11 @@ assert.match(activeSkin, /\.assistant-option-card\s*\{[^}]*grid-template-columns
 assert.match(activeSkin, /\.assistant-option-card h3\s*\{[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*normal;/, "Assistant titles must wrap between words instead of letter by letter");
 assert.match(activeSkin, /\.assistant-option-card \.primary-action\s*\{[^}]*grid-column:\s*1 \/ -1;[^}]*min-width:\s*0;[^}]*word-break:\s*normal;/, "Assistant actions must span the card and remain legible at narrow widths");
 assert.match(activeSkin, /\.view\.assistant-experience\.is-visible\s*\{[^}]*animation:\s*none;[^}]*transform:\s*none;/, "Assistant modals must remain fixed to the viewport instead of an animated containing block");
+assert.match(index, /data-assistant-personalization-toggle[^>]*checked/, "Assistant personalization must expose an enabled-by-default settings control");
+assert.match(index, /data-assistant-personalization-modal[\s\S]*?role="dialog"[\s\S]*?aria-modal="true"/, "Clearing learned preferences must use an accessible confirmation dialog");
+assert.match(activeSkin, /\.settings-assistant-personalization-card\s*\{[^}]*min-width:\s*0;/, "The personalization settings card must shrink safely on narrow and Fold layouts");
+assert.match(activeSkin, /\.settings-personalization-clear\s*\{[^}]*max-width:\s*100%;[^}]*white-space:\s*normal;/, "The personalization clear action must wrap without horizontal overflow");
+assert.doesNotMatch(index, /Detected category|Nothing was saved automatically/, "Assistant transaction review copy must remain in pt-BR");
 const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
 assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
 assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");

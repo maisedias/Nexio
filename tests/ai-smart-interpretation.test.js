@@ -235,7 +235,7 @@ test("28. falha total cria rascunho manual editável", async () => {
 
 test("29. formulário existente continua sendo a etapa de confirmação", () => {
   const renderer = fs.readFileSync(path.join(__dirname, "..", "js", "ui", "shared-ui.js"), "utf8");
-  assert.match(renderer, /prefillTransactionFromAssistant\(assistantVoice\.draft, assistantVoice\.transcript\)/);
+  assert.match(renderer, /prefillTransactionFromAssistant\(assistantVoice\.draft, assistantVoice\.transcript, assistantVoice\.personalization\)/);
   assert.match(renderer, /Rascunho do Assistente pronto\. Revise e confirme antes de salvar\./);
 });
 

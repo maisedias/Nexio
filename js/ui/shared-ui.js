@@ -92,6 +92,9 @@
   let dashboardEntranceTimers = [];
   let languageObserver = null;
   let activeLanguage = "";
+  let pendingAssistantPersonalization = null;
+  let personalizationModalReturnFocus = null;
+  const personalizationEngines = new Map();
   const translatedTextNodes = new WeakMap();
   const translatedAttributes = new WeakMap();
 
@@ -1252,6 +1255,7 @@
     state: "idle",
     transcript: "",
     draft: null,
+    personalization: null,
     onDevice: false,
     interpretationId: 0,
   };
@@ -1262,6 +1266,7 @@
     source: "camera",
     result: null,
     draft: null,
+    personalization: null,
     interpretationId: 0,
   };
 
@@ -1272,6 +1277,7 @@
     payload: null,
     result: null,
     draft: null,
+    personalization: null,
     lastKey: "",
     interpretationId: 0,
   };
@@ -1419,6 +1425,7 @@
     syncFloatingActionButton();
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
+    assistantVoice.personalization = null;
     setAssistantVoiceState("idle");
     requestAnimationFrame(() => modal.querySelector("[data-ai-voice-microphone]")?.focus());
   }
@@ -1485,9 +1492,35 @@
     return assistantInterpretation.service;
   }
 
-  function interpretAssistantInput(text, source, localDraft = null) {
+  function assistantPersonalizationEngine(profile = currentProfile()) {
+    const ownerId = syncCoordinator.getStatus().ownerId || currentUser()?.id || currentUser()?.email;
+    if (!core.personalization || !ownerId || !profile?.id) return null;
+    const key = core.personalization.storageKey(ownerId, profile.id);
+    if (!key) return null;
+    if (!personalizationEngines.has(key)) {
+      try {
+        const engine = core.personalization.createEngine({ storage: localStorage, ownerId, profileId: profile.id });
+        engine.seed(profile.transactions, profile);
+        personalizationEngines.set(key, engine);
+      } catch {
+        return null;
+      }
+    }
+    return personalizationEngines.get(key);
+  }
+
+  function personalizeAssistantInterpretation(result, text, source) {
+    if (!result?.draft) return result;
+    const profile = currentProfile();
+    const engine = assistantPersonalizationEngine(profile);
+    if (!engine) return { ...result, personalization: null };
+    const personalization = engine.suggest(result.draft, profile, { text, source });
+    return { ...result, draft: personalization.draft, personalization };
+  }
+
+  async function interpretAssistantInput(text, source, localDraft = null) {
     const now = new Date();
-    return core.financialInput.interpret(
+    const result = await core.financialInput.interpret(
       text,
       core.aiAssistant?.parseTransaction,
       assistantInterpreterService(),
@@ -1499,6 +1532,7 @@
       },
       { source, localDraft },
     );
+    return personalizeAssistantInterpretation(result, text, source);
   }
 
   function setAssistantVoiceState(nextState, options = {}) {
@@ -1559,12 +1593,14 @@
     const result = await interpretAssistantInput(assistantVoice.transcript, "voice");
     if (interpretationId !== assistantVoice.interpretationId || result.strategy === "cancelled") return;
     assistantVoice.draft = result?.draft || null;
+    assistantVoice.personalization = result?.personalization || null;
     setAssistantVoiceState("recognized", { message: result.message });
   }
 
   function handleAssistantVoiceError(error) {
     const normalized = core.speechRecognition?.normalizeError?.(error) || error;
     assistantVoice.draft = null;
+    assistantVoice.personalization = null;
     setAssistantVoiceState(normalized?.code === "permission-denied" ? "permission-denied" : "error", {
       message: normalized?.message,
     });
@@ -1578,6 +1614,7 @@
     }
     assistantVoice.transcript = "";
     assistantVoice.draft = null;
+    assistantVoice.personalization = null;
     setAssistantVoiceState("processing", { message: "Verificando a permissão do microfone..." });
     try {
       await service.start({
@@ -1623,7 +1660,7 @@
 
   function confirmAssistantVoiceDraft() {
     if (!assistantVoice.draft || !assistantVoice.transcript) return;
-    prefillTransactionFromAssistant(assistantVoice.draft, assistantVoice.transcript);
+    prefillTransactionFromAssistant(assistantVoice.draft, assistantVoice.transcript, assistantVoice.personalization);
   }
 
   function receiptOcrService() {
@@ -1650,6 +1687,7 @@
     syncFloatingActionButton();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
+    assistantReceipt.personalization = null;
     setReceiptOcrState("idle");
     requestAnimationFrame(() => modal.querySelector('[data-receipt-source="camera"]')?.focus());
   }
@@ -1668,6 +1706,7 @@
     assistantInterpretation.service?.cancel?.();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
+    assistantReceipt.personalization = null;
     if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-open-receipt-ocr]")?.focus();
   }
 
@@ -1712,6 +1751,7 @@
     assistantReceipt.source = source === "gallery" ? "gallery" : "camera";
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
+    assistantReceipt.personalization = null;
     if (!service) {
       setReceiptOcrState("error", { message: "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." });
       return;
@@ -1730,6 +1770,7 @@
       const interpretation = await interpretAssistantInput(result.text, "receipt-ocr", localDraft);
       if (interpretationId !== assistantReceipt.interpretationId || interpretation.strategy === "cancelled") return;
       assistantReceipt.draft = interpretation.draft;
+      assistantReceipt.personalization = interpretation.personalization || null;
       renderReceiptPreview();
       setReceiptOcrState("preview", { message: interpretation.message });
     } catch (error) {
@@ -1768,6 +1809,7 @@
     await assistantReceipt.service?.release?.();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
+    assistantReceipt.personalization = null;
     setReceiptOcrState("idle");
     app.querySelector('[data-receipt-source="camera"]')?.focus();
   }
@@ -1783,7 +1825,7 @@
 
   function continueReceiptDraft() {
     if (!assistantReceipt.draft || !assistantReceipt.result?.text) return;
-    prefillTransactionFromAssistant(assistantReceipt.draft, assistantReceipt.result.text);
+    prefillTransactionFromAssistant(assistantReceipt.draft, assistantReceipt.result.text, assistantReceipt.personalization);
   }
 
   function androidShareTargetService() {
@@ -1836,6 +1878,7 @@
     assistantShare.payload = payload;
     assistantShare.result = null;
     assistantShare.draft = null;
+    assistantShare.personalization = null;
     if (!app.querySelector("[data-shared-content-modal]")) return;
     setView("assistant");
     openIncomingSharedContentModal();
@@ -1889,6 +1932,7 @@
     assistantShare.payload = payload;
     assistantShare.result = null;
     assistantShare.draft = null;
+    assistantShare.personalization = null;
     setIncomingSharedContentState("processing");
     try {
       const result = await service.process(payload, {
@@ -1900,6 +1944,7 @@
       if (interpretationId !== assistantShare.interpretationId || interpretation.strategy === "cancelled") return;
       assistantShare.result = { ...result, draft: interpretation.draft };
       assistantShare.draft = interpretation.draft;
+      assistantShare.personalization = interpretation.personalization || null;
       renderIncomingSharedContentPreview();
       setIncomingSharedContentState("preview", { message: interpretation.message });
     } catch (error) {
@@ -1957,6 +2002,7 @@
     assistantShare.payload = null;
     assistantShare.result = null;
     assistantShare.draft = null;
+    assistantShare.personalization = null;
     assistantShare.lastKey = "";
     assistantShare.state = "idle";
     if (wasOpen && options.restoreFocus !== false) app.querySelector("[data-share-target-option]")?.focus?.();
@@ -1966,8 +2012,9 @@
     if (!assistantShare.draft || !assistantShare.result?.extractedText) return;
     const draft = assistantShare.draft;
     const extractedText = assistantShare.result.extractedText;
+    const personalization = assistantShare.personalization;
     await closeIncomingSharedContent({ restoreFocus: false });
-    prefillTransactionFromAssistant(draft, extractedText);
+    prefillTransactionFromAssistant(draft, extractedText, personalization);
   }
 
   function assistantCategoryId(categoryName) {
@@ -2027,7 +2074,7 @@
     return labels[normalizeText(paymentMethod)] || String(paymentMethod || "");
   }
 
-  function prefillTransactionFromAssistant(draft, sentence) {
+  function prefillTransactionFromAssistant(draft, sentence, personalization = null) {
     closeReceiptOcrModal({ restoreFocus: false });
     closeAssistantVoiceModal({ restoreFocus: false });
     openTransactionComposer(draft.type);
@@ -2041,16 +2088,18 @@
     if (description) description.value = draft.description || "";
     if (amount) amount.value = Number.isFinite(draft.amount) ? String(draft.amount) : "";
     if (date) date.value = draft.date || toDateInput(new Date());
-    const categoryId = assistantCategoryId(draft.category);
+    const directCategoryId = currentProfile().categories.some((item) => item.id === draft.categoryId) ? draft.categoryId : "";
+    const categoryId = directCategoryId || assistantCategoryId(draft.category);
     if (categoryId && category) category.value = categoryId;
     if (account) {
+      const directAccount = currentProfile().accounts.find((item) => item.id === draft.accountId && item.active !== false);
       const requestedAccount = normalizeText(draft.account || "");
-      const matchedAccount = requestedAccount
+      const matchedAccount = directAccount || (requestedAccount
         ? currentProfile().accounts.find((item) => {
           const candidate = normalizeText(item.name || "");
-          return candidate === requestedAccount || candidate.includes(requestedAccount) || requestedAccount.includes(candidate);
+          return item.active !== false && (candidate === requestedAccount || candidate.includes(requestedAccount) || requestedAccount.includes(candidate));
         })
-        : null;
+        : null);
       if (matchedAccount) {
         account.value = matchedAccount.id;
       } else {
@@ -2066,12 +2115,26 @@
       updateInstallmentControls();
     }
     app.querySelector("[data-transaction-form-mode]").textContent = "Revisar rascunho do Assistente";
+    pendingAssistantPersonalization = {
+      paymentMethod: draft.paymentMethod || null,
+      suggestedFields: personalization?.suggestedFields || {},
+    };
     const summary = app.querySelector("[data-ai-draft-summary]");
     if (summary) {
       summary.hidden = false;
       summary.querySelector("[data-ai-draft-transcript]").textContent = sentence;
-      summary.querySelector("[data-ai-draft-category]").textContent = assistantCategoryLabel(draft.category) || "Não identificada";
+      const selectedCategory = currentProfile().categories.find((item) => item.id === categoryId);
+      summary.querySelector("[data-ai-draft-category]").textContent = selectedCategory?.name || assistantCategoryLabel(draft.category) || "Não identificada";
       summary.querySelector("[data-ai-draft-payment]").textContent = assistantPaymentLabel(draft.paymentMethod) || "Não identificado";
+      const suggestion = summary.querySelector("[data-ai-personalization-suggestion]");
+      if (suggestion) {
+        const labels = { type: "tipo", category: "categoria", paymentMethod: "forma de pagamento", account: "conta" };
+        const fields = Object.keys(personalization?.suggestedFields || {}).map((field) => labels[field]).filter(Boolean);
+        suggestion.textContent = fields.length
+          ? `Sugerido com base nos seus lançamentos anteriores: ${fields.join(", ")}.`
+          : "";
+        suggestion.hidden = !fields.length;
+      }
     }
     renderIcons();
     showToast("Rascunho do Assistente pronto. Revise e confirme antes de salvar.");
@@ -3236,6 +3299,17 @@
     });
   }
 
+  function learnPersonalizationAfterSavedTransaction(transaction, profile) {
+    const engine = assistantPersonalizationEngine(profile);
+    if (!engine || !core.personalization?.learnAfterConfirmation) return;
+    core.personalization.learnAfterConfirmation(engine, transaction, profile, {
+      confirmed: true,
+      saved: true,
+      paymentMethod: pendingAssistantPersonalization?.paymentMethod || null,
+      confirmedAt: transaction.updatedAt,
+    });
+  }
+
   function bindTransactionForm() {
     app.querySelectorAll('input[name="type"]').forEach((radio) => {
       radio.addEventListener("change", () => {
@@ -3294,6 +3368,7 @@
         showToast("Transação salva.");
       }
       saveStore();
+      learnPersonalizationAfterSavedTransaction(transaction, profile);
       resetTransactionForm();
       closeMobileTransactionComposer();
       refreshAll();
@@ -3804,6 +3879,51 @@
     document.body.classList.remove("has-modal-open");
   }
 
+  function renderAssistantPersonalizationSettings() {
+    const engine = assistantPersonalizationEngine();
+    const snapshot = engine?.snapshot();
+    const toggle = app.querySelector("[data-assistant-personalization-toggle]");
+    const count = app.querySelector("[data-assistant-personalization-count]");
+    if (toggle) toggle.checked = snapshot?.enabled !== false;
+    if (count) {
+      const total = snapshot?.records?.length || 0;
+      count.textContent = total
+        ? `${total} ${total === 1 ? "confirmação local analisada" : "confirmações locais analisadas"}.`
+        : "Nenhuma preferência aprendida neste perfil.";
+    }
+  }
+
+  function openAssistantPersonalizationClearModal() {
+    const modal = app.querySelector("[data-assistant-personalization-modal]");
+    if (!modal) return;
+    personalizationModalReturnFocus = document.activeElement;
+    modal.hidden = false;
+    document.body.classList.add("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    requestAnimationFrame(() => modal.querySelector("[data-confirm-clear-assistant-personalization]")?.focus());
+  }
+
+  function closeAssistantPersonalizationClearModal(options = {}) {
+    const modal = app.querySelector("[data-assistant-personalization-modal]");
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.classList.remove("has-ai-assistant-modal");
+    syncFloatingActionButton();
+    if (options.restoreFocus !== false) personalizationModalReturnFocus?.focus?.();
+    personalizationModalReturnFocus = null;
+  }
+
+  function clearAssistantPersonalization() {
+    const engine = assistantPersonalizationEngine();
+    const cleared = engine?.clear() === true;
+    closeAssistantPersonalizationClearModal({ restoreFocus: false });
+    renderAssistantPersonalizationSettings();
+    app.querySelector("[data-clear-assistant-personalization]")?.focus();
+    showToast(cleared
+      ? "Preferências aprendidas removidas deste perfil. Suas transações foram preservadas."
+      : "Não foi possível limpar as preferências neste aparelho.");
+  }
+
   function bindSettingsForm() {
     app.querySelector("#settingsForm").addEventListener("submit", (event) => {
       event.preventDefault();
@@ -3824,12 +3944,29 @@
       });
       notificationPreferences.dueSoonDays = Number(app.querySelector("#notificationDueSoonDays")?.value);
       core.notifications.setPreferences(profile, notificationPreferences);
+      const personalizationEngine = assistantPersonalizationEngine(profile);
+      const personalizationToggle = app.querySelector("[data-assistant-personalization-toggle]");
+      const personalizationSaved = !personalizationEngine
+        || personalizationEngine.setEnabled(personalizationToggle?.checked !== false);
       writeStorage(LANGUAGE_KEY, user.language);
       applyLanguage(user.language);
       saveStore();
-      showToast("Configurações salvas.");
+      showToast(personalizationSaved ? "Configurações salvas." : "Configurações salvas, exceto a preferência local do Assistente.");
       renderDashboard();
       setView("settings");
+    });
+
+    const personalizationModal = app.querySelector("[data-assistant-personalization-modal]");
+    app.querySelector("[data-clear-assistant-personalization]")?.addEventListener("click", openAssistantPersonalizationClearModal);
+    app.querySelectorAll("[data-cancel-clear-assistant-personalization]").forEach((button) => {
+      button.addEventListener("click", () => closeAssistantPersonalizationClearModal());
+    });
+    app.querySelector("[data-confirm-clear-assistant-personalization]")?.addEventListener("click", clearAssistantPersonalization);
+    personalizationModal?.addEventListener("click", (event) => {
+      if (event.target === personalizationModal) closeAssistantPersonalizationClearModal();
+    });
+    personalizationModal?.addEventListener("keydown", (event) => {
+      trapAssistantModalFocus(event, personalizationModal, closeAssistantPersonalizationClearModal);
     });
 
     app.querySelector("[data-export-data]").addEventListener("click", exportCurrentUserData);
@@ -5262,6 +5399,12 @@
     app.querySelector("[data-transaction-form-mode]").textContent = "Novo lançamento";
     const assistantSummary = app.querySelector("[data-ai-draft-summary]");
     if (assistantSummary) assistantSummary.hidden = true;
+    const personalizationSuggestion = app.querySelector("[data-ai-personalization-suggestion]");
+    if (personalizationSuggestion) {
+      personalizationSuggestion.hidden = true;
+      personalizationSuggestion.textContent = "";
+    }
+    pendingAssistantPersonalization = null;
     setButtonText("[data-save-transaction]", "Salvar transação");
     state.editingTransactionId = "";
     populateAccountSelects();
@@ -6864,6 +7007,7 @@
     const colorInput = app.querySelector("#settingsPrimaryColor");
     if (colorInput) colorInput.value = user.primaryColor || "#5b9cff";
     syncSettingsThemePreview(user.theme);
+    renderAssistantPersonalizationSettings();
     app.querySelectorAll("[data-setting-toggle]").forEach((toggle) => {
       toggle.checked = Boolean(user.settings?.[toggle.dataset.settingToggle]);
     });
