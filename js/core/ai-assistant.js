@@ -107,19 +107,26 @@
     return String(value || "")
       .replace(/^(?:the|a|an|o|a)\s+/i, "")
       .replace(/[.!?,;:]+$/g, "")
+      .replace(/\s+(?:no|na|via|pelo|pela|por|com)\s+(?:pix|cart[aã]o(?:\s+de)?\s+cr[eé]dito|cart[aã]o(?:\s+de)?\s+d[eé]bito|cr[eé]dito|d[eé]bito|dinheiro)\s*$/i, "")
       .replace(/\s+/g, " ")
       .trim();
   }
 
   function inferDescription(sentence, category, type) {
-    const labelledMerchant = sentence.match(/(?:merchant|estabelecimento|comercio|favorecido|recebedor|beneficiario)\s*[:\-]\s*([^\r\n]+)/i);
+    const descriptionSource = cleanDescription(sentence);
+    const hasTrailingPaymentSuffix = /\s+(?:no|na|via|pelo|pela|por|com)\s+(?:pix|cart[aã]o(?:\s+de)?\s+cr[eé]dito|cart[aã]o(?:\s+de)?\s+d[eé]bito|cr[eé]dito|d[eé]bito|dinheiro)\s*[.!?,;:]*$/i.test(String(sentence || ""));
+    const labelledMerchant = String(sentence || "").match(/(?:merchant|estabelecimento|comercio|favorecido|recebedor|beneficiario)\s*[:\-]\s*([^\r\n]+)/i);
     if (labelledMerchant?.[1]) return cleanDescription(labelledMerchant[1]);
 
-    const merchant = sentence.match(/\b(?:at|no|na|em)\s+(.+?)(?=\s+(?:using|with|via|on|com|usando|pelo|pela)\b|[.!?]|$)/i);
+    const merchant = descriptionSource.match(/\b(?:at|no|na|em)\s+(.+?)(?=\s+(?:using|with|via|on|com|usando|pelo|pela)\b|[.!?]|$)/i);
     if (merchant?.[1]) return cleanDescription(merchant[1]);
 
-    const source = sentence.match(/\b(?:from|de)\s+(.+?)(?=\s+(?:using|with|via|on|com|pelo|pela)\b|[.!?]|$)/i);
+    const source = descriptionSource.match(/\b(?:from|de)\s+(.+?)(?=\s+(?:using|with|via|on|com|pelo|pela)\b|[.!?]|$)/i);
     if (type === "income" && source?.[1]) return cleanDescription(source[1]);
+
+    if (hasTrailingPaymentSuffix && !/[\r\n]/.test(String(sentence || "")) && !/\b(?:spent|paid|received|earned|gastei|paguei|recebi|ganhei)\b/i.test(sentence)) {
+      return descriptionSource;
+    }
 
     const receiptLine = String(sentence || "")
       .split(/\r?\n/)

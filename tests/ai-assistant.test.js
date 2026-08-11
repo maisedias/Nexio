@@ -65,3 +65,10 @@ test("10. rejects an invalid sentence", () => {
   assert.equal(parseTransaction("Maybe something happened yesterday.", { now: fixedNow }), null);
   assert.equal(parseTransaction("I spent money at the market.", { now: fixedNow }), null);
 });
+
+test("11. removes only a trailing payment suffix from the merchant", () => {
+  const pix = global.NexioCore.aiAssistant.parsePartialTransaction("Supermercado BH no Pix", { now: fixedNow });
+  assert.equal(pix.description, "Supermercado BH");
+  assert.equal(pix.paymentMethod, "Pix");
+  assert.equal(parse("Gastei 20 reais no Mercado Pix Centro").description, "Mercado Pix Centro");
+});

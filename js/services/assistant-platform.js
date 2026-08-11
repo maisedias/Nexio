@@ -9,6 +9,7 @@
   const IMAGE_TYPES = Object.freeze(["image/jpeg", "image/png", "image/webp"]);
   const IMAGE_EXTENSIONS = Object.freeze(["jpg", "jpeg", "png", "webp"]);
   const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+  const DEFAULT_OCR_TIMEOUT_MS = 60_000;
 
   function capabilityError(code, message, details = {}) {
     const error = new Error(message);
@@ -243,6 +244,9 @@
     let runtimePromise = null;
     let workerPromise = null;
     let generation = 0;
+    const progressListeners = new Set();
+    const cancellationHandlers = new Set();
+    const timeoutMs = Math.max(10, Number(options.timeoutMs) || DEFAULT_OCR_TIMEOUT_MS);
 
     function asset(path) {
       return new URL(path, assetRoot).href;
@@ -274,11 +278,11 @@
       if (!workerPromise) {
         workerPromise = loadRuntime().then((runtime) => runtime.createWorker("por", 1, {
           workerPath: asset("vendor/tesseract/worker.min.js"),
-          corePath: asset("vendor/tesseract/tesseract-core-lstm.wasm.js"),
+          corePath: asset("vendor/tesseract"),
           langPath: asset("vendor/tesseract/lang"),
-          cacheMethod: "write",
           workerBlobURL: false,
           gzip: true,
+          logger: (message) => progressListeners.forEach((listener) => listener(message)),
         })).catch((error) => {
           workerPromise = null;
           throw error;
@@ -289,6 +293,8 @@
 
     async function terminateWorker() {
       generation += 1;
+      cancellationHandlers.forEach((cancel) => cancel());
+      cancellationHandlers.clear();
       const pending = workerPromise;
       workerPromise = null;
       if (!pending) return;
@@ -304,10 +310,29 @@
       const source = request.image || request.path;
       if (!source) throw capabilityError("missing-image", "Nenhuma imagem foi selecionada.", { platform: "web" });
       const operation = ++generation;
-      const worker = await getWorker();
-      if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
+      const progressListener = typeof request.onProgress === "function" ? request.onProgress : null;
+      const timerHost = host.setTimeout ? host : global;
+      let timeoutId = null;
+      let cancelRecognition = null;
+      if (progressListener) progressListeners.add(progressListener);
       try {
-        const result = await worker.recognize(source, { rotateAuto: true });
+        const recognition = (async () => {
+          const worker = await getWorker();
+          if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
+          return worker.recognize(source, { rotateAuto: true });
+        })();
+        const timeout = new Promise((_, reject) => {
+          timeoutId = timerHost.setTimeout(() => reject(capabilityError(
+            "ocr-timeout",
+            "A leitura demorou mais que o esperado e foi interrompida.",
+            { platform: "web", timeoutMs },
+          )), timeoutMs);
+        });
+        const cancellation = new Promise((_, reject) => {
+          cancelRecognition = () => reject(capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" }));
+          cancellationHandlers.add(cancelRecognition);
+        });
+        const result = await Promise.race([recognition, timeout, cancellation]);
         if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
         return {
           text: String(result?.data?.text || "").trim(),
@@ -316,8 +341,13 @@
           platform: "web",
         };
       } catch (error) {
+        if (error?.code === "ocr-timeout") void terminateWorker();
         if (error?.code) throw error;
         throw capabilityError("ocr-error", "Não foi possível ler o comprovante localmente.", { platform: "web", cause: error });
+      } finally {
+        if (timeoutId !== null) timerHost.clearTimeout(timeoutId);
+        if (cancelRecognition) cancellationHandlers.delete(cancelRecognition);
+        if (progressListener) progressListeners.delete(progressListener);
       }
     }
 
@@ -379,6 +409,7 @@
   Object.assign(platform, {
     IMAGE_TYPES,
     MAX_IMAGE_BYTES,
+    DEFAULT_OCR_TIMEOUT_MS,
     capabilityError,
     isNativeRuntime,
     nativePlatform,

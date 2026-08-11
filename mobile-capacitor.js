@@ -35,14 +35,14 @@
       await StatusBar?.setOverlaysWebView?.({ overlay: false });
       await StatusBar?.setBackgroundColor?.({ color: "#0B1020" });
       await StatusBar?.setStyle?.({ style: "DARK" });
-    } catch (error) {
-      console.debug("StatusBar indisponivel", error);
+    } catch (_) {
+      // The Web UI remains usable when the optional native status bar API is unavailable.
     }
 
     try {
       await SplashScreen?.hide?.();
-    } catch (error) {
-      console.debug("SplashScreen indisponivel", error);
+    } catch (_) {
+      // Capacitor will fall back to its default splash behavior.
     }
 
     try {
@@ -55,8 +55,8 @@
         document.documentElement.classList.toggle("is-offline", !nextStatus.connected);
         window.NexioApp?.handleConnectivity?.(nextStatus.connected);
       });
-    } catch (error) {
-      console.debug("Network indisponivel", error);
+    } catch (_) {
+      // Browser online/offline events remain the connectivity fallback.
     }
 
     try {
@@ -69,8 +69,8 @@
           App.exitApp();
         }
       });
-    } catch (error) {
-      console.debug("App back button indisponivel", error);
+    } catch (_) {
+      // Browser history remains the back-navigation fallback.
     }
   }
 

@@ -146,8 +146,13 @@ vite.config.ts.timestamp-*
 android/.gradle/
 android/**/build/
 android/local.properties
+android/signing.properties
 *.jks
 *.keystore
+
+# Generated Capacitor Web bundle (built deterministically by android:web)
+android-web/*
+!android-web/nexio-logo.png
 
 # Build outputs and Android packages
 **/.gradle/

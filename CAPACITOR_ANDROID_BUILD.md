@@ -1,121 +1,82 @@
 # Nexio Financeiro Android
 
-Este projeto foi preparado para empacotar o site `https://nexiofinanceiro.vercel.app` em um aplicativo Android real usando Capacitor.
+O aplicativo Android empacota os mesmos assets Web do commit que gerou o artefato. Ele não redireciona para uma implantação remota e continua abrindo sem conexão; somente recursos que dependem de rede, como autenticação e sincronização, ficam indisponíveis offline.
 
 ## Dados do app
 
-- Nome: Nexio Financeiro
 - App ID: `br.com.nexiofinanceiro.app`
-- Site carregado no app: `https://nexiofinanceiro.vercel.app`
-- Target SDK: 36, acima do requisito de API 35
+- Web assets gerados em: `android-web/`
+- Target SDK: 36
 - Min SDK: 24
-- Permissoes: internet e estado da rede
+- Versão atual: `1.0.5` (`versionCode 5`)
 
-## Preparar pela primeira vez
+## Rastreabilidade
 
-No terminal, dentro desta pasta:
+`npm run android:web` copia apenas os arquivos Web necessários e gera `release-metadata.js` com:
+
+- `versionName`;
+- `versionCode`;
+- commit Git completo;
+- timestamp do commit;
+- identificador de release;
+- indicador de working tree alterado.
+
+O `android-web/` é um diretório gerado e ignorado pelo Git. `npm run android:sync` sempre o reconstrói antes de executar o Capacitor Sync, evitando assets antigos no APK ou AAB.
+
+## Preparar e sincronizar
 
 ```powershell
 npm install
-npm run android:setup
-npm run android:open
-```
-
-O comando `android:setup` gera os assets do app, cria a plataforma Android, aplica os ajustes nativos e sincroniza o Capacitor.
-
-Se a pasta `android` ja existir, use:
-
-```powershell
-npm run android:assets:source
-npm run android:assets
-npm run android:overrides
 npm run android:sync
 ```
 
-## Rodar teste no aparelho/emulador
+O sync gera os assets Web locais, copia-os para o projeto Android e reaplica os overrides nativos versionados.
 
-Com Android Studio instalado e um aparelho ou emulador conectado:
-
-```powershell
-npm run android:debug
-```
-
-Tambem pode abrir no Android Studio e clicar em Run.
-
-## Abrir no Android Studio
-
-```powershell
-npm run android:open
-```
-
-Ou abra manualmente a pasta:
-
-```text
-C:\Users\Dias.Maise\Documents\Projetos 2\android
-```
-
-## Gerar APK de teste
-
-Pelo terminal:
+## APK de teste
 
 ```powershell
 npm run android:build:apk
 ```
 
-O arquivo costuma sair em:
+Saída esperada:
 
 ```text
 android\app\build\outputs\apk\debug\app-debug.apk
 ```
 
-Pelo Android Studio:
+## Assinatura e AAB de produção
+
+Nenhuma credencial é armazenada no repositório. Configure as quatro variáveis no ambiente seguro de build:
 
 ```text
-Build > Build Bundle(s) / APK(s) > Build APK(s)
+NEXIO_ANDROID_KEYSTORE_FILE
+NEXIO_ANDROID_KEYSTORE_PASSWORD
+NEXIO_ANDROID_KEY_ALIAS
+NEXIO_ANDROID_KEY_PASSWORD
 ```
 
-## Gerar AAB para Play Store
+Como alternativa local, use `android/signing.properties`, que é ignorado pelo Git, com as propriedades `storeFile`, `storePassword`, `keyAlias` e `keyPassword`. Não compartilhe nem versione esse arquivo ou a keystore.
 
-Pelo Android Studio, primeiro crie uma chave de assinatura:
-
-```text
-Build > Generate Signed Bundle / APK > Android App Bundle
-```
-
-Depois selecione ou crie a keystore, escolha `release` e gere o bundle.
-
-Pelo terminal, depois que a assinatura estiver configurada:
+Com credenciais válidas:
 
 ```powershell
 npm run android:build:aab
 ```
 
-O arquivo costuma sair em:
+Saída esperada:
 
 ```text
 android\app\build\outputs\bundle\release\app-release.aab
 ```
 
-## O que foi configurado
+O Gradle interrompe builds release quando a configuração estiver incompleta ou o arquivo da keystore não existir. Nunca crie uma identidade de assinatura substituta para contornar essa validação.
 
-- Capacitor apontando para o dominio publicado do Nexio.
-- Tela local de carregamento e tela offline amigavel.
-- Status bar e navigation bar com cor da marca.
-- Botao voltar: volta no historico do WebView; se estiver no inicio, pergunta se deseja sair.
-- Links internos do dominio ficam dentro do app.
-- Links externos abrem no navegador externo.
-- Permissoes minimas para web app com checagem de conexao.
-- Base de icone, splash e icone 512x512 para Play Store.
+## Checklist do artefato
 
-## Checklist Play Store
-
-- Icone 512x512: `assets/play-store-icon-512.png`
-- Prints do app em celular
-- Politica de privacidade publicada em uma URL
-- Descricao curta
-- Descricao completa
-- E-mail de suporte
-- Categoria: Financas
-- Idioma: Portugues Brasil
-- Classificacao indicativa
-- Teste fechado, se a Play Console exigir
+1. working tree limpo;
+2. `npm test` aprovado;
+3. `npm audit` sem vulnerabilidades;
+4. `npm run android:sync` concluído;
+5. metadados dentro dos assets iguais ao commit e à versão Android;
+6. APK/AAB inspecionado e hash SHA-256 registrado;
+7. teste em aparelho ou emulador antes da publicação.

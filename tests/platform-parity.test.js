@@ -157,30 +157,77 @@ test("22. Web OCR uses only packaged local assets", async () => {
   assert.equal((await ocr.processImage({ image: { size: 10 } })).text, "TOTAL R$ 58,90");
   assert.match(workerOptions.workerPath, /^http:\/\/127\.0\.0\.1:4173\/vendor\/tesseract/);
   assert.match(workerOptions.langPath, /^http:\/\/127\.0\.0\.1:4173\/vendor\/tesseract\/lang/);
+  assert.equal(workerOptions.corePath, "http://127.0.0.1:4173/vendor/tesseract");
   await ocr.release();
 });
 
-test("23. preserves native Android camera and OCR providers", () => {
+test("23. Web OCR reuses one worker and reports progress", async () => {
+  let created = 0;
+  let logger;
+  const host = { setTimeout, clearTimeout, Tesseract: { createWorker: async (_lang, _engine, options) => {
+    created += 1;
+    logger = options.logger;
+    return { recognize: async () => {
+      logger({ status: "recognizing text", progress: 0.5 });
+      return { data: { text: "PIX R$ 10,00" } };
+    }, terminate: async () => {} };
+  } } };
+  const progress = [];
+  const ocr = platform.createWebTextRecognition({ host, assetRoot: "http://localhost/" });
+  await ocr.processImage({ image: "first", onProgress: (message) => progress.push(message.progress) });
+  await ocr.processImage({ image: "second" });
+  assert.equal(created, 1);
+  assert.deepEqual(progress, [0.5]);
+  await ocr.release();
+});
+
+test("24. Web OCR times out and terminates the stalled worker", async () => {
+  let terminated = 0;
+  const host = { setTimeout, clearTimeout, Tesseract: { createWorker: async () => ({
+    recognize: async () => new Promise(() => {}),
+    terminate: async () => { terminated += 1; },
+  }) } };
+  const ocr = platform.createWebTextRecognition({ host, assetRoot: "http://localhost/", timeoutMs: 15 });
+  await assert.rejects(ocr.processImage({ image: "slow" }), (error) => error.code === "ocr-timeout");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(terminated, 1);
+});
+
+test("25. Web OCR cancellation resolves promptly", async () => {
+  let terminated = 0;
+  const host = { setTimeout, clearTimeout, Tesseract: { createWorker: async () => ({
+    recognize: async () => new Promise(() => {}),
+    terminate: async () => { terminated += 1; },
+  }) } };
+  const ocr = platform.createWebTextRecognition({ host, assetRoot: "http://localhost/" });
+  const pending = ocr.processImage({ image: "cancel" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await ocr.cancel();
+  await assert.rejects(pending, (error) => error.code === "cancelled");
+  assert.equal(terminated, 1);
+});
+
+test("26. preserves native Android camera and OCR providers", () => {
   const Camera = { getPhoto() {} }; const TextRecognition = { processImage() {} };
   const host = { Capacitor: { isNativePlatform: () => true, getPlatform: () => "android", Plugins: { Camera, TextRecognition } } };
   const receipt = platform.resolveAssistantCapabilities({ host }).receipt;
   assert.equal(receipt.camera, Camera); assert.equal(receipt.textRecognition, TextRecognition);
 });
 
-test("24. receipt and voice converge on the existing parser and transaction prefill", () => {
+test("27. receipt and voice converge on the existing parser and transaction prefill", () => {
   assert.match(ui, /interpretAssistantInput\(result\.text, "receipt-ocr", localDraft\)/);
   assert.match(ui, /function confirmAssistantVoiceDraft[\s\S]*prefillTransactionFromAssistant/);
   assert.match(ui, /function continueReceiptDraft[\s\S]*prefillTransactionFromAssistant/);
 });
 
-test("25. confirmation remains mandatory and no assistant path saves automatically", () => {
+test("28. confirmation remains mandatory and no assistant path saves automatically", () => {
   assert.match(html, /data-ai-voice-confirm[^>]*disabled/);
   assert.match(html, /data-receipt-continue[^>]*disabled/);
   const prefill = ui.slice(ui.indexOf("function prefillTransactionFromAssistant"), ui.indexOf("function assistantPaymentLabel"));
   assert.doesNotMatch(prefill, /saveStore\(/);
 });
 
-test("26. UI exposes no silent Web control", () => {
+test("29. UI exposes no silent Web control", () => {
   assert.match(html, /data-receipt-web-file/);
   assert.match(html, /data-receipt-manual[\s\S]*Digitar lançamento/);
   assert.match(ui, /function openManualEntryFromReceipt[\s\S]*toggleAssistantManualEntry\(true\)/);
@@ -188,11 +235,11 @@ test("26. UI exposes no silent Web control", () => {
   assert.match(ui, /handleAssistantVoiceError/);
 });
 
-test("27. parity controls are responsive, accessible and theme-token based", () => {
+test("30. parity controls are responsive, accessible and theme-token based", () => {
   assert.match(styles, /assistant-manual-entry[\s\S]*min-width:\s*0/);
   assert.match(styles, /@media \(max-width: 360px\)/);
   assert.match(styles, /var\(--nx-surface-raised\)/);
   assert.match(html, /aria-live="polite"/);
 });
 
-console.log("Platform parity tests passed: 27/27.");
+console.log("Platform parity tests passed: 30/30.");

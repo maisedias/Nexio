@@ -8,9 +8,7 @@ const config: CapacitorConfig = {
   appendUserAgent: " NexioFinanceiroAndroid/1.0",
   server: {
     cleartext: false,
-    androidScheme: "https",
-    allowNavigation: ["nexiofinanceiro.vercel.app"],
-    errorPath: "offline.html"
+    androidScheme: "https"
   },
   android: {
     path: "android",

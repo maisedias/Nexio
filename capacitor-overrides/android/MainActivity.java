@@ -1,17 +1,12 @@
 package br.com.nexiofinanceiro.app;
 
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
-import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 
@@ -26,8 +21,7 @@ import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 
 public class MainActivity extends BridgeActivity {
-    private static final String HOME_HOST = "nexiofinanceiro.vercel.app";
-    private static final String OFFLINE_URL = "file:///android_asset/public/offline.html";
+    private static final String LOCAL_HOST = "localhost";
     private static final int SYSTEM_BAR_COLOR = Color.parseColor("#0B1020");
     private WebView webView;
 
@@ -55,9 +49,6 @@ public class MainActivity extends BridgeActivity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.setWebViewClient(new NexioWebViewClient(getBridge()));
 
-        if (!hasInternet()) {
-            webView.loadUrl(OFFLINE_URL);
-        }
     }
 
     @Override
@@ -94,21 +85,6 @@ public class MainActivity extends BridgeActivity {
         ViewCompat.requestApplyInsets(content);
     }
 
-    private boolean hasInternet() {
-        ConnectivityManager manager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (manager == null) return false;
-
-        Network network = manager.getActiveNetwork();
-        if (network == null) return false;
-
-        NetworkCapabilities capabilities = manager.getNetworkCapabilities(network);
-        return capabilities != null && (
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-        );
-    }
-
     private final class NexioWebViewClient extends BridgeWebViewClient {
         NexioWebViewClient(Bridge bridge) {
             super(bridge);
@@ -121,9 +97,7 @@ public class MainActivity extends BridgeActivity {
 
             String scheme = uri.getScheme();
             String host = uri.getHost();
-            String url = uri.toString();
-
-            if (url.startsWith(OFFLINE_URL) || HOME_HOST.equals(host)) {
+            if (LOCAL_HOST.equals(host) || "capacitor".equals(scheme)) {
                 return false;
             }
 
@@ -140,15 +114,6 @@ public class MainActivity extends BridgeActivity {
         public void onPageFinished(WebView view, String url) {
             super.onPageFinished(view, url);
             view.evaluateJavascript("document.documentElement.classList.add('is-native-app');document.body.classList.add('capacitor-android')", null);
-        }
-
-        @Override
-        public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-            if (request != null && request.isForMainFrame()) {
-                view.loadUrl(OFFLINE_URL);
-                return;
-            }
-            super.onReceivedError(view, request, error);
         }
     }
 }

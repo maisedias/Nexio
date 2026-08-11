@@ -204,6 +204,7 @@
   }
 
   async function bootstrap() {
+    renderReleaseMetadata();
     if (!setupCloudClient()) {
       state.sessionEmail = core.storage.clearUnverifiedSession(localStorage, SESSION_KEY, { localOnlyEmail: LOCAL_USER_EMAIL });
       if (isLocalSession()) activateGuestOwner();
@@ -772,8 +773,8 @@
         let firstGoal = null;
         try {
           firstGoal = JSON.parse(readStorage("nexio-onboarding-first-goal-v1", "null") || "null");
-        } catch (error) {
-          console.debug("A meta temporária do onboarding não pôde ser recuperada.", error);
+        } catch (_) {
+          // A temporary onboarding goal is optional and must not block startup.
         }
         if (initialBalance > 0 && !profile.transactions.some((item) => item.onboardingOpeningBalance)) {
           const incomeCategory = profile.categories.find((category) => normalizeText(category.name).includes("salario")) || profile.categories[0];
@@ -1248,6 +1249,18 @@
         : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
       updateSyncStatus();
     });
+  }
+
+  function renderReleaseMetadata() {
+    const output = app.querySelector("[data-release-version]");
+    if (!output) return;
+    const metadata = window.__NEXIO_RELEASE__ || {};
+    const version = String(metadata.versionName || "1.0.5");
+    const shortCommit = /^[0-9a-f]{40}$/i.test(String(metadata.commit || ""))
+      ? String(metadata.commit).slice(0, 12)
+      : "";
+    output.textContent = `Versão ${version}`;
+    output.title = shortCommit ? `Release ${metadata.releaseId || version} · commit ${shortCommit}` : `Versão ${version}`;
   }
 
   const assistantVoice = {
@@ -1853,6 +1866,10 @@
         allowEditing: options.allowEditing,
         onProcessingImage: () => setReceiptOcrState("processing-image"),
         onRecognizing: () => setReceiptOcrState("recognizing"),
+        onProgress: (progress) => {
+          const value = Math.round(Math.max(0, Math.min(1, Number(progress?.progress) || 0)) * 100);
+          if (value > 0) setReceiptOcrState("recognizing", { message: `Reconhecendo texto localmente… ${value}%` });
+        },
       });
       assistantReceipt.result = result;
       const localDraft = core.receiptOcr?.createDraft?.(result.text, core.aiAssistant?.parseTransaction)?.draft || null;
@@ -1901,7 +1918,7 @@
   async function resetReceiptOcr() {
     assistantReceipt.interpretationId += 1;
     assistantInterpretation.service?.cancel?.();
-    await assistantReceipt.service?.release?.();
+    await assistantReceipt.service?.reset?.();
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
     assistantReceipt.personalization = null;

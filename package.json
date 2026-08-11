@@ -1,20 +1,20 @@
 {
   "name": "nexio-financeiro",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "private": true,
   "description": "Nexio Financeiro Android app wrapper powered by Capacitor.",
   "scripts": {
-    "test": "node tests/core.test.js && node tests/design-system.test.js && node tests/security.test.js && node tests/sync.test.js && node tests/accounts.test.js && node tests/budgets.test.js && node tests/notifications.test.js && node tests/ai-assistant.test.js && node tests/ai-smart-interpretation.test.js && node tests/personalization.test.js && node tests/profiles-chart-responsive.test.js && node tests/speech-recognition.test.js && node tests/receipt-ocr.test.js && node tests/platform-parity.test.js && node tests/android-share-target.test.js && node tests/android-quick-actions-widget.test.js",
+    "test": "node tests/core.test.js && node tests/design-system.test.js && node tests/security.test.js && node tests/sync.test.js && node tests/accounts.test.js && node tests/budgets.test.js && node tests/notifications.test.js && node tests/ai-assistant.test.js && node tests/ai-smart-interpretation.test.js && node tests/personalization.test.js && node tests/profiles-chart-responsive.test.js && node tests/speech-recognition.test.js && node tests/receipt-ocr.test.js && node tests/platform-parity.test.js && node tests/android-share-target.test.js && node tests/android-quick-actions-widget.test.js && node tests/release-readiness.test.js",
     "android:assets:source": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/generate-android-assets.ps1",
     "android:add": "npx cap add android",
-    "android:assets": "npx capacitor-assets generate --android",
+    "android:web": "node scripts/build-android-web.js",
     "android:overrides": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/apply-capacitor-android-overrides.ps1",
-    "android:sync": "npx cap sync android && npm run android:overrides",
+    "android:sync": "npm run android:web && npx cap sync android && npm run android:overrides",
     "android:open": "npx cap open android",
-    "android:setup": "npm run android:assets:source && npx cap add android && npx capacitor-assets generate --android && npm run android:overrides && npx cap sync android",
+    "android:setup": "npm run android:assets:source && npx cap add android && npm run android:sync",
     "android:debug": "npx cap run android",
-    "android:build:apk": "cd android && gradlew.bat assembleDebug",
-    "android:build:aab": "cd android && gradlew.bat bundleRelease"
+    "android:build:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug",
+    "android:build:aab": "npm run android:sync && cd android && gradlew.bat bundleRelease"
   },
   "dependencies": {
     "@capacitor-mlkit/text-recognition": "^8.2.0",
@@ -28,11 +28,18 @@
     "@capacitor/splash-screen": "^8.0.0",
     "@capacitor/status-bar": "^8.0.0",
     "@capgo/capacitor-speech-recognition": "^8.1.10",
+    "@supabase/supabase-js": "2.112.3",
     "@tesseract.js-data/por": "1.0.0",
+    "lucide": "1.31.0",
     "tesseract.js": "7.0.0"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.0.0"
+    "@capacitor/cli": "8.5.0",
+    "typescript": "7.0.2"
+  },
+  "overrides": {
+    "brace-expansion": "5.0.9",
+    "tar": "7.5.22",
+    "uuid": "11.1.1"
   }
 }

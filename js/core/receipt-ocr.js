@@ -57,6 +57,9 @@
     if (/blur|unreadable|low.?quality/.test(raw)) {
       return { code: "unreadable", message: "O comprovante parece desfocado ou ilegível. Mantenha a câmera firme e tente novamente." };
     }
+    if (/ocr-timeout|timed?.?out|tempo.*excedido/.test(raw)) {
+      return { code: "ocr-timeout", message: "A leitura demorou mais que o esperado. Tente novamente com a imagem recortada e bem iluminada." };
+    }
     if (/ocr|text recognition|plugin.*unavailable|not implemented|unsupported/.test(raw)) {
       return { code: "ocr-unavailable", message: platform === "web"
         ? "O OCR local não está disponível neste navegador. Escolha outra imagem ou digite o lançamento manualmente."
@@ -189,7 +192,13 @@
       }
       activeImage = prepared;
       scanOptions.onRecognizing?.();
-      const result = await textRecognition.processImage({ path: prepared.path, image: prepared.blob || prepared.path, script: "LATIN" });
+      const recognitionRequest = {
+        path: prepared.path,
+        image: prepared.blob || prepared.path,
+        script: "LATIN",
+      };
+      if (typeof scanOptions.onProgress === "function") recognitionRequest.onProgress = scanOptions.onProgress;
+      const result = await textRecognition.processImage(recognitionRequest);
       if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
       const text = String(result?.text || "").trim();
       if (!text) throw normalizeError({ code: "no-text" }, normalizedSource);
@@ -256,6 +265,12 @@
       await cleanupImage();
     }
 
+    async function reset() {
+      generation += 1;
+      await cleanupImage();
+      return { reset: true };
+    }
+
     async function openSettings() {
       if (!settingsPlugin?.openAppSettings) return false;
       try {
@@ -266,7 +281,7 @@
       }
     }
 
-    return Object.freeze({ scan, scanFile, cancel, release, openSettings });
+    return Object.freeze({ scan, scanFile, cancel, reset, release, openSettings });
   }
 
   core.receiptOcr = Object.freeze({
