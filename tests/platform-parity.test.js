@@ -14,6 +14,8 @@ const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const ui = fs.readFileSync(path.join(root, "js", "ui", "shared-ui.js"), "utf8");
 const speechCore = fs.readFileSync(path.join(root, "js", "core", "speech-recognition.js"), "utf8");
 const styles = fs.readFileSync(path.join(root, "nexio-v2.css"), "utf8");
+const transactionCore = fs.readFileSync(path.join(root, "js", "core", "transactions.js"), "utf8");
+const androidBuilder = fs.readFileSync(path.join(root, "scripts", "build-android-web.js"), "utf8");
 
 class FakeRecognition {
   static last = null;
@@ -223,7 +225,7 @@ test("27. receipt and voice converge on the existing parser and transaction pref
 test("28. confirmation remains mandatory and no assistant path saves automatically", () => {
   assert.match(html, /data-ai-voice-confirm[^>]*disabled/);
   assert.match(html, /data-receipt-continue[^>]*disabled/);
-  const prefill = ui.slice(ui.indexOf("function prefillTransactionFromAssistant"), ui.indexOf("function assistantPaymentLabel"));
+  const prefill = ui.slice(ui.indexOf("function prefillTransactionFromAssistant"), ui.indexOf("function bindTopbar"));
   assert.doesNotMatch(prefill, /saveStore\(/);
 });
 
@@ -242,4 +244,50 @@ test("30. parity controls are responsive, accessible and theme-token based", () 
   assert.match(html, /aria-live="polite"/);
 });
 
-console.log("Platform parity tests passed: 30/30.");
+test("31. Web exibe Data da transação em pt-BR", () => {
+  assert.match(html, /<span>Data da transação<\/span>\s*<input id="transactionDate" type="date" required\s*\/>/);
+  assert.doesNotMatch(html, />Data limite</);
+});
+
+test("32. Android copia o mesmo formulário compartilhado da Web", () => {
+  assert.match(androidBuilder, /const files = \[[\s\S]*?"index\.html"/);
+  assert.match(androidBuilder, /files\.forEach\(copy\)/);
+  assert.doesNotMatch(androidBuilder, /androidTransactionDateLogic|webTransactionDateLogic/);
+});
+
+test("33. novas receitas e despesas usam hoje no campo compartilhado", () => {
+  assert.match(ui, /function bindTransactionForm\(\)[\s\S]*?#transactionDate"\)\.value = toDateInput\(new Date\(\)\)/);
+  assert.match(ui, /function resetTransactionForm\(\)[\s\S]*?#transactionDate"\)\.value = toDateInput\(new Date\(\)\)/);
+  assert.match(html, /name="type" value="income"/);
+  assert.match(html, /name="type" value="expense"/);
+});
+
+test("34. edição preserva a data armazenada", () => {
+  assert.match(ui, /function editTransaction\(id\)[\s\S]*?#transactionDate"\)\.value = transaction\.date/);
+});
+
+test("35. voz, OCR e IA preenchem o mesmo campo sem salvar automaticamente", () => {
+  assert.match(ui, /function prefillTransactionFromAssistant[\s\S]*?const date = app\.querySelector\("#transactionDate"\)[\s\S]*?date\.value = draft\.date/);
+  const prefill = ui.slice(ui.indexOf("function prefillTransactionFromAssistant"), ui.indexOf("function bindTopbar"));
+  assert.doesNotMatch(prefill, /saveStore\(/);
+});
+
+test("36. parcelas mantêm datas mensais e a regra de atraso existente", () => {
+  assert.match(transactionCore, /createInstallments[\s\S]*?date: utils\.addMonthsToDate\(transaction\.date, number - 1\)/);
+  assert.match(transactionCore, /applyAutomaticOverdueStatus\(installment, timestamp\)/);
+  assert.match(transactionCore, /transaction\.status !== "Pendente"[\s\S]*?isPendingOverdue\(transaction\.date, now\)/);
+});
+
+test("37. formato de storage permanece compatível no campo date", () => {
+  assert.match(ui, /date: app\.querySelector\("#transactionDate"\)\.value/);
+  assert.doesNotMatch(ui, /transactionDate:\s*app\.querySelector/);
+  assert.doesNotMatch(ui, /dueDate:\s*app\.querySelector/);
+});
+
+test("38. campo de data preserva responsividade e temas compartilhados", () => {
+  assert.match(html, /<div class="split-fields">[\s\S]*?id="transactionDate"/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*?\.transaction-form-modern \.split-fields/);
+  assert.match(styles, /var\(--nx-surface-raised\)|var\(--nx-surface-soft\)/);
+});
+
+console.log("Platform parity tests passed: 38/38.");

@@ -72,3 +72,19 @@ test("11. removes only a trailing payment suffix from the merchant", () => {
   assert.equal(pix.paymentMethod, "Pix");
   assert.equal(parse("Gastei 20 reais no Mercado Pix Centro").description, "Mercado Pix Centro");
 });
+
+test("12. usa hoje como data local da transação", () => {
+  assert.equal(parse("Hoje gastei 58 reais no mercado.").date, "2026-08-05");
+});
+
+test("13. voz com ontem usa o dia local anterior", () => {
+  assert.equal(parse("Ontem abasteci 150 reais no posto.").date, "2026-08-04");
+});
+
+test("14. voz com anteontem usa dois dias locais anteriores", () => {
+  assert.equal(parse("Anteontem recebi 2.500 reais de salário.").date, "2026-08-03");
+});
+
+test("15. data explícita de OCR prevalece sobre a referência atual", () => {
+  assert.equal(parse("SUPERMERCADO BH\nTOTAL R$ 58,90\nPIX\n04/08/2026").date, "2026-08-04");
+});

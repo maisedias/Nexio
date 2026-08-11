@@ -25,6 +25,19 @@ const overdue = { type: "expense", status: "Pendente", date: "2026-07-20" };
 assert.equal(transactions.applyAutomaticOverdueStatus(overdue, new Date(2026, 6, 22)), true);
 assert.equal(overdue.status, "Atrasado");
 assert.equal(utils.addMonthsToDate("2026-01-31", 1), "2026-02-28");
+const installments = transactions.createInstallments({
+  type: "expense",
+  status: "Pendente",
+  date: "2026-07-31",
+  description: "Compra",
+  amount: 10,
+}, 3, {
+  uid: (() => { let id = 0; return (prefix) => `${prefix}-${++id}`; })(),
+  now: () => new Date(2026, 6, 30, 12, 0, 0),
+});
+assert.deepEqual(installments.map((item) => item.date), ["2026-07-31", "2026-08-31", "2026-09-30"]);
+assert.deepEqual(installments.map((item) => item.status), ["Pendente", "Pendente", "Pendente"]);
+assert.ok(installments.every((item) => !("transactionDate" in item) && !("dueDate" in item)));
 
 const rows = reports.parseDelimitedRows("Data;Descrição;Valor;Tipo\n22/07/2026;Salário;1.234,56;Receita");
 const imported = reports.transactionsFromTableRows(rows);

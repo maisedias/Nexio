@@ -141,14 +141,33 @@
   }
 
   function inferDate(sentence, fallback) {
-    const match = String(sentence || "").match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\b/);
-    if (!match) return dateInputValue(fallback);
-    const year = Number(match[3]) < 100 ? 2000 + Number(match[3]) : Number(match[3]);
-    const month = Number(match[2]);
-    const day = Number(match[1]);
-    const parsed = new Date(year, month - 1, day);
-    if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) return dateInputValue(fallback);
-    return dateInputValue(parsed);
+    const source = String(sentence || "");
+    const match = source.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\b/);
+    if (match) {
+      const year = Number(match[3]) < 100 ? 2000 + Number(match[3]) : Number(match[3]);
+      const month = Number(match[2]);
+      const day = Number(match[1]);
+      const parsed = new Date(year, month - 1, day);
+      if (parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day) {
+        return dateInputValue(parsed);
+      }
+    }
+
+    const normalized = normalizeText(source);
+    const reference = fallback instanceof Date ? fallback : new Date(fallback || Date.now());
+    if (!Number.isNaN(reference.getTime())) {
+      const offset = /\banteontem\b/.test(normalized)
+        ? -2
+        : /\bontem\b/.test(normalized)
+          ? -1
+          : /\bhoje\b/.test(normalized)
+            ? 0
+            : null;
+      if (offset !== null) {
+        return dateInputValue(new Date(reference.getFullYear(), reference.getMonth(), reference.getDate() + offset));
+      }
+    }
+    return dateInputValue(fallback);
   }
 
   function parsePartialTransaction(sentence, options = {}) {
