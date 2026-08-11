@@ -354,6 +354,27 @@ body {
 .app-shell :where(input, select, textarea) { border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-soft); color: var(--nx-text); box-shadow: none; }
 .app-shell :where(input, select) { min-height: var(--nx-input-height); }
 .app-shell :where(input, select, textarea):focus { border-color: var(--color-primary-border-control); box-shadow: var(--nx-focus-ring); }
+.app-shell .transaction-card-check {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  height: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  cursor: pointer;
+}
+.app-shell .transaction-card-check input {
+  display: block;
+  width: var(--size-icon-small);
+  min-width: var(--size-icon-small);
+  height: var(--size-icon-small);
+  min-height: var(--size-icon-small);
+  margin: 0;
+  padding: 0;
+}
+.app-shell .transaction-card-check:focus-within { border-color: var(--color-primary-border-control); box-shadow: var(--nx-focus-ring); }
 .app-shell :where(.stacked-form, .settings-options, .filters-grid) { gap: var(--nx-space-3); }
 .transactions-workspace { grid-template-columns: minmax(0, 1fr) !important; gap: var(--nx-space-3); }
 .transaction-composer-panel { max-width: none; }

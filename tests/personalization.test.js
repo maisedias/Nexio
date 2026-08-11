@@ -444,7 +444,7 @@ test("50. limpeza informa que transações e demais dados são preservados", () 
 });
 
 test("51. histórico personalizado não entra na requisição de interpretação", () => {
-  const interpreter = uiSource.match(/function assistantInterpreterService\(\) \{([\s\S]*?)\n  \}\n\n  function assistantPersonalizationEngine/)?.[1] || "";
+  const interpreter = uiSource.match(/function assistantInterpreterService\(\) \{([\s\S]*?)\r?\n  \}\r?\n\r?\n  function assistantPersonalizationEngine/)?.[1] || "";
   assert.match(interpreter, /body: JSON\.stringify\(payload\)/);
   assert.doesNotMatch(interpreter, /personalization|records|transactions/);
 });
