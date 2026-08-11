@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260811-transaction-checkbox" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20260811-sync-status-ux" />
     <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
   </head>
   <body>
@@ -1565,9 +1565,13 @@
                   <button class="settings-theme-preview" data-theme-choice="light" type="button"><span class="theme-preview-window is-light"><i></i><b></b><em></em></span><strong>Claro</strong></button>
                 </div>
                 <label class="settings-color-control"><span><strong>Cor principal</strong><small>Personalize os destaques da interface.</small></span><input id="settingsPrimaryColor" type="color" value="#5b9cff" /></label>
-                <div class="sync-card settings-sync-card">
+                <div class="sync-card settings-sync-card" data-sync-card data-sync-tone="neutral">
                   <span>Sincronização</span>
-                  <strong data-sync-status>Salvamento local</strong>
+                  <div class="settings-sync-copy" role="status" aria-live="polite">
+                    <strong data-sync-status>Salvamento local</strong>
+                    <small data-sync-description>Seus dados continuam salvos neste aparelho.</small>
+                  </div>
+                  <button class="ghost-action compact" data-sync-action type="button" hidden></button>
                 </div>
                 <button class="primary-action settings-save-action" type="submit">Salvar configurações</button>
               </section>
@@ -1724,6 +1728,7 @@
     <script src="js/core/utils.js?v=20260722-layered-architecture"></script>
     <script src="js/core/storage.js?v=20260722-layered-architecture"></script>
     <script src="js/core/sync.js?v=20260727-sync-client-safety"></script>
+    <script src="js/core/sync-status.js?v=20260811-sync-status-ux"></script>
     <script src="js/core/categories.js?v=20260722-layered-architecture"></script>
     <script src="js/core/finance.js?v=20260722-layered-architecture"></script>
     <script src="js/core/accounts.js?v=20260728-accounts-balances"></script>

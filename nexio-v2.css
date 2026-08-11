@@ -375,6 +375,36 @@ body {
   padding: 0;
 }
 .app-shell .transaction-card-check:focus-within { border-color: var(--color-primary-border-control); box-shadow: var(--nx-focus-ring); }
+.app-shell .settings-sync-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--nx-space-3);
+  min-width: 0;
+}
+.app-shell .settings-sync-copy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.app-shell .settings-sync-copy strong,
+.app-shell .settings-sync-copy small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: break-word;
+  text-align: left;
+}
+.app-shell .settings-sync-copy strong { color: var(--nx-text); }
+.app-shell .settings-sync-copy small { color: var(--nx-text-muted); font-size: var(--font-size-caption); line-height: var(--line-height-caption); }
+.app-shell .settings-sync-card [data-sync-action] { justify-self: end; white-space: nowrap; }
+.app-shell .settings-sync-card[data-sync-tone="success"] { border-color: color-mix(in srgb, var(--nx-income) 34%, var(--nx-border)); background: color-mix(in srgb, var(--nx-income) 7%, var(--nx-surface-soft)); }
+.app-shell .settings-sync-card[data-sync-tone="success"] .settings-sync-copy strong { color: var(--nx-income); }
+.app-shell .settings-sync-card[data-sync-tone="warning"] { border-color: color-mix(in srgb, var(--nx-warning) 34%, var(--nx-border)); background: color-mix(in srgb, var(--nx-warning) 7%, var(--nx-surface-soft)); }
+.app-shell .settings-sync-card[data-sync-tone="warning"] .settings-sync-copy strong { color: var(--nx-warning); }
+.app-shell .settings-sync-card[data-sync-tone="danger"] { border-color: color-mix(in srgb, var(--nx-expense) 34%, var(--nx-border)); background: color-mix(in srgb, var(--nx-expense) 7%, var(--nx-surface-soft)); }
+.app-shell .settings-sync-card[data-sync-tone="danger"] .settings-sync-copy strong { color: var(--nx-expense); }
+.app-shell .settings-sync-card[data-sync-tone="info"] { border-color: color-mix(in srgb, var(--nx-primary) 30%, var(--nx-border)); background: color-mix(in srgb, var(--nx-primary) 6%, var(--nx-surface-soft)); }
+.app-shell .settings-sync-card[data-sync-tone="info"] .settings-sync-copy strong { color: var(--nx-primary); }
 .app-shell :where(.stacked-form, .settings-options, .filters-grid) { gap: var(--nx-space-3); }
 .transactions-workspace { grid-template-columns: minmax(0, 1fr) !important; gap: var(--nx-space-3); }
 .transaction-composer-panel { max-width: none; }
@@ -714,6 +744,11 @@ body.has-ai-assistant-modal { overflow: hidden; }
 }
 
 @media (max-width: 900px) {
+  .app-shell .settings-sync-card {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .app-shell .settings-sync-card [data-sync-action] { justify-self: start; max-width: 100%; white-space: normal; }
   .app-shell, .app-shell.sidebar-is-collapsed { grid-template-columns: 1fr; }
   .view { padding: var(--nx-space-4); }
   .topbar { grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--nx-space-2); padding: 0 var(--nx-space-4); }

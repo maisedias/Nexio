@@ -140,24 +140,24 @@
     onMessage: handleCrossTabMessage,
   });
 
-  function syncStatusLabel(status) {
-    const labels = {
-      idle: "Pronto para sincronizar",
-      dirty: "Alterações pendentes",
-      scheduled: "Alterações pendentes",
-      syncing: "Sincronizando",
-      synced: status.lastSuccessAt
-        ? `Sincronizado às ${new Date(status.lastSuccessAt).toLocaleTimeString(languageLocale(), { hour: "2-digit", minute: "2-digit" })}`
-        : "Sincronizado",
-      retrying: "Nova tentativa agendada",
-      conflict: "Conflito: revisão necessária",
-      blocked: status.lastError === SYNC_SERVER_UPDATE_MESSAGE
-        ? SYNC_SERVER_UPDATE_MESSAGE
-        : "Sincronização bloqueada",
-      offline: status.dirty ? "Offline: alterações pendentes" : "Offline",
-      error: "Erro ao sincronizar",
+  function syncPresentationContext(status = syncCoordinator.getStatus()) {
+    const user = currentUser();
+    const profile = currentProfile();
+    return {
+      status,
+      online: window.navigator?.onLine !== false,
+      cloudAvailable: cloud.enabled && Boolean(cloud.client),
+      authenticated: Boolean(user && !isLocalOnlyUser(user) && !status.guest && cloud.userId),
+      hasProfile: Boolean(profile?.id && user?.activeProfileId),
     };
-    return status.guest ? "Sem login: salvo neste aparelho" : labels[status.status] || "Local";
+  }
+
+  function currentSyncPresentation(status = syncCoordinator.getStatus()) {
+    return core.syncStatus.present(syncPresentationContext(status));
+  }
+
+  function syncStatusLabel(status) {
+    return currentSyncPresentation(status).title;
   }
 
   function saveStore() {
@@ -398,7 +398,21 @@
   function updateSyncStatus() {
     const status = app.querySelector("[data-sync-status]");
     if (!status) return;
-    status.textContent = isLocalOnlyUser() ? "Sem login: salvo neste aparelho" : cloud.lastStatus;
+    const presentation = currentSyncPresentation();
+    const card = status.closest("[data-sync-card]") || status.closest(".settings-sync-card");
+    const description = app.querySelector("[data-sync-description]");
+    const action = app.querySelector("[data-sync-action]");
+    status.textContent = presentation.title;
+    if (description) description.textContent = presentation.description;
+    if (card) card.dataset.syncTone = presentation.tone;
+    if (action) {
+      action.hidden = !presentation.action;
+      action.dataset.syncAction = presentation.action;
+      action.textContent = presentation.actionLabel;
+      action.disabled = false;
+    }
+    const storageStatus = app.querySelector("[data-cloud-storage-status]");
+    if (storageStatus) storageStatus.textContent = presentation.title;
   }
 
   function uid(prefix) {
@@ -4092,6 +4106,32 @@
     });
 
     app.querySelector("[data-export-data]").addEventListener("click", exportCurrentUserData);
+
+    app.querySelector("[data-sync-action]")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const action = button.dataset.syncAction;
+      if (action === "login") {
+        app.querySelector("[data-logout]")?.click();
+        return;
+      }
+      if (action === "profile") {
+        setView("profiles");
+        return;
+      }
+      if (action !== "retry") return;
+      if (window.navigator?.onLine === false) {
+        showToast("Conecte-se à internet para tentar novamente.");
+        updateSyncStatus();
+        return;
+      }
+      button.disabled = true;
+      syncCoordinator.handleReconnect();
+      await syncCoordinator.flush();
+      updateSyncStatus();
+      showToast(syncCoordinator.getStatus().status === "synced"
+        ? "Sincronização concluída."
+        : "Nova tentativa de sincronização realizada.");
+    });
 
     app.querySelectorAll("[data-theme-choice]").forEach((button) => {
       button.addEventListener("click", () => {
