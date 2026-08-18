@@ -560,6 +560,115 @@
     return deterministicState(left) === deterministicState(right);
   }
 
+  const RECONCILIATION_COLLECTIONS = Object.freeze([
+    "accounts",
+    "transactions",
+    "goals",
+    "budgets",
+  ]);
+
+  function reconciliationTimestamp(record) {
+    const raw = record?.updatedAt || record?.updated_at || record?.createdAt || record?.created_at || "";
+    const time = Date.parse(raw);
+    return Number.isFinite(time) ? { raw: String(raw), time } : { raw: "", time: null };
+  }
+
+  function reconciliationRecords(user) {
+    const records = new Map();
+    const issues = [];
+    const profiles = Array.isArray(user?.profiles) ? user.profiles : [];
+
+    function add(kind, record, profileId = "") {
+      const id = String(record?.id || "").trim();
+      if (!id) {
+        issues.push({ kind, reason: "missing-id", profileId });
+        return;
+      }
+      const key = `${kind}:${profileId}:${id}`;
+      if (records.has(key)) {
+        issues.push({ kind, reason: "duplicate-id", id, profileId });
+        return;
+      }
+      records.set(key, {
+        kind,
+        id,
+        profileId,
+        record: cloneSanitized(record),
+      });
+    }
+
+    const userMetadata = cloneSanitized(user);
+    delete userMetadata.profiles;
+    add("user", userMetadata);
+
+    profiles.forEach((profile) => {
+      const profileId = String(profile?.id || "").trim();
+      const profileMetadata = cloneSanitized(profile);
+      RECONCILIATION_COLLECTIONS.forEach((collection) => delete profileMetadata[collection]);
+      add("profiles", profileMetadata);
+      RECONCILIATION_COLLECTIONS.forEach((collection) => {
+        const values = profile?.[collection];
+        if (values !== undefined && !Array.isArray(values)) {
+          issues.push({ kind: collection, reason: "invalid-collection", profileId });
+          return;
+        }
+        (values || []).forEach((record) => add(collection, record, profileId));
+      });
+    });
+
+    return { issues, records };
+  }
+
+  function compareFinancialRecords(localUser, remoteUser) {
+    const local = reconciliationRecords(localUser);
+    const remote = reconciliationRecords(remoteUser);
+    const localOnly = [];
+    const remoteOnly = [];
+    const divergent = [];
+
+    local.records.forEach((entry, key) => {
+      const remoteEntry = remote.records.get(key);
+      if (!remoteEntry) {
+        localOnly.push({ kind: entry.kind, id: entry.id, profileId: entry.profileId });
+        return;
+      }
+      if (statesEquivalent(entry.record, remoteEntry.record)) return;
+      const localUpdated = reconciliationTimestamp(entry.record);
+      const remoteUpdated = reconciliationTimestamp(remoteEntry.record);
+      divergent.push({
+        kind: entry.kind,
+        id: entry.id,
+        profileId: entry.profileId,
+        localUpdatedAt: localUpdated.raw,
+        remoteUpdatedAt: remoteUpdated.raw,
+        localNewer: localUpdated.time !== null
+          && remoteUpdated.time !== null
+          && localUpdated.time > remoteUpdated.time,
+        remoteNewer: localUpdated.time !== null
+          && remoteUpdated.time !== null
+          && remoteUpdated.time > localUpdated.time,
+      });
+    });
+
+    remote.records.forEach((entry, key) => {
+      if (!local.records.has(key)) {
+        remoteOnly.push({ kind: entry.kind, id: entry.id, profileId: entry.profileId });
+      }
+    });
+
+    const issues = [...local.issues, ...remote.issues];
+    const safe = issues.length === 0
+      && remoteOnly.length === 0
+      && divergent.every((entry) => entry.localNewer);
+    return Object.freeze({
+      safe,
+      localOnly: Object.freeze(localOnly),
+      remoteOnly: Object.freeze(remoteOnly),
+      divergent: Object.freeze(divergent),
+      issues: Object.freeze(issues),
+    });
+  }
+
   function isRecognizableFinancialState(value) {
     if (!value || typeof value !== "object" || Array.isArray(value)) return false;
     if (!Array.isArray(value.profiles)) return false;
@@ -597,13 +706,16 @@
     if (statesEquivalent(localUser, remoteUser)) {
       return { status: "equivalent", blocked: false, conflict: false, dirty: false, user: remoteUser };
     }
+    const comparison = compareFinancialRecords(localUser, remoteUser);
     return {
       status: "conflict",
       blocked: false,
       conflict: true,
       dirty: true,
-      user: remoteUser,
+      user: localUser,
       localBackupCandidate: localUser,
+      comparison,
+      reason: comparison.safe ? "local-superset" : "divergent-state",
     };
   }
 
@@ -688,6 +800,7 @@
 
   core.sync = Object.freeze({
     classifySupabaseError,
+    compareFinancialRecords,
     createCoordinator,
     createSyncError,
     createTabChannel,

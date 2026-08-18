@@ -533,7 +533,8 @@ test("24. local e remoto divergentes entram em conflict", () => {
   assert.equal(result.status, "conflict");
   assert.equal(result.conflict, true);
   assert.equal(result.localBackupCandidate.currency, "BRL");
-  assert.equal(result.user.currency, "USD");
+  assert.equal(result.user.currency, "BRL");
+  assert.equal(result.reason, "divergent-state");
 });
 
 test("25. bootstrap em conflict nao faz upsert automatico", async () => {
