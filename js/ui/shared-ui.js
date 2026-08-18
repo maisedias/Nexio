@@ -313,19 +313,15 @@
     const localGeneration = pendingLocal && !local.migrated
       ? Math.max(Number(storedMeta.localGeneration) || 0, 1)
       : Number(storedMeta.localGeneration) || 0;
-    const meta = {
-      ...storedMeta,
-      dirty: storedMeta.conflict || reconciliation.conflict || (pendingLocal && !local.migrated)
-        || (reconciliation.blocked && storedMeta.dirty),
-      conflict: storedMeta.conflict || reconciliation.conflict,
-      blocked: reconciliation.blocked || needsReview || !revisionKnown,
-      remoteRevision: revisionKnown ? remoteRevision : null,
+    const meta = core.sync.resolveBootstrapMeta({
+      storedMeta,
+      reconciliation,
+      needsReview,
       revisionKnown,
+      remoteRevision,
       localGeneration,
-      lastSuccessfulGeneration: reconciliation.status === "equivalent"
-        ? localGeneration
-        : Math.min(Number(storedMeta.lastSuccessfulGeneration) || 0, localGeneration),
-    };
+      localMigrated: local.migrated,
+    });
 
     cloud.userId = ownerId;
     syncCoordinator.activateOwner(ownerId, { canSync: false, meta });

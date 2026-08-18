@@ -169,6 +169,27 @@ test("7. a clean second session bootstraps the full remote snapshot", () => {
   });
   assert.equal(result.status, "remote");
   assert.equal(result.user.profiles[0].transactions.length, 371);
+
+  const equivalent = sync.reconcileBootstrap({
+    authUser: { id: "auth-1", email: "owner@example.com" },
+    localExists: true,
+    localUser: remote,
+    remoteRowExists: true,
+    remoteData: remote,
+  });
+  const meta = sync.resolveBootstrapMeta({
+    storedMeta: { conflict: true, blocked: true, dirty: true, remoteRevision: "1" },
+    reconciliation: equivalent,
+    revisionKnown: true,
+    remoteRevision: "2",
+    localGeneration: 4,
+  });
+  assert.equal(meta.conflict, false);
+  assert.equal(meta.blocked, false);
+  assert.equal(meta.dirty, false);
+  assert.equal(meta.remoteRevision, "2");
+  assert.equal(meta.revisionKnown, true);
+  assert.equal(meta.lastSuccessfulGeneration, 4);
 });
 
 test("8. divergent bootstrap keeps local data visible and blocks automatic writes", () => {
@@ -184,6 +205,16 @@ test("8. divergent bootstrap keeps local data visible and blocks automatic write
   assert.equal(result.conflict, true);
   assert.equal(result.user.profiles[0].transactions.length, 371);
   assert.equal(result.reason, "local-superset");
+  const meta = sync.resolveBootstrapMeta({
+    storedMeta: { conflict: true, blocked: true, dirty: true, remoteRevision: "1" },
+    reconciliation: result,
+    revisionKnown: true,
+    remoteRevision: "2",
+    localGeneration: 4,
+  });
+  assert.equal(meta.conflict, true);
+  assert.equal(meta.blocked, false);
+  assert.equal(meta.dirty, true);
 });
 
 test("9. the CAS payload preserves all 371 transactions", async () => {

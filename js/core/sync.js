@@ -719,6 +719,42 @@
     };
   }
 
+  function resolveBootstrapMeta(input = {}) {
+    const storedMeta = input.storedMeta || {};
+    const reconciliation = input.reconciliation || {};
+    const needsReview = input.needsReview === true;
+    const revisionKnown = input.revisionKnown === true;
+    const remoteRevision = revisionKnown ? input.remoteRevision : null;
+    const localGeneration = Number(input.localGeneration) || 0;
+    const localMigrated = input.localMigrated === true;
+    const pendingLocal = reconciliation.status === "local" || reconciliation.status === "empty";
+    const equivalentResolved = reconciliation.status === "equivalent"
+      && revisionKnown
+      && !needsReview;
+    const conflict = equivalentResolved
+      ? false
+      : Boolean(storedMeta.conflict || reconciliation.conflict);
+    const blocked = equivalentResolved
+      ? false
+      : Boolean(reconciliation.blocked || needsReview || !revisionKnown);
+
+    return {
+      ...storedMeta,
+      dirty: equivalentResolved
+        ? false
+        : conflict || (pendingLocal && !localMigrated)
+          || (reconciliation.blocked && storedMeta.dirty),
+      conflict,
+      blocked,
+      remoteRevision,
+      revisionKnown,
+      localGeneration,
+      lastSuccessfulGeneration: reconciliation.status === "equivalent"
+        ? localGeneration
+        : Math.min(Number(storedMeta.lastSuccessfulGeneration) || 0, localGeneration),
+    };
+  }
+
   function createTabChannel(options = {}) {
     const globalObject = options.globalObject || global;
     const storage = options.storage || globalObject.localStorage;
@@ -809,6 +845,7 @@
     normalizeOwnerUser,
     normalizeCasResponse,
     reconcileBootstrap,
+    resolveBootstrapMeta,
     statesEquivalent,
   });
 })(globalThis);
