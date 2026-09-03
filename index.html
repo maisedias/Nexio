@@ -1020,6 +1020,18 @@
                 </details>
               </div>
 
+              <details class="transaction-report-panel">
+                <summary><span>Relatório das transações filtradas</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
+                <div class="transaction-report-content">
+                  <p data-transaction-report-context>Use os filtros para definir o relatório.</p>
+                  <div class="transaction-report-grid" data-transaction-report></div>
+                  <div class="transaction-report-actions">
+                    <button class="ghost-action compact" data-export-filtered-transactions-pdf type="button"><i data-lucide="file-text" aria-hidden="true"></i><span>Exportar PDF</span></button>
+                    <button class="primary-action compact" data-export-filtered-transactions type="button"><i data-lucide="download" aria-hidden="true"></i><span>Exportar CSV</span></button>
+                  </div>
+                </div>
+              </details>
+
               <div class="bulk-status-bar" data-selection-bar hidden>
                 <div class="bulk-status-title">
                   <span>Selecionadas</span>
@@ -1039,27 +1051,22 @@
                 <span data-transaction-page-summary>Mostrando 0 transações</span>
               </div>
 
-              <div class="transaction-card-grid" data-transactions-cards></div>
-
-              <details class="transaction-table-details">
-                <summary><span>Ver tabela</span><i data-lucide="chevron-down" aria-hidden="true"></i></summary>
-                <div class="table-shell">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th class="select-column"></th>
-                        <th><button class="table-sort" data-table-sort="description-asc" type="button">Descrição</button></th>
-                        <th><button class="table-sort" data-table-sort="category-asc" type="button">Categoria</button></th>
-                        <th><button class="table-sort" data-table-sort="date-desc" type="button">Data</button></th>
-                        <th><button class="table-sort" data-table-sort="amount-desc" type="button">Valor</button></th>
-                        <th><button class="table-sort" data-table-sort="status-asc" type="button">Status</button></th>
-                        <th>Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody data-transactions-table></tbody>
-                  </table>
-                </div>
-              </details>
+              <div class="table-shell transaction-table-shell" data-transactions-table-shell>
+                <table>
+                  <thead>
+                    <tr>
+                      <th class="select-column"></th>
+                      <th><button class="table-sort" data-table-sort="description-asc" type="button">Descrição</button></th>
+                      <th><button class="table-sort" data-table-sort="category-asc" type="button">Categoria</button></th>
+                      <th><button class="table-sort" data-table-sort="date-desc" type="button">Data</button></th>
+                      <th><button class="table-sort" data-table-sort="amount-desc" type="button">Valor</button></th>
+                      <th><button class="table-sort" data-table-sort="status-asc" type="button">Status</button></th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody data-transactions-table></tbody>
+                </table>
+              </div>
 
               <div class="transaction-table-footer">
                 <span data-transaction-page-summary-secondary>Mostrando 0 transações</span>

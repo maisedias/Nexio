@@ -80,4 +80,17 @@ const adapter = {
 storage.saveStore(adapter, "store", { users: [{ email: "user@example.com" }] });
 assert.equal(storage.loadStore(adapter, "store").users.length, 1);
 
+const transactionSummary = reports.transactionReport([
+  { type: "income", status: "Recebido", amount: 500, categoryId: "salary" },
+  { type: "expense", status: "Atrasado", amount: 120, categoryId: "home" },
+  { type: "expense", status: "Pago", amount: 50, categoryId: "home" },
+  { type: "income", status: "Recebido", amount: 200, transferId: "transfer-1", categoryId: "transfer" },
+], { findCategory: (id) => ({ name: { salary: "Salário", home: "Casa" }[id] || "Sem categoria" }) });
+assert.deepEqual(
+  { count: transactionSummary.count, income: transactionSummary.income, expense: transactionSummary.expense, balance: transactionSummary.balance },
+  { count: 3, income: 500, expense: 170, balance: 330 },
+);
+assert.deepEqual(transactionSummary.statuses, [{ status: "Atrasado", count: 1 }, { status: "Pago", count: 1 }, { status: "Recebido", count: 1 }]);
+assert.deepEqual(transactionSummary.categories[0], { category: "Salário", income: 500, expense: 0, total: 500 });
+
 console.log("Core architecture tests passed.");

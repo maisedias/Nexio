@@ -272,6 +272,40 @@
     };
   }
 
+  function transactionReport(transactions, options = {}) {
+    const categoryFor = options.findCategory || ((id) => ({ name: id || "Sem categoria" }));
+    const rows = (transactions || []).filter((transaction) => !transaction.transferId);
+    const categories = new Map();
+    const statuses = new Map();
+    let income = 0;
+    let expense = 0;
+
+    rows.forEach((transaction) => {
+      const amount = Number(transaction.amount || 0);
+      if (transaction.type === "income") income += amount;
+      else expense += amount;
+
+      const category = categoryFor(transaction.categoryId) || { name: "Sem categoria" };
+      const categoryName = category.name || "Sem categoria";
+      const categoryEntry = categories.get(categoryName) || { category: categoryName, income: 0, expense: 0, total: 0 };
+      categoryEntry[transaction.type === "income" ? "income" : "expense"] += amount;
+      categoryEntry.total += amount;
+      categories.set(categoryName, categoryEntry);
+
+      const status = transaction.status || "Sem status";
+      statuses.set(status, (statuses.get(status) || 0) + 1);
+    });
+
+    return {
+      count: rows.length,
+      income,
+      expense,
+      balance: income - expense,
+      categories: [...categories.values()].sort((a, b) => b.total - a.total || a.category.localeCompare(b.category)),
+      statuses: [...statuses.entries()].map(([status, count]) => ({ status, count })).sort((a, b) => b.count - a.count || a.status.localeCompare(b.status)),
+    };
+  }
+
   core.reports = Object.freeze({
     canonicalHeader,
     bestExtraGoalContribution,
@@ -285,6 +319,7 @@
     highestTransaction,
     inferTransactionType,
     monthlyBudgetReport,
+    transactionReport,
     parseDelimitedRows,
     parseImportedDate,
     parseImportedNumber,

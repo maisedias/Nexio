@@ -186,7 +186,10 @@ assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.fab-speed-dial\s*
 assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.app-shell,[\s\S]*?grid-template-columns:\s*1fr;[\s\S]*?\.sidebar,[\s\S]*?position:\s*fixed;[\s\S]*?transform:\s*translateX/, "The single-column shell and off-canvas sidebar must share the same breakpoint");
 assert.match(index, /data-selection-bar hidden/, "The zero-selection action bar must start hidden");
 assert.match(activeSkin, /\.app-shell \[hidden\]\s*\{\s*display:\s*none\s*!important;/, "Hidden application surfaces must not be forced back into the layout");
-assert.match(renderer, /\[toolbar, tableDetails, footer\][\s\S]*?toggleAttribute\("hidden", !total\)/, "Empty transaction lists must hide toolbars, tables, and pagination");
+assert.match(index, /data-transactions-table-shell/, "The transaction list must expose a persistent table surface");
+assert.doesNotMatch(index, /data-transactions-cards/, "Transaction cards must not duplicate the table list");
+assert.doesNotMatch(index, /transaction-table-details/, "The table must not be hidden behind a disclosure control");
+assert.match(renderer, /tableShell\?\.removeAttribute\("hidden"\)[\s\S]*?\[toolbar, footer\][\s\S]*?toggleAttribute\("hidden", !total\)/, "Empty transaction lists must preserve the table empty state while hiding auxiliary controls");
 assert.match(index, /categories-panel[^>]*role="dialog"[^>]*hidden/, "Category management must start as a secondary dialog");
 assert.match(index, /data-open-category-manager/, "The transaction list must expose category management on demand");
 assert.match(activeSkin, /dashboard-flow-panel\.has-empty-chart \.chart-canvas\s*\{\s*display:\s*none;/, "Empty dashboard charts must collapse on mobile");

@@ -4747,8 +4747,7 @@
   function renderTransactionsTable() {
     const tbody = app.querySelector("[data-transactions-table]");
     const table = tbody?.closest("table");
-    const cardGrid = app.querySelector("[data-transactions-cards]");
-    if (!tbody || !cardGrid) return;
+    if (!tbody) return;
 
     const profileTransactionIds = new Set(currentProfile().transactions.map((transaction) => transaction.id));
     state.selectedTransactionIds.forEach((id) => {
@@ -4761,12 +4760,16 @@
     const pageRows = getVisibleTransactionPageRows(rows);
 
     tbody.innerHTML = "";
-    cardGrid.innerHTML = "";
     table?.classList.toggle("is-empty", !rows.length);
     updateTransactionSummaryCards(rows);
+    renderTransactionReport(rows);
 
     if (!rows.length) {
-      cardGrid.append(emptyState({
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 7;
+      cell.className = "table-empty-cell";
+      cell.append(emptyState({
         icon: "receipt-text",
         title: "Nenhuma movimentação registrada.",
         description: "Cadastre sua primeira receita ou despesa para começar seu controle financeiro.",
@@ -4774,6 +4777,8 @@
         action: openTransactionComposer,
         compact: true,
       }));
+      row.append(cell);
+      tbody.append(row);
       updateTransactionSelectionControls([]);
       updateSortButtons();
       updateTransactionPagination(rows, []);
@@ -4781,8 +4786,7 @@
       return;
     }
 
-    pageRows.forEach((transaction, index) => {
-      cardGrid.append(transactionCard(transaction, index));
+    pageRows.forEach((transaction) => {
       tbody.append(transactionTableRow(transaction));
     });
 
@@ -5098,7 +5102,101 @@
     button.addEventListener("click", applyBulkStatusUpdate);
   }
 
+  function renderTransactionReport(rows) {
+    const box = app.querySelector("[data-transaction-report]");
+    const context = app.querySelector("[data-transaction-report-context]");
+    if (!box || !context) return;
+    const report = core.reports.transactionReport(rows, { findCategory });
+    context.textContent = `${plural(rows.length, "transação encontrada", "transações encontradas")} com os filtros atuais.`;
+    box.innerHTML = `
+      <article><span>Receitas</span><strong class="amount-income">${money(report.income)}</strong></article>
+      <article><span>Despesas</span><strong class="amount-expense">${money(report.expense)}</strong></article>
+      <article><span>Saldo</span><strong class="${report.balance >= 0 ? "amount-income" : "amount-expense"}">${money(report.balance)}</strong></article>
+      <article><span>Por status</span><strong>${escapeHtml(report.statuses.map((item) => `${item.status}: ${item.count}`).join(" · ") || "Sem dados")}</strong></article>
+      <article class="transaction-report-categories"><span>Por categoria</span><strong>${escapeHtml(report.categories.map((item) => `${item.category}: ${money(item.total)}`).join(" · ") || "Sem dados")}</strong></article>
+    `;
+  }
+
+  function exportFilteredTransactions() {
+    const rows = getFilteredTransactions();
+    if (!rows.length) {
+      showToast("Nenhuma transação filtrada para exportar.");
+      return;
+    }
+    const csvValue = (value) => `"${String(value ?? "").replace(/"/g, '""')}"`;
+    const header = ["Data", "Descrição", "Tipo", "Categoria", "Conta", "Status", "Valor"];
+    const content = [header, ...rows.map((transaction) => [
+      formatDate(transaction.date),
+      transaction.description,
+      transaction.type === "income" ? "Receita" : "Despesa",
+      findCategory(transaction.categoryId).name,
+      transactionAccountName(transaction),
+      transaction.status,
+      Number(transaction.amount || 0).toFixed(2).replace(".", ","),
+    ])].map((row) => row.map(csvValue).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${content}`], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `nexio-relatorio-transacoes-${toDateInput(new Date())}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast(`${plural(rows.length, "transação exportada", "transações exportadas")} em CSV.`);
+  }
+
+  function exportFilteredTransactionsPdf() {
+    const rows = getFilteredTransactions();
+    if (!rows.length) {
+      showToast("Nenhuma transação filtrada para exportar.");
+      return;
+    }
+    const report = core.reports.transactionReport(rows, { findCategory });
+    const popup = window.open("", "_blank");
+    if (!popup) {
+      showToast("Permita a abertura da janela para exportar o PDF.");
+      return;
+    }
+    popup.opener = null;
+    const filterDescription = describeActiveTransactionFilters();
+    const rowsHtml = rows.map((transaction) => `
+      <tr>
+        <td>${escapeHtml(formatDate(transaction.date))}</td>
+        <td>${escapeHtml(transaction.description)}</td>
+        <td>${transaction.type === "income" ? "Receita" : "Despesa"}</td>
+        <td>${escapeHtml(findCategory(transaction.categoryId).name)}</td>
+        <td>${escapeHtml(transactionAccountName(transaction))}</td>
+        <td>${escapeHtml(transaction.status)}</td>
+        <td class="amount ${transaction.type === "income" ? "income" : "expense"}">${transaction.type === "income" ? "+" : "-"}${escapeHtml(money(transaction.amount))}</td>
+      </tr>
+    `).join("");
+    popup.document.write(`<!doctype html>
+      <html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de transações</title>
+      <style>
+        @page { size: A4; margin: 14mm; }
+        * { box-sizing: border-box; }
+        body { color: #162033; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.4; }
+        header { display: flex; justify-content: space-between; gap: 20px; border-bottom: 2px solid #18c8e8; padding-bottom: 14px; }
+        h1 { margin: 0; font-size: 24px; } h2 { margin: 22px 0 8px; font-size: 15px; }
+        p { margin: 4px 0; color: #526174; } .generated { text-align: right; }
+        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+        .card { border: 1px solid #d8e0ea; border-radius: 8px; padding: 10px; } .card span { color: #526174; display: block; } .card strong { display: block; font-size: 16px; margin-top: 3px; }
+        .income { color: #078a58; } .expense { color: #c4374a; }
+        .details { margin-top: 14px; padding: 10px; border-radius: 8px; background: #f3f6f9; }
+        table { width: 100%; border-collapse: collapse; } th { background: #172338; color: #fff; text-align: left; } th, td { border: 1px solid #d8e0ea; padding: 7px; vertical-align: top; } td.amount { text-align: right; font-weight: bold; white-space: nowrap; }
+        thead { display: table-header-group; } tr { break-inside: avoid; } footer { margin-top: 16px; color: #6a7788; font-size: 9px; }
+      </style></head><body>
+        <header><div><h1>Relatório de transações</h1><p>${escapeHtml(currentProfile().name)}</p></div><div class="generated"><strong>Gerado em ${escapeHtml(formatDate(toDateInput(new Date())))}</strong><p>${plural(rows.length, "transação", "transações")}</p></div></header>
+        <section class="summary"><div class="card"><span>Receitas</span><strong class="income">${escapeHtml(money(report.income))}</strong></div><div class="card"><span>Despesas</span><strong class="expense">${escapeHtml(money(report.expense))}</strong></div><div class="card"><span>Saldo</span><strong class="${report.balance >= 0 ? "income" : "expense"}">${escapeHtml(money(report.balance))}</strong></div></section>
+        <section class="details"><strong>Filtros aplicados</strong><p>${escapeHtml(filterDescription)}</p></section>
+        <h2>Lançamentos</h2><table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Categoria</th><th>Conta</th><th>Status</th><th>Valor</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+        <footer>Nexio Financeiro - relatório gerado a partir dos filtros ativos.</footer>
+        <script>window.addEventListener('load', () => { window.focus(); window.print(); });<\/script>
+      </body></html>`);
+    popup.document.close();
+  }
+
   function bindTransactionListControls() {
+    app.querySelector("[data-export-filtered-transactions-pdf]")?.addEventListener("click", exportFilteredTransactionsPdf);
+    app.querySelector("[data-export-filtered-transactions]")?.addEventListener("click", exportFilteredTransactions);
     app.querySelector("[data-delete-selected-transactions]")?.addEventListener("click", deleteSelectedTransactions);
     app.querySelector("[data-delete-filtered-transactions]")?.addEventListener("click", deleteFilteredTransactions);
     app.querySelector("[data-duplicate-selected-transactions]")?.addEventListener("click", duplicateSelectedTransactions);
@@ -5167,7 +5265,7 @@
     const prev = app.querySelector("[data-transactions-prev-page]");
     const next = app.querySelector("[data-transactions-next-page]");
     const toolbar = app.querySelector(".transaction-list-toolbar");
-    const tableDetails = app.querySelector(".transaction-table-details");
+    const tableShell = app.querySelector("[data-transactions-table-shell]");
     const footer = app.querySelector(".transaction-table-footer");
     const pageText = total ? `Mostrando ${start}–${end} de ${plural(total, "transação", "transações")}` : "Nenhuma transação para exibir";
     if (summary) summary.textContent = plural(total, "transação encontrada", "transações encontradas");
@@ -5176,7 +5274,8 @@
     if (pageLabel) pageLabel.textContent = `Página ${state.transactionPage} de ${totalPages}`;
     if (prev) prev.disabled = state.transactionPage <= 1 || !total;
     if (next) next.disabled = state.transactionPage >= totalPages || !total;
-    [toolbar, tableDetails, footer].forEach((element) => element?.toggleAttribute("hidden", !total));
+    tableShell?.removeAttribute("hidden");
+    [toolbar, footer].forEach((element) => element?.toggleAttribute("hidden", !total));
   }
 
   function updateSortButtons() {

@@ -479,6 +479,18 @@ body.has-mobile-transaction-composer, body.has-category-manager { overflow: hidd
 .transaction-list-header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--nx-space-2); }
 .transaction-period-filter { grid-column: span 2; }
 .advanced-filter-grid > :where(button) { align-self: end; }
+.transaction-report-panel { border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-card-radius); background: var(--nx-surface-soft); }
+.transaction-report-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: var(--nx-space-2); cursor: pointer; padding: var(--nx-space-3); font-weight: var(--font-weight-semibold); }
+.transaction-report-panel > summary::-webkit-details-marker { display: none; }
+.transaction-report-panel[open] > summary svg { transform: rotate(180deg); }
+.transaction-report-content { display: grid; gap: var(--nx-space-3); border-top: var(--border-width-thin) solid var(--nx-border); padding: var(--nx-space-3); }
+.transaction-report-content > p { margin: 0; color: var(--nx-text-muted); }
+.transaction-report-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--nx-space-2); }
+.transaction-report-grid article { display: grid; gap: var(--nx-space-1); min-width: 0; border: var(--border-width-thin) solid var(--nx-border); border-radius: var(--nx-control-radius); background: var(--nx-surface-raised); padding: var(--nx-space-3); }
+.transaction-report-grid span { color: var(--nx-text-muted); font-size: var(--font-size-micro); }
+.transaction-report-grid strong { color: var(--nx-text); overflow-wrap: anywhere; }
+.transaction-report-grid .transaction-report-categories { grid-column: span 2; }
+.transaction-report-actions { display: flex; justify-content: flex-end; }
 .category-list { grid-template-columns: repeat(auto-fit, minmax(var(--size-layout-min-large), 1fr)); gap: var(--nx-space-2); }
 .category-card { min-height: var(--size-category-card) !important; }
 .transaction-table-shell, .transactions-list { border: 0; border-radius: var(--nx-card-radius); background: transparent; }
@@ -1038,6 +1050,24 @@ body.has-ai-assistant-modal { overflow: hidden; }
   .overview-dashboard :is(.dashboard-pending-panel, .dashboard-recent-panel, .dashboard-goals-panel) .panel-heading { grid-template-columns: minmax(0, 1fr); }
   .overview-dashboard :is(.dashboard-pending-panel, .dashboard-recent-panel, .dashboard-goals-panel) .panel-heading .ghost-action { justify-self: start; }
   .cashflow-premium .calendar-day strong { display: none; }
+}
+
+@media (max-width: 640px) {
+  .transaction-report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .transaction-report-grid .transaction-report-categories { grid-column: 1 / -1; }
+  .transaction-report-actions { justify-content: stretch; }
+  .transaction-report-actions > button { width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .transaction-list-panel .transaction-table-shell { overflow-x: auto; border: var(--border-width-thin) solid var(--nx-border); background: var(--nx-surface-raised); }
+  .transaction-list-panel .transaction-table-shell table { display: table; width: 100%; min-width: 46rem; }
+  .transaction-list-panel .transaction-table-shell :is(thead, tbody, tr) { display: table-row-group; width: auto; }
+  .transaction-list-panel .transaction-table-shell thead { display: table-header-group; }
+  .transaction-list-panel .transaction-table-shell tr { display: table-row; border: 0; border-radius: 0; background: transparent; box-shadow: none; padding: 0; }
+  .transaction-list-panel .transaction-table-shell :is(th, td) { display: table-cell; width: auto; border: 0; padding: var(--nx-space-2); }
+  .transaction-list-panel .transaction-table-shell td::before { content: none; }
+  .transaction-list-panel .transaction-table-shell .select-column { display: table-cell; padding-bottom: var(--nx-space-2); }
 }
 
 @media (prefers-reduced-motion: reduce) {
