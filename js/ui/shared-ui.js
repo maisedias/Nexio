@@ -8648,6 +8648,17 @@
       return `${greetings[code]?.[greeting[1]] || greeting[1]}, ${greeting[2]}`;
     }
 
+    const bareGreeting = text.match(/^(Bom dia|Boa tarde|Boa noite)$/);
+    if (bareGreeting) {
+      const greetings = {
+        en: { "Bom dia": "Good morning", "Boa tarde": "Good afternoon", "Boa noite": "Good evening" },
+        es: { "Bom dia": "Buenos días", "Boa tarde": "Buenas tardes", "Boa noite": "Buenas noches" },
+        fr: { "Bom dia": "Bonjour", "Boa tarde": "Bonjour", "Boa noite": "Bonsoir" },
+        de: { "Bom dia": "Guten Morgen", "Boa tarde": "Guten Tag", "Boa noite": "Guten Abend" },
+      };
+      return greetings[code]?.[bareGreeting[1]] || bareGreeting[1];
+    }
+
     const synced = text.match(/^Sincronizado às (.+)$/);
     if (synced) {
       const labels = { en: "Synced at", es: "Sincronizado a las", fr: "Synchronisé à", de: "Synchronisiert um" };
@@ -8683,6 +8694,18 @@
     if (entries) {
       const labels = { en: Number(entries[1]) === 1 ? "entry" : "entries", es: Number(entries[1]) === 1 ? "registro" : "registros", fr: Number(entries[1]) === 1 ? "opération" : "opérations", de: Number(entries[1]) === 1 ? "Eintrag" : "Einträge" };
       return `${entries[1]} ${labels[code]}`;
+    }
+
+    const personalizationCount = text.match(/^(\d+) confirmações locais analisadas\.$/);
+    if (personalizationCount) {
+      const labels = { en: "local confirmations analyzed.", es: "confirmaciones locales analizadas.", fr: "confirmations locales analysées.", de: "lokale Bestätigungen analysiert." };
+      return `${personalizationCount[1]} ${labels[code]}`;
+    }
+
+    const releaseVersion = text.match(/^Versão (.+)$/);
+    if (releaseVersion) {
+      const labels = { en: "Version", es: "Versión", fr: "Version", de: "Version" };
+      return `${labels[code]} ${releaseVersion[1]}`;
     }
 
     const selected = text.match(/^(\d+) transações selecionadas$/);
