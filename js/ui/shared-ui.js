@@ -5085,6 +5085,14 @@
     const button = app.querySelector("[data-bulk-status-apply]");
     if (!month || !button) return;
     month.value = toMonthInput(new Date());
+    const currentStatus = app.querySelector("#bulkStatusFrom");
+    currentStatus?.addEventListener("change", () => {
+      state.filters.status = currentStatus.value;
+      state.transactionPage = 1;
+      state.selectedTransactionIds.clear();
+      syncFilterInputs();
+      renderTransactionsTable();
+    });
     button.addEventListener("click", applyBulkStatusUpdate);
   }
 
