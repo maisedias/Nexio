@@ -3762,6 +3762,8 @@
       };
       state.transactionPage = 1;
       state.selectedTransactionIds.clear();
+      const bulkStatus = app.querySelector("#bulkStatusFrom");
+      if (bulkStatus) bulkStatus.value = "all";
       syncFilterInputs();
       renderTransactionsTable();
       showToast("Filtros limpos.");
@@ -5334,6 +5336,10 @@
     const month = app.querySelector("#bulkStatusMonth").value || toMonthInput(new Date());
     const currentStatus = app.querySelector("#bulkStatusFrom").value;
     const target = app.querySelector("#bulkStatusTo").value;
+    if (currentStatus === "all") {
+      showToast("Selecione o status atual para atualizar as transações do mês.");
+      return;
+    }
     let changed = 0;
 
     profile.transactions.forEach((transaction) => {
