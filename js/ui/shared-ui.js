@@ -180,6 +180,14 @@
     };
   }
 
+  function isNativeAppRuntime() {
+    try {
+      return Boolean(window.Capacitor?.isNativePlatform?.());
+    } catch (error) {
+      return false;
+    }
+  }
+
   function setupCloudClient() {
     const config = cloudConfig();
     if (!config.url || !config.anonKey) {
@@ -294,13 +302,29 @@
       : "0";
     const revisionKnown = remoteRevision !== null;
 
-    const reconciliation = core.sync.reconcileBootstrap({
+    let reconciliation = core.sync.reconcileBootstrap({
       authUser: { id: ownerId, email },
       localExists: local.exists,
       localUser: local.user,
       remoteRowExists,
       remoteData: data?.data,
     });
+    // The cloud snapshot is canonical for a signed-in native app. Preserve a
+    // stale device copy before restoring the same authenticated state as Web.
+    const recoverNativeConflictFromCloud = Boolean(
+      isNativeAppRuntime() && reconciliation.conflict && remoteRowExists && revisionKnown,
+    );
+    if (recoverNativeConflictFromCloud) {
+      if (reconciliation.localBackupCandidate) {
+        core.storage.backupOwnerUser(localStorage, ownerId, reconciliation.localBackupCandidate);
+      }
+      reconciliation = core.sync.reconcileBootstrap({
+        authUser: { id: ownerId, email },
+        localExists: false,
+        remoteRowExists: true,
+        remoteData: data.data,
+      });
+    }
     const needsReview = local.reviewRequired === true;
     let nextUser = reconciliation.user;
     if (reconciliation.localBackupCandidate) {
@@ -314,7 +338,9 @@
       ? Math.max(Number(storedMeta.localGeneration) || 0, 1)
       : Number(storedMeta.localGeneration) || 0;
     const meta = core.sync.resolveBootstrapMeta({
-      storedMeta,
+      storedMeta: recoverNativeConflictFromCloud
+        ? { ...storedMeta, blocked: false, conflict: false, dirty: false }
+        : storedMeta,
       reconciliation,
       needsReview,
       revisionKnown,
@@ -409,6 +435,85 @@
     }
     const storageStatus = app.querySelector("[data-cloud-storage-status]");
     if (storageStatus) storageStatus.textContent = presentation.title;
+  }
+
+  async function fetchCurrentCloudSnapshot() {
+    const ownerId = String(cloud.userId || "").trim();
+    const email = normalizeEmail(state.sessionEmail || "");
+    if (!cloud.enabled || !cloud.client || !ownerId || !email) {
+      throw core.sync.createSyncError("unauthenticated", "session-required");
+    }
+    const { data, error } = await cloud.client
+      .from("nexio_user_data")
+      .select("data, revision")
+      .eq("user_id", ownerId)
+      .maybeSingle();
+    if (error) throw core.sync.classifySupabaseError(error);
+    const remoteRevision = data ? normalizeRemoteRevision(data.revision) : null;
+    if (!data || remoteRevision === null) {
+      throw core.sync.createSyncError("blocked", "remote-snapshot-unavailable");
+    }
+    const reconciliation = core.sync.reconcileBootstrap({
+      authUser: { id: ownerId, email },
+      localExists: false,
+      remoteRowExists: true,
+      remoteData: data.data,
+    });
+    if (reconciliation.status !== "remote" || !reconciliation.user) {
+      throw core.sync.createSyncError("blocked", "invalid-remote-snapshot");
+    }
+    return { ownerId, remoteRevision, user: reconciliation.user };
+  }
+
+  function closeSyncConflictModal() {
+    const modal = app.querySelector("[data-sync-conflict-modal]");
+    if (modal) modal.hidden = true;
+  }
+
+  function openSyncConflictModal() {
+    const modal = app.querySelector("[data-sync-conflict-modal]");
+    if (!modal) return;
+    modal.hidden = false;
+    window.lucide?.createIcons();
+    requestAnimationFrame(() => modal.querySelector("[data-resolve-sync-conflict]")?.focus());
+  }
+
+  async function resolveSyncConflict(strategy) {
+    const choice = strategy === "local" ? "local" : "cloud";
+    const localUser = currentUser();
+    if (!localUser) throw core.sync.createSyncError("unauthenticated", "session-required");
+    const snapshot = await fetchCurrentCloudSnapshot();
+    core.storage.backupOwnerUser(localStorage, snapshot.ownerId, localUser);
+    core.storage.backupOwnerUser(localStorage, snapshot.ownerId, snapshot.user);
+
+    const storedMeta = core.storage.loadSyncMeta(localStorage, snapshot.ownerId);
+    const localGeneration = Math.max(Number(storedMeta.localGeneration) || 0, 1);
+    const nextUser = choice === "cloud" ? snapshot.user : localUser;
+    const meta = {
+      ...storedMeta,
+      dirty: choice === "local",
+      conflict: false,
+      blocked: false,
+      remoteRevision: snapshot.remoteRevision,
+      revisionKnown: true,
+      localGeneration,
+      lastSuccessfulGeneration: choice === "cloud" ? localGeneration : 0,
+      retryCount: 0,
+      lastError: "",
+    };
+
+    cloud.userId = snapshot.ownerId;
+    cloud.ready = true;
+    syncCoordinator.activateOwner(snapshot.ownerId, { canSync: true, meta });
+    upsertStoreUser(nextUser, { ownerId: snapshot.ownerId });
+    if (choice === "local") {
+      syncCoordinator.scheduleSave(0);
+      await syncCoordinator.flush();
+      if (syncCoordinator.getStatus().status === "conflict") {
+        throw core.sync.createSyncError("blocked", "remote-changed-during-resolution");
+      }
+    }
+    updateSyncStatus();
   }
 
   function uid(prefix) {
@@ -4116,6 +4221,10 @@
         setView("profiles");
         return;
       }
+      if (action === "resolve-conflict") {
+        openSyncConflictModal();
+        return;
+      }
       if (action !== "retry") return;
       if (window.navigator?.onLine === false) {
         showToast("Conecte-se à internet para tentar novamente.");
@@ -4129,6 +4238,37 @@
       showToast(syncCoordinator.getStatus().status === "synced"
         ? "Sincronização concluída."
         : "Nova tentativa de sincronização realizada.");
+    });
+
+    const syncConflictModal = app.querySelector("[data-sync-conflict-modal]");
+    app.querySelectorAll("[data-cancel-sync-conflict]").forEach((button) => {
+      button.addEventListener("click", closeSyncConflictModal);
+    });
+    syncConflictModal?.addEventListener("click", (event) => {
+      if (event.target === syncConflictModal) closeSyncConflictModal();
+    });
+    app.querySelectorAll("[data-resolve-sync-conflict]").forEach((button) => {
+      button.addEventListener("click", async (event) => {
+        const controls = [...app.querySelectorAll("[data-resolve-sync-conflict]"), ...app.querySelectorAll("[data-cancel-sync-conflict]")];
+        controls.forEach((control) => { control.disabled = true; });
+        try {
+          await resolveSyncConflict(event.currentTarget.dataset.resolveSyncConflict);
+          closeSyncConflictModal();
+          renderDashboard();
+          setView("settings");
+          showToast("Conflito resolvido e cópias locais de segurança foram criadas.");
+        } catch (error) {
+          const status = syncCoordinator.getStatus();
+          if (!status.conflict) {
+            syncCoordinator.setConflict(true);
+            cloud.ready = false;
+          }
+          updateSyncStatus();
+          showToast(core.sync.safeErrorMessage(error));
+        } finally {
+          controls.forEach((control) => { control.disabled = false; });
+        }
+      });
     });
 
     app.querySelectorAll("[data-theme-choice]").forEach((button) => {
@@ -4746,6 +4886,7 @@
 
   function renderTransactionsTable() {
     const tbody = app.querySelector("[data-transactions-table]");
+    const mobileList = app.querySelector("[data-transactions-mobile-list]");
     const table = tbody?.closest("table");
     if (!tbody) return;
 
@@ -4760,6 +4901,7 @@
     const pageRows = getVisibleTransactionPageRows(rows);
 
     tbody.innerHTML = "";
+    if (mobileList) mobileList.innerHTML = "";
     table?.classList.toggle("is-empty", !rows.length);
     updateTransactionSummaryCards(rows);
     renderTransactionReport(rows);
@@ -4779,6 +4921,14 @@
       }));
       row.append(cell);
       tbody.append(row);
+      mobileList?.append(emptyState({
+        icon: "receipt-text",
+        title: "Nenhuma movimentação registrada.",
+        description: "Cadastre sua primeira receita ou despesa para começar seu controle financeiro.",
+        actionLabel: "Nova Transação",
+        action: openTransactionComposer,
+        compact: true,
+      }));
       updateTransactionSelectionControls([]);
       updateSortButtons();
       updateTransactionPagination(rows, []);
@@ -4786,7 +4936,8 @@
       return;
     }
 
-    pageRows.forEach((transaction) => {
+    pageRows.forEach((transaction, index) => {
+      mobileList?.append(transactionCard(transaction, index));
       tbody.append(transactionTableRow(transaction));
     });
 
@@ -4824,30 +4975,15 @@
     card.className = `transaction-card transaction-card-${transaction.type}${selected ? " is-selected" : ""}`;
     card.style.setProperty("--item-index", index);
     card.innerHTML = `
-      <header class="transaction-card-header">
-        <div class="transaction-card-title-group">
-          <div class="transaction-card-visuals">
-            <span class="category-dot">${escapeHtml(category.icon)}</span>
-            ${transactionBankLogoHtml(transaction)}
-            <span class="transaction-type-badge ${transaction.type === "income" ? "is-income" : "is-expense"}">${transaction.type === "income" ? "Receita" : "Despesa"}</span>
-          </div>
-          <h3>${escapeHtml(transaction.description)}</h3>
-          <p>${friendlyTransactionDate(transaction.date)}${transaction.installmentGroupId ? ` · ${transactionSubtitle(transaction)}` : ""}</p>
-        </div>
-        <label class="transaction-card-check" aria-label="Selecionar ${escapeHtml(transaction.description)}">
-          <input data-select-transaction="${transaction.id}" type="checkbox"${selected ? " checked" : ""} />
-        </label>
-      </header>
-      <div class="transaction-card-body">
-        <span><small>Categoria</small><strong><span class="category-dot">${escapeHtml(category.icon)}</span>${escapeHtml(category.name)}</strong></span>
-        <span><small>Conta</small><strong>${escapeHtml(transactionAccountName(transaction))}</strong></span>
-        <span><small>Data</small><strong>${friendlyTransactionDate(transaction.date)}</strong></span>
-        <span class="transaction-card-amount"><small>Valor</small><strong class="${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong></span>
+      <time class="transaction-mobile-date" datetime="${escapeHtml(transaction.date)}">${escapeHtml(transactionShortDate(transaction.date).toUpperCase())}</time>
+      <div class="transaction-mobile-content">
+        <div class="transaction-mobile-title"><span class="category-dot" aria-hidden="true">${escapeHtml(category.icon)}</span><h3>${escapeHtml(transaction.description)}</h3></div>
+        <p>${escapeHtml(transactionSubtitle(transaction))}</p>
       </div>
-      <footer class="transaction-card-footer">
-        ${statusBadge(transaction)}
-        ${transactionActionButtons(transaction)}
-      </footer>
+      <strong class="transaction-mobile-amount ${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong>
+      <label class="transaction-card-check" aria-label="Selecionar ${escapeHtml(transaction.description)}">
+        <input data-select-transaction="${transaction.id}" type="checkbox"${selected ? " checked" : ""} />
+      </label>
     `;
     return card;
   }
@@ -4883,19 +5019,7 @@
 
   function statusBadge(transaction) {
     if (transaction.transferId) return '<span class="transaction-detail-status">Transferência</span>';
-    const options = statusOptionsFor(transaction.type)
-      .map((status) => `
-        <button class="status-option ${statusClass(status)}" data-status-option="${escapeHtml(status)}" data-status-transaction="${escapeHtml(transaction.id)}" type="button"${status === transaction.status ? " aria-current=\"true\"" : ""}>
-          <span class="status-dot" aria-hidden="true"></span>${escapeHtml(status)}
-        </button>
-      `)
-      .join("");
-    return `
-      <details class="status-quick-menu ${statusClass(transaction.status)}">
-        <summary aria-label="Alterar status de ${escapeHtml(transaction.description)}"><span class="status-dot" aria-hidden="true"></span>${escapeHtml(transaction.status)}</summary>
-        <div class="status-options" role="menu">${options}</div>
-      </details>
-    `;
+    return statusSelect(transaction);
   }
 
   function bindTransactionActionControls(scope) {
@@ -4909,18 +5033,9 @@
     scope.querySelectorAll("[data-delete-transaction]").forEach((button) => {
       button.addEventListener("click", () => deleteTransaction(button.dataset.deleteTransaction));
     });
-    scope.querySelectorAll("[data-status-option]").forEach((button) => {
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        updateTransactionStatus(button.dataset.statusTransaction, button.dataset.statusOption);
-      });
-    });
-    scope.querySelectorAll(".status-quick-menu").forEach((details) => {
-      details.addEventListener("toggle", () => {
-        if (!details.open) return;
-        scope.querySelectorAll(".status-quick-menu[open]").forEach((other) => {
-          if (other !== details) other.removeAttribute("open");
-        });
+    scope.querySelectorAll("[data-inline-status]").forEach((select) => {
+      select.addEventListener("change", () => {
+        updateTransactionStatus(select.dataset.inlineStatus, select.value);
       });
     });
     scope.querySelectorAll("[data-select-transaction]").forEach((checkbox) => {
@@ -5011,7 +5126,7 @@
               <h2 id="transactionDetailTitle">${escapeHtml(transaction.description)}</h2>
             </div>
           </div>
-          <button class="icon-button" data-close-transaction-detail type="button" aria-label="Fechar detalhes"><i data-lucide="x" aria-hidden="true"></i></button>
+          <button class="ghost-action compact" data-close-transaction-detail type="button"><i data-lucide="arrow-left" aria-hidden="true"></i><span>Voltar</span></button>
         </header>
         <div class="transaction-detail-amount ${transaction.type === "income" ? "is-income" : "is-expense"}">
           <span>${transaction.type === "income" ? "Receita" : "Despesa"}</span>

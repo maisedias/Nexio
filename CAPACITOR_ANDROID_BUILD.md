@@ -8,7 +8,7 @@ O aplicativo Android empacota os mesmos assets Web do commit que gerou o artefat
 - Web assets gerados em: `android-web/`
 - Target SDK: 36
 - Min SDK: 24
-- Versão atual: `1.0.5` (`versionCode 5`)
+- Versão atual: `1.0.8` (`versionCode 8`)
 
 ## Rastreabilidade
 
@@ -70,6 +70,12 @@ android\app\build\outputs\bundle\release\app-release.aab
 ```
 
 O Gradle interrompe builds release quando a configuração estiver incompleta ou o arquivo da keystore não existir. Nunca crie uma identidade de assinatura substituta para contornar essa validação.
+
+## Otimização DEX para o Google Play
+
+A variante `release` usa R8 com ofuscação, otimização de código e redução de recursos habilitadas. O arquivo `proguard-rules.pro` permanece reservado apenas para regras de compatibilidade necessárias; os plugins Capacitor fornecem suas próprias regras de consumo.
+
+Depois de gerar o AAB, envie também o `mapping.txt` produzido em `android\app\build\outputs\mapping\release\mapping.txt` ao Play Console quando ele solicitar o arquivo de desofuscação.
 
 ## Checklist do artefato
 

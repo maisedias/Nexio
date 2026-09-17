@@ -1,6 +1,6 @@
 {
   "name": "nexio-financeiro",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "private": true,
   "description": "Nexio Financeiro Android app wrapper powered by Capacitor.",
   "scripts": {

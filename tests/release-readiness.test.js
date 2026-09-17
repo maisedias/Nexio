@@ -11,6 +11,8 @@ const packageLock = JSON.parse(read("package-lock.json"));
 const index = read("index.html");
 const config = read("capacitor.config.ts");
 const gradle = read("android/app/build.gradle");
+const gradleProperties = read("android/gradle.properties");
+const gradleVariables = read("android/variables.gradle");
 const mainActivity = read("capacitor-overrides/android/MainActivity.java");
 const builder = read("scripts/build-android-web.js");
 const vercel = JSON.parse(read("vercel.json"));
@@ -40,10 +42,16 @@ check(() => {
 });
 
 check(() => {
-  assert.match(gradle, /versionCode\s+5/);
-  assert.match(gradle, /versionName\s+"1\.0\.5"/);
+  assert.match(gradle, /versionCode\s+8/);
+  assert.match(gradle, /versionName\s+"1\.0\.8"/);
   assert.match(gradle, /NEXIO_ANDROID_KEYSTORE_FILE/);
   assert.match(gradle, /verifyReleaseSigning/);
+  assert.match(gradle, /minifyEnabled\s+true/);
+  assert.match(gradle, /shrinkResources\s+true/);
+  assert.match(gradle, /proguard-android-optimize\.txt/);
+  assert.match(gradleProperties, /android\.r8\.optimizedResourceShrinking=true/);
+  assert.match(gradleVariables, /androidAppCompatVersion\s*=\s*'1\.8\.0'/);
+  assert.match(gradle, /catch\(Exception ignored\)/);
   assert.doesNotMatch(gradle, /storePassword\s+["'][^"']+["']/);
 });
 

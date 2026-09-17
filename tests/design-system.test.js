@@ -187,6 +187,10 @@ assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.app-shell,[\s\S]*
 assert.match(index, /data-selection-bar hidden/, "The zero-selection action bar must start hidden");
 assert.match(activeSkin, /\.app-shell \[hidden\]\s*\{\s*display:\s*none\s*!important;/, "Hidden application surfaces must not be forced back into the layout");
 assert.match(index, /data-transactions-table-shell/, "The transaction list must expose a persistent table surface");
+assert.match(renderer, /function statusBadge\(transaction\)[\s\S]*?return statusSelect\(transaction\);/, "Transaction status must use the native selector rather than a clipped custom menu");
+assert.match(renderer, /\[data-inline-status\][\s\S]*?select\.addEventListener\("change"[\s\S]*?updateTransactionStatus\(select\.dataset\.inlineStatus, select\.value\)/, "Choosing a transaction status must immediately update the existing transaction");
+assert.match(activeSkin, /\.status-select\.status-paid,[\s\S]*?background:\s*var\(--color-income-soft\);[\s\S]*?color:\s*var\(--nx-income\);/, "Paid and received status selectors must retain their income color treatment");
+assert.match(activeSkin, /\.status-select\.status-pending\s*\{[^}]*background:\s*var\(--color-warning-soft\);[^}]*color:\s*var\(--nx-warning\);/, "Pending status selectors must retain their warning color treatment");
 assert.doesNotMatch(index, /data-transactions-cards/, "Transaction cards must not duplicate the table list");
 assert.doesNotMatch(index, /transaction-table-details/, "The table must not be hidden behind a disclosure control");
 assert.match(renderer, /tableShell\?\.removeAttribute\("hidden"\)[\s\S]*?\[toolbar, footer\][\s\S]*?toggleAttribute\("hidden", !total\)/, "Empty transaction lists must preserve the table empty state while hiding auxiliary controls");
@@ -202,6 +206,7 @@ assert.match(legacyComponents, /@media \(max-width: 340px\)[\s\S]*?\.pagination-
 assert.match(renderer, /function hasOpenModalDialog\(\)[\s\S]*?getClientRects\(\)\.length > 0/, "Open modal dialogs must be detected from their rendered state");
 assert.match(renderer, /fabVisibleViews\.has\(state\.view\)[^;]*?!hasOpenModalDialog\(\)/, "Open dialogs must hide and disable the floating action button");
 assert.match(activeSkin, /@media \(max-width: 900px\)[\s\S]*?\.dashboard-main-grid\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);[\s\S]*?\.overview-dashboard \.panel-heading\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) auto;/, "Mobile dashboard cards must use the full row without collapsing their headings");
+assert.match(activeSkin, /@media \(max-width: 760px\)[\s\S]*?\.transaction-summary-grid\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);[\s\S]*?\.transaction-summary-card strong\s*\{\s*overflow:\s*visible;[\s\S]*?text-overflow:\s*clip;/, "Mobile transaction totals must reserve enough space for complete amounts");
 assert.match(activeSkin, /overview-dashboard \.panel-heading :where\(\.ghost-action, \.pill\)[\s\S]*?width:\s*auto;[\s\S]*?white-space:\s*nowrap;/, "Dashboard header actions must override global full-width mobile buttons");
 assert.match(activeSkin, /cashflow-chart-panel\.has-empty-chart \.chart-canvas\s*\{\s*display:\s*none;/, "Empty cashflow charts must not reserve canvas height on mobile");
 assert.match(activeSkin, /cashflow-summary-card strong[\s\S]*?white-space:\s*nowrap;[\s\S]*?overflow-wrap:\s*normal;/, "Cashflow summary amounts must stay on one line");

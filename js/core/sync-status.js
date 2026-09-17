@@ -67,6 +67,8 @@
         "Sincronização bloqueada",
         "Há versões diferentes dos seus dados que precisam de revisão antes de continuar.",
         "danger",
+        "resolve-conflict",
+        "Revisar dados",
       );
     }
 

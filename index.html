@@ -1051,6 +1051,7 @@
                 <span data-transaction-page-summary>Mostrando 0 transações</span>
               </div>
 
+              <div class="transaction-card-grid transaction-mobile-list" data-transactions-mobile-list></div>
               <div class="table-shell transaction-table-shell" data-transactions-table-shell>
                 <table>
                   <thead>
@@ -1695,6 +1696,34 @@
               <footer class="assistant-modal-actions">
                 <button class="ghost-action" data-cancel-clear-assistant-personalization type="button">Cancelar</button>
                 <button class="danger-action" data-confirm-clear-assistant-personalization type="button">Limpar</button>
+              </footer>
+            </section>
+          </div>
+
+          <div class="assistant-modal-backdrop" data-sync-conflict-modal hidden>
+            <section class="assistant-voice-modal sync-conflict-modal" role="dialog" aria-modal="true" aria-labelledby="syncConflictTitle" aria-describedby="syncConflictDescription">
+              <header class="assistant-modal-header">
+                <div>
+                  <span>Sincronização segura</span>
+                  <h2 id="syncConflictTitle">Escolha a versão dos seus dados</h2>
+                </div>
+                <button class="icon-button" data-cancel-sync-conflict type="button" aria-label="Fechar"><i data-lucide="x" aria-hidden="true"></i></button>
+              </header>
+              <div class="assistant-personalization-modal-content">
+                <p id="syncConflictDescription">Encontramos alterações diferentes neste aparelho e na nuvem. Escolha qual versão deseja manter. Antes de continuar, o Nexio cria uma cópia de segurança local das duas versões.</p>
+                <div class="sync-conflict-options">
+                  <button class="sync-conflict-option" data-resolve-sync-conflict="cloud" type="button">
+                    <strong>Usar versão da nuvem</strong>
+                    <small>Substitui os dados visíveis neste aparelho pelos dados que já estão sincronizados.</small>
+                  </button>
+                  <button class="sync-conflict-option" data-resolve-sync-conflict="local" type="button">
+                    <strong>Manter dados deste aparelho</strong>
+                    <small>Envia esta versão para a nuvem e substitui a versão que está lá.</small>
+                  </button>
+                </div>
+              </div>
+              <footer class="assistant-modal-actions">
+                <button class="ghost-action" data-cancel-sync-conflict type="button">Cancelar</button>
               </footer>
             </section>
           </div>

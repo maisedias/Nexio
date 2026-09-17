@@ -59,6 +59,18 @@ test("06. bloqueio real mantém linguagem de segurança e explicação", () => {
   assert.match(result.description, /segurança|seguros/i);
 });
 
+test("06b. conflito oferece revisão explícita sem sincronização automática", () => {
+  const result = present(context({ status: "conflict", conflict: true, dirty: true }));
+  assert.deepEqual([result.action, result.actionLabel], ["resolve-conflict", "Revisar dados"]);
+  assert.match(html, /data-sync-conflict-modal[\s\S]*?data-resolve-sync-conflict="cloud"[\s\S]*?data-resolve-sync-conflict="local"/);
+  assert.match(ui, /backupOwnerUser\(localStorage, snapshot\.ownerId, localUser\)[\s\S]*?backupOwnerUser\(localStorage, snapshot\.ownerId, snapshot\.user\)/);
+});
+
+test("06c. app nativo restaura o snapshot remoto válido após guardar o conflito local", () => {
+  assert.match(ui, /isNativeAppRuntime\(\) && reconciliation\.conflict[\s\S]*?backupOwnerUser\(localStorage, ownerId, reconciliation\.localBackupCandidate\)[\s\S]*?localExists: false/);
+  assert.match(ui, /recoverNativeConflictFromCloud[\s\S]*?blocked: false, conflict: false, dirty: false/);
+});
+
 test("07. retry agendado permite tentar novamente", () => {
   const result = present(context({ status: "retrying", dirty: true }));
   assert.equal(result.actionLabel, "Tentar novamente");
@@ -99,4 +111,4 @@ test("12. toda apresentação permanece em pt-BR e sem detalhes internos", () =>
   assert.match(JSON.stringify(states), /Sincronização/);
 });
 
-console.log("Sync status UX tests passed: 12/12.");
+console.log("Sync status UX tests passed: 14/14.");
