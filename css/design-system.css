@@ -826,6 +826,91 @@ body.theme-dark :is(.app-shell, .auth-shell, .onboarding-shell) :is(
   :where(.card, [data-card]) { padding: var(--card-padding); }
   :where(.button, [data-button], .primary-action, .secondary-action, .ghost-action, .danger-action) { min-height: var(--size-touch-target); }
   :where(.list-item, [data-list-item]) { gap: var(--space-2); padding: var(--list-item-padding); }
+
+  /* Nexio mobile: small set of visual roles shared by every existing screen. */
+  .app-shell {
+    font-size: var(--type-body-size);
+  }
+
+  .app-shell :where(.type-financial, [data-type="financial"], .dashboard-kpi-primary > strong, .cashflow-hero-panel .cashflow-total, .accounts-hero-summary > strong) {
+    font-size: var(--type-financial-size);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: var(--letter-spacing-statistic);
+    line-height: var(--type-financial-line-height);
+  }
+
+  .app-shell :where(.type-heading, [data-type="heading"], .view > header h2, .panel-heading h2) {
+    font-size: var(--type-heading-size);
+    line-height: var(--type-heading-line-height);
+  }
+
+  .app-shell :where(.type-title, [data-type="title"], .transaction-card h3, .account-card h3, .goal-card h3, .profile-item h3) {
+    font-size: var(--type-title-size);
+    line-height: var(--type-title-line-height);
+  }
+
+  .app-shell :where(.eyebrow, .type-label, [data-type="label"], .field > span:first-child) {
+    font-size: var(--type-label-size);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--letter-spacing-label);
+    line-height: var(--type-label-line-height);
+  }
+
+  .app-shell :where(.panel, .metric-card, .cashflow-summary-card, .cashflow-chart-panel, .cashflow-semaphore-card, .cashflow-alert-card, .cashflow-tips-panel, .goal-card, .profile-item, .settings-card) {
+    border-color: transparent !important;
+    background: var(--mobile-card-secondary) !important;
+    box-shadow: var(--shadow-small) !important;
+  }
+
+  .app-shell :where(.dashboard-kpi-primary, .cashflow-hero-panel, .accounts-hero-panel) {
+    border-color: color-mix(in srgb, var(--color-primary) 16%, transparent) !important;
+    background: var(--mobile-card-primary) !important;
+    box-shadow: var(--shadow-medium) !important;
+  }
+
+  .app-shell :where(.transaction-mobile-list .transaction-card, .list-item, [data-list-item]) {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .app-shell :where(.insight-panel, .cashflow-insight-card, .assistant-hero-panel) {
+    border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border)) !important;
+    background: linear-gradient(135deg, var(--mobile-insight-surface), var(--mobile-card-primary)) !important;
+    box-shadow: var(--shadow-small) !important;
+  }
+
+  .app-shell :where(.empty-state) {
+    min-height: var(--size-layout-min-large);
+    gap: var(--mobile-list-gap);
+    border: var(--border-width-thin) dashed var(--color-border-strong);
+    background: var(--mobile-card-list);
+    padding: var(--card-padding-compact);
+  }
+
+  .app-shell :where(.empty-state strong) {
+    color: var(--color-text-primary);
+    font-size: var(--type-title-size);
+  }
+
+  .app-shell :where(.empty-state-text, .empty-state span:last-child) {
+    color: var(--color-text-muted);
+    font-size: var(--type-caption-size);
+    line-height: var(--type-caption-line-height);
+  }
+
+  .toast {
+    bottom: max(calc(var(--safe-area-bottom) + var(--size-touch-target) + var(--mobile-card-gap)), var(--mobile-sheet-padding));
+    border-color: transparent;
+    background: var(--mobile-card-primary);
+    box-shadow: var(--shadow-large);
+  }
+
+  .skeleton,
+  [data-loading="true"] .skeleton-target,
+  [aria-busy="true"] .skeleton-target {
+    border-radius: var(--radius-medium);
+    background-color: var(--mobile-card-list);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

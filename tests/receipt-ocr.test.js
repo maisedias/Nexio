@@ -223,4 +223,25 @@ test("18. native dependencies and local image processing contract are installed"
   assert.match(androidPlugins, /capacitor-mlkit-text-recognition/);
 });
 
-console.log("Receipt OCR tests passed: 18/18.");
+test("19. uses the Camera 8 Activity-safe APIs before the legacy getPhoto fallback", async () => {
+  const harness = serviceHarness();
+  const calls = { camera: [], gallery: [], legacy: 0 };
+  harness.camera.takePhoto = async (options) => {
+    calls.camera.push(options);
+    return { uri: "file:///camera.jpg", webPath: "capacitor://camera.jpg", width: 3000, height: 2000 };
+  };
+  harness.camera.chooseFromGallery = async (options) => {
+    calls.gallery.push(options);
+    return { results: [{ uri: "file:///gallery.jpg", webPath: "capacitor://gallery.jpg", width: 2000, height: 3000 }] };
+  };
+  harness.camera.getPhoto = async () => { calls.legacy += 1; throw new Error("legacy flow must not run"); };
+
+  const service = receipt.createService(harness);
+  await service.scan("camera", { allowEditing: true });
+  await service.scan("gallery");
+  assert.deepEqual(calls.camera, [{ quality: 88, targetWidth: 2048, targetHeight: 2048, correctOrientation: true, editable: "in-app", saveToGallery: false }]);
+  assert.deepEqual(calls.gallery, [{ quality: 88, allowMultipleSelection: false }]);
+  assert.equal(calls.legacy, 0);
+});
+
+console.log("Receipt OCR tests passed: 19/19.");

@@ -147,7 +147,7 @@
       status,
       online: window.navigator?.onLine !== false,
       cloudAvailable: cloud.enabled && Boolean(cloud.client),
-      authenticated: Boolean(user && !isLocalOnlyUser(user) && !status.guest && cloud.userId),
+      authenticated: hasAuthenticatedSession(user, status),
       hasProfile: Boolean(profile?.id && user?.activeProfileId),
     };
   }
@@ -532,6 +532,10 @@
     return Boolean(user?.localOnly || normalizeEmail(user?.email || "") === LOCAL_USER_EMAIL);
   }
 
+  function hasAuthenticatedSession(user = currentUser(), status = syncCoordinator.getStatus()) {
+    return Boolean(user && !isLocalOnlyUser(user) && !status.guest && cloud.userId);
+  }
+
   function currentProfile() {
     return core.profiles.currentProfile(currentUser());
   }
@@ -698,6 +702,29 @@
     saveStore();
     showToast("Modo sem login ativado.");
     render();
+  }
+
+  function openExistingLoginFlow() {
+    if (hasAuthenticatedSession()) return;
+    invalidateVisibleOwner();
+    cloud.lastStatus = "Entre na sua conta";
+    render();
+  }
+
+  async function signOutCurrentSession() {
+    const previousOwnerId = invalidateVisibleOwner();
+    if (previousOwnerId) tabChannel.post("logout", { ownerId: previousOwnerId });
+    render();
+    const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
+      localStorage,
+      SESSION_KEY,
+      cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
+    );
+    cloud.lastStatus = remoteSignOutSucceeded ? "Sessão encerrada" : "Sessão local encerrada; falha remota";
+    showToast(remoteSignOutSucceeded
+      ? "Sessão encerrada."
+      : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
+    updateSyncStatus();
   }
 
   function render() {
@@ -1198,12 +1225,14 @@
     applyTheme(user.theme);
     applyPrimaryColor(user.primaryColor);
     app.innerHTML = "";
-    document.body.classList.remove("has-mobile-transaction-composer", "has-category-manager", "has-ai-assistant-modal");
+    document.body.classList.remove("has-mobile-quick-actions", "has-mobile-transaction-composer", "has-mobile-account-composer", "has-category-manager", "has-ai-assistant-modal");
     app.append(document.getElementById("dashboard-template").content.cloneNode(true));
     app.querySelector(".app-shell")?.classList.toggle("sidebar-is-collapsed", state.sidebarCollapsed);
     renderIcons();
 
-    app.querySelector("[data-active-profile-label]").textContent = profile.name;
+    app.querySelectorAll("[data-active-profile-label], [data-mobile-active-profile-name]").forEach((label) => {
+      label.textContent = profile.name || "Perfil financeiro";
+    });
     updateTopbarContext();
     bindNavigation();
     bindAssistantFlow();
@@ -1349,28 +1378,14 @@
       syncSidebarToggle();
     });
     syncSidebarToggle();
-    app.querySelector("[data-logout]").addEventListener("click", async () => {
-      const previousOwnerId = invalidateVisibleOwner();
-      if (previousOwnerId) tabChannel.post("logout", { ownerId: previousOwnerId });
-      render();
-      const remoteSignOutSucceeded = await core.storage.signOutAndClearSession(
-        localStorage,
-        SESSION_KEY,
-        cloud.enabled && cloud.client ? () => cloud.client.auth.signOut() : null,
-      );
-      cloud.lastStatus = remoteSignOutSucceeded ? "Sessão encerrada" : "Sessão local encerrada; falha remota";
-      showToast(remoteSignOutSucceeded
-        ? "Sessão encerrada."
-        : "Sessão local encerrada. Não foi possível confirmar o logout remoto.");
-      updateSyncStatus();
-    });
+    app.querySelector("[data-logout]")?.addEventListener("click", signOutCurrentSession);
   }
 
   function renderReleaseMetadata() {
     const output = app.querySelector("[data-release-version]");
     if (!output) return;
     const metadata = window.__NEXIO_RELEASE__ || {};
-    const version = String(metadata.versionName || "1.0.5");
+    const version = String(metadata.versionName || "1.0.10");
     const shortCommit = /^[0-9a-f]{40}$/i.test(String(metadata.commit || ""))
       ? String(metadata.commit).slice(0, 12)
       : "";
@@ -1401,6 +1416,7 @@
     draft: null,
     personalization: null,
     interpretationId: 0,
+    operationId: 0,
   };
 
   const assistantShare = {
@@ -1422,6 +1438,12 @@
   const assistantPlatform = {
     services: null,
   };
+
+  function receiptOcrDiagnostic(stage, status, details = {}) {
+    const sink = window.__NEXIO_RECEIPT_OCR_DIAGNOSTICS__;
+    if (typeof sink?.record !== "function") return;
+    sink.record({ subsystem: "receipt-ocr", stage, status, ...details });
+  }
 
   function assistantPlatformServices() {
     if (assistantPlatform.services) return assistantPlatform.services;
@@ -1721,7 +1743,7 @@
       error: options.message || "Não foi possível concluir o reconhecimento de voz. Tente novamente.",
       "permission-denied": assistantVoice.provider === "web"
         ? "A permissão do microfone foi negada. Autorize o acesso nas configurações do navegador ou digite o lançamento."
-        : "O acesso ao microfone está bloqueado. Abra as configurações do Android, permita o acesso e tente novamente.",
+        : "Permissão de microfone necessária para registrar por voz. Abra as configurações do Android, permita o acesso e tente novamente.",
     };
     if (dialog) dialog.dataset.aiVoiceState = nextState;
     if (transcript) {
@@ -1761,11 +1783,19 @@
     updateAssistantTranscript(text);
     const interpretationId = ++assistantVoice.interpretationId;
     setAssistantVoiceState("processing", { message: "Interpretando lançamento..." });
-    const result = await interpretAssistantInput(assistantVoice.transcript, "voice");
-    if (interpretationId !== assistantVoice.interpretationId || result.strategy === "cancelled") return;
-    assistantVoice.draft = result?.draft || null;
-    assistantVoice.personalization = result?.personalization || null;
-    setAssistantVoiceState("recognized", { message: result.message });
+    try {
+      const result = await interpretAssistantInput(assistantVoice.transcript, "voice");
+      if (interpretationId !== assistantVoice.interpretationId) return;
+      if (result.strategy === "cancelled") {
+        handleAssistantVoiceError({ code: "recognition-cancelled", message: "A interpretação foi cancelada. Tente falar novamente ou digite o lançamento." });
+        return;
+      }
+      assistantVoice.draft = result?.draft || null;
+      assistantVoice.personalization = result?.personalization || null;
+      setAssistantVoiceState("recognized", { message: result.message });
+    } catch (error) {
+      if (interpretationId === assistantVoice.interpretationId) handleAssistantVoiceError(error);
+    }
   }
 
   function handleAssistantVoiceError(error) {
@@ -1911,6 +1941,7 @@
       if (["processing-image", "recognizing", "choosing"].includes(assistantReceipt.state)) await assistantReceipt.service.cancel();
       else await assistantReceipt.service.release();
     }
+    assistantReceipt.operationId += 1;
     assistantReceipt.interpretationId += 1;
     assistantInterpretation.service?.cancel?.();
     assistantReceipt.result = null;
@@ -1964,7 +1995,10 @@
   }
 
   async function scanAssistantReceipt(source, options = {}) {
+    if (["choosing", "processing-image", "recognizing"].includes(assistantReceipt.state)) return;
     const service = receiptOcrService();
+    const operationId = ++assistantReceipt.operationId;
+    const startedAt = Date.now();
     assistantReceipt.source = source === "gallery" ? "gallery" : "camera";
     assistantReceipt.result = null;
     assistantReceipt.draft = null;
@@ -1975,37 +2009,82 @@
         : "O reconhecimento local de comprovantes não está disponível neste aparelho. Você ainda pode registrar o lançamento manualmente." });
       return;
     }
+    receiptOcrDiagnostic("scan", "start", { operationId, source: assistantReceipt.source });
     setReceiptOcrState("choosing");
     try {
       const result = await service.scan(assistantReceipt.source, {
         allowEditing: options.allowEditing,
-        onProcessingImage: () => setReceiptOcrState("processing-image"),
-        onRecognizing: () => setReceiptOcrState("recognizing"),
+        onProcessingImage: () => {
+          if (operationId === assistantReceipt.operationId) setReceiptOcrState("processing-image");
+          receiptOcrDiagnostic("image-preprocessing", "start", { operationId });
+        },
+        onRecognizing: () => {
+          if (operationId === assistantReceipt.operationId) setReceiptOcrState("recognizing");
+          receiptOcrDiagnostic("recognition", "start", { operationId });
+        },
         onProgress: (progress) => {
+          if (operationId !== assistantReceipt.operationId || !/recognizing text/i.test(String(progress?.status || ""))) return;
           const value = Math.round(Math.max(0, Math.min(1, Number(progress?.progress) || 0)) * 100);
-          if (value > 0) setReceiptOcrState("recognizing", { message: `Reconhecendo texto localmente… ${value}%` });
+          if (value >= 100) {
+            setReceiptOcrState("recognizing", { message: "Concluindo a leitura do comprovante..." });
+          } else if (value > 0) {
+            setReceiptOcrState("recognizing", { message: `Reconhecendo texto localmente… ${value}%` });
+          }
         },
       });
+      if (operationId !== assistantReceipt.operationId) return;
+      receiptOcrDiagnostic("recognition", "complete", { operationId, durationMs: Date.now() - startedAt, hasText: Boolean(result?.text) });
       assistantReceipt.result = result;
       const localDraft = core.receiptOcr?.createDraft?.(result.text, core.aiAssistant?.parseTransaction)?.draft || null;
       const interpretationId = ++assistantReceipt.interpretationId;
       setReceiptOcrState("recognizing", { message: "Interpretando lançamento..." });
-      const interpretation = await interpretAssistantInput(result.text, "receipt-ocr", localDraft);
-      if (interpretationId !== assistantReceipt.interpretationId || interpretation.strategy === "cancelled") return;
+      let interpretation;
+      try {
+        interpretation = await interpretAssistantInput(result.text, "receipt-ocr", localDraft);
+        receiptOcrDiagnostic("parser", "complete", { operationId, durationMs: Date.now() - startedAt, hasDraft: Boolean(interpretation?.draft) });
+      } catch (error) {
+        const draft = core.aiInterpreter?.manualDraft?.(result.text, localDraft, {
+          now: new Date(),
+          partialParser: core.aiAssistant?.parsePartialTransaction,
+        }) || localDraft;
+        interpretation = {
+          draft,
+          personalization: null,
+          strategy: "fallback",
+          message: "Alguns dados não puderam ser interpretados. Revise e complete o lançamento.",
+        };
+        receiptOcrDiagnostic("parser", "error", { operationId, durationMs: Date.now() - startedAt, code: error?.code || "parser-error", hasDraft: Boolean(draft) });
+      }
+      if (operationId !== assistantReceipt.operationId || interpretationId !== assistantReceipt.interpretationId) return;
+      if (interpretation.strategy === "cancelled") {
+        setReceiptOcrState("error", { message: "A interpretação foi cancelada. Escolha outra imagem ou tente novamente." });
+        return;
+      }
       assistantReceipt.draft = interpretation.draft;
       assistantReceipt.personalization = interpretation.personalization || null;
+      const canReview = Boolean(String(result.text || "").trim())
+        && Boolean(String(interpretation.draft?.description || "").trim() || Number.isFinite(interpretation.draft?.amount));
+      if (canReview) {
+        receiptOcrDiagnostic("review-navigation", "start", { operationId, durationMs: Date.now() - startedAt });
+        prefillTransactionFromAssistant(interpretation.draft, result.text, assistantReceipt.personalization);
+        receiptOcrDiagnostic("review-navigation", "complete", { operationId, durationMs: Date.now() - startedAt });
+        return;
+      }
       renderReceiptPreview();
       setReceiptOcrState("preview", { message: interpretation.message });
     } catch (error) {
+      if (operationId !== assistantReceipt.operationId) return;
       const normalized = core.receiptOcr?.normalizeError?.(
         error,
         assistantReceipt.source,
         assistantReceipt.pickerProvider === "web" ? "web" : "android",
       ) || error;
       if (normalized?.code === "cancelled") {
+        receiptOcrDiagnostic("scan", "cancelled", { operationId, durationMs: Date.now() - startedAt });
         setReceiptOcrState("idle");
         return;
       }
+      receiptOcrDiagnostic("scan", normalized?.code === "ocr-timeout" ? "timeout" : "error", { operationId, durationMs: Date.now() - startedAt, code: normalized?.code || "ocr-error" });
       setReceiptOcrState(normalized?.code === "permission-denied" ? "permission-denied" : "error", {
         message: normalized?.message,
       });
@@ -2031,6 +2110,7 @@
   }
 
   async function resetReceiptOcr() {
+    assistantReceipt.operationId += 1;
     assistantReceipt.interpretationId += 1;
     assistantInterpretation.service?.cancel?.();
     await assistantReceipt.service?.reset?.();
@@ -2405,7 +2485,22 @@
         renderTransactionsTable();
       });
     }
-    app.querySelector("[data-quick-transaction]").addEventListener("click", () => openTransactionComposer());
+    app.querySelector("[data-quick-transaction]").addEventListener("click", () => {
+      if (isMobileQuickActionsLayout()) {
+        openMobileQuickActions();
+        return;
+      }
+      openTransactionComposer();
+    });
+    app.querySelectorAll("[data-mobile-nav-view]").forEach((button) => {
+      button.addEventListener("click", () => setView(button.dataset.mobileNavView));
+    });
+    app.querySelector("[data-mobile-overview-insights-toggle]")?.addEventListener("click", (event) => {
+      const panel = event.currentTarget.closest(".dashboard-insights-panel");
+      const expanded = panel?.classList.toggle("is-mobile-expanded");
+      event.currentTarget.setAttribute("aria-expanded", String(Boolean(expanded)));
+      event.currentTarget.textContent = expanded ? "Mostrar menos" : "Ver análises";
+    });
     app.querySelector("[data-quick-profile]").addEventListener("click", () => {
       openProfileComposer();
     });
@@ -2776,7 +2871,9 @@
     ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
   }
 
-  function setView(view) {
+  const navigationHistory = [];
+
+  function setView(view, options = {}) {
     setFabMenuOpen(false);
     if (view !== "transactions") {
       closeMobileTransactionComposer();
@@ -2787,8 +2884,13 @@
       closeReceiptOcrModal({ restoreFocus: false });
       closeIncomingSharedContent({ restoreFocus: false });
     }
-    const enteringTransactions = view === "transactions" && state.view !== "transactions";
+    const previousView = state.view;
+    const enteringTransactions = view === "transactions" && previousView !== "transactions";
     const enteringBudgets = view === "budgets" && state.view !== "budgets";
+    if (!options.fromNativeBack && previousView && previousView !== view) {
+      navigationHistory.push(previousView);
+      if (navigationHistory.length > 24) navigationHistory.shift();
+    }
     state.view = view;
     const titleMap = {
       overview: "Visão geral",
@@ -2801,10 +2903,18 @@
       goals: "Metas e Objetivos",
       profiles: "Perfis",
       settings: "Configurações",
+      planning: "Planejamento",
+      more: "Mais",
     };
     app.querySelector("[data-view-title]").textContent = titleMap[view] || "Nexio";
     app.querySelectorAll("[data-view]").forEach((button) => {
       const isActive = button.dataset.view === view;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-current", isActive ? "page" : "false");
+    });
+    const mobileNavView = mobileNavigationViewFor(view);
+    app.querySelectorAll("[data-mobile-nav-view]").forEach((button) => {
+      const isActive = button.dataset.mobileNavView === mobileNavView;
       button.classList.toggle("is-active", isActive);
       button.setAttribute("aria-current", isActive ? "page" : "false");
     });
@@ -2907,12 +3017,17 @@
       saveStore();
       showToast(id ? "Conta atualizada." : "Conta criada.");
       resetAccountForm();
+      closeMobileAccountComposer({ restoreFocus: false });
       refreshAll();
     });
     app.querySelector("[data-reset-account-form]")?.addEventListener("click", resetAccountForm);
     app.querySelector("[data-new-account]")?.addEventListener("click", () => {
       resetAccountForm();
-      app.querySelector("#accountName")?.focus();
+      openMobileAccountComposer();
+    });
+    app.querySelectorAll("[data-close-account-composer]").forEach((button) => button.addEventListener("click", closeMobileAccountComposer));
+    app.querySelector("[data-account-composer]")?.addEventListener("click", (event) => {
+      if (event.target === event.currentTarget) closeMobileAccountComposer();
     });
     app.querySelector("[data-open-transfer]")?.addEventListener("click", () => openTransferComposer());
     app.querySelectorAll("[data-close-transfer]").forEach((button) => button.addEventListener("click", closeAccountTransfer));
@@ -3075,7 +3190,10 @@
         title: "Nenhuma conta disponível.",
         description: "Crie uma conta para começar a separar seus saldos.",
         actionLabel: "Nova conta",
-        action: () => app.querySelector("#accountName")?.focus(),
+        action: () => {
+          resetAccountForm();
+          openMobileAccountComposer();
+        },
       }));
       return;
     }
@@ -3083,6 +3201,7 @@
       const card = document.createElement("article");
       card.className = `account-card${account.active === false ? " is-inactive" : ""}`;
       card.innerHTML = `
+        <button class="account-card-mobile-open" data-filter-account="${escapeHtml(account.id)}" type="button" aria-label="Ver transações da conta ${escapeHtml(account.name)}"></button>
         <header><span class="account-card-icon"><i data-lucide="${accountTypeIcon(account.type)}" aria-hidden="true"></i></span><div><h3>${escapeHtml(account.name)}</h3><p>${escapeHtml(core.accounts.typeLabels[account.type] || account.type || "Conta")}</p></div>${profile.defaultAccountId === account.id ? '<span class="pill">Padrão</span>' : ""}</header>
         <div class="account-card-balance"><span>Saldo atual</span><strong class="${value < 0 ? "amount-expense" : ""}">${money(value)}</strong></div>
         <dl><div><dt>Saldo inicial</dt><dd>${money(account.initialBalance)}</dd></div><div><dt>Movimentações</dt><dd>${count}</dd></div><div><dt>Status</dt><dd>${account.active === false ? "Inativa" : "Ativa"}</dd></div></dl>
@@ -3092,6 +3211,7 @@
           <details class="account-action-menu">
             <summary class="icon-button" aria-label="Mais ações para ${escapeHtml(account.name)}"><i data-lucide="more-horizontal" aria-hidden="true"></i></summary>
             <div>
+              <button class="mobile-account-menu-action" data-edit-account="${escapeHtml(account.id)}" type="button"><i data-lucide="pencil" aria-hidden="true"></i>Editar</button>
               ${profile.defaultAccountId === account.id || account.active === false ? "" : `<button data-default-account="${escapeHtml(account.id)}" type="button"><i data-lucide="star" aria-hidden="true"></i>Tornar padrão</button>`}
               <button data-toggle-account="${escapeHtml(account.id)}" type="button"><i data-lucide="${account.active === false ? "circle-play" : "circle-pause"}" aria-hidden="true"></i>${account.active === false ? "Ativar" : "Inativar"}</button>
               <button class="danger" data-delete-account="${escapeHtml(account.id)}" type="button"><i data-lucide="trash-2" aria-hidden="true"></i>Excluir</button>
@@ -3163,7 +3283,7 @@
     app.querySelector("#accountDefault").checked = currentProfile().defaultAccountId === account.id;
     app.querySelector("[data-account-form-mode]").textContent = "Editando conta";
     app.querySelector("[data-save-account]").textContent = "Atualizar conta";
-    app.querySelector("#accountName")?.focus();
+    openMobileAccountComposer();
   }
 
   function ensureTransferCategory(profile) {
@@ -3402,7 +3522,9 @@
       setAnimatedMoney("[data-budgets-planned]", activeSummary.planned);
       setAnimatedMoney("[data-budgets-spent]", activeSummary.spent);
       setAnimatedMoney("[data-budgets-committed]", activeSummary.committed);
-      app.querySelector("[data-budgets-month-label]").textContent = formatMonthYear(state.budgetMonth);
+      app.querySelectorAll("[data-budgets-month-label]").forEach((element) => {
+        element.textContent = formatMonthYear(state.budgetMonth);
+      });
       const monthPicker = app.querySelector("#budgetMonthPicker");
       if (monthPicker) monthPicker.value = state.budgetMonth;
       const inactiveToggle = app.querySelector("[data-show-inactive-budgets]");
@@ -3414,7 +3536,7 @@
         list.append(emptyState({
           icon: "gauge",
           title: state.showInactiveBudgets ? "Nenhum orçamento neste mês." : "Nenhum orçamento ativo neste mês.",
-          description: "Crie um limite por categoria para acompanhar seus gastos.",
+          description: "Defina limites para controlar seus gastos.",
           actionLabel: "Criar orçamento",
           action: openBudgetComposer,
         }));
@@ -3448,6 +3570,7 @@
         <span class="budget-status-pill">${escapeHtml(item.statusLabel)}</span>
       </header>
       <div class="budget-card-limit"><span>Limite mensal</span><strong>${money(item.limit)}</strong></div>
+      <p class="budget-mobile-usage"><strong>${money(item.spent)}</strong><span> de ${money(item.limit)}</span></p>
       <div class="budget-progress-head"><span>${Math.round(item.committedPercent)}% comprometido</span><span>Alerta em ${item.budget.alertThreshold}%</span></div>
       <div class="budget-progress" role="progressbar" aria-label="Progresso de ${escapeHtml(item.category?.name || "categoria")}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><i style="width:${progress}%"></i></div>
       <div class="budget-card-values">
@@ -3490,17 +3613,36 @@
 
   function renderBudgetReport(summary) {
     const body = app.querySelector("[data-budget-report]");
-    if (!body) return;
+    const mobileReport = app.querySelector("[data-budget-report-mobile]");
+    if (!body || !mobileReport) return;
     const report = core.reports.monthlyBudgetReport(currentProfile(), state.budgetMonth, { accountId: state.budgetAccount });
     body.innerHTML = "";
+    mobileReport.innerHTML = "";
     if (!report.ok || !report.rows.length) {
       body.innerHTML = '<tr><td colspan="7">Nenhum orçamento ativo para este relatório.</td></tr>';
+      mobileReport.innerHTML = '<div class="budget-mobile-report-empty"><strong>Nenhum orçamento ativo neste mês.</strong><span>Crie um orçamento para acompanhar seus gastos por categoria.</span></div>';
       return;
     }
     report.rows.forEach((row) => {
       const tr = document.createElement("tr");
       tr.innerHTML = `<td>${escapeHtml(row.category)}</td><td>${money(row.limit)}</td><td>${money(row.spent)}</td><td>${money(row.committed)}</td><td class="${row.remaining < 0 ? "amount-expense" : ""}">${money(row.remaining)}</td><td>${Math.round(row.percent)}%</td><td>${escapeHtml(row.status)}</td>`;
       body.append(tr);
+
+      const progress = Math.max(0, Math.min(row.percent, 100));
+      const remainingLabel = row.remaining < 0 ? "Excedente" : "Disponível";
+      const mobileItem = document.createElement("article");
+      mobileItem.className = `budget-mobile-report-item${row.remaining < 0 ? " is-exceeded" : ""}`;
+      mobileItem.innerHTML = `
+        <header><h3>${escapeHtml(row.category)}</h3><span>${escapeHtml(row.status)}</span></header>
+        <dl>
+          <div><dt>Limite</dt><dd>${money(row.limit)}</dd></div>
+          <div><dt>Gasto</dt><dd>${money(row.spent)}</dd></div>
+          <div class="${row.remaining < 0 ? "is-exceeded" : ""}"><dt>${remainingLabel}</dt><dd>${money(Math.abs(row.remaining))}</dd></div>
+        </dl>
+        <div class="budget-mobile-report-progress" role="progressbar" aria-label="Progresso de ${escapeHtml(row.category)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(progress)}"><i style="width:${progress}%"></i></div>
+        <small>${Math.round(row.percent)}% comprometido</small>
+      `;
+      mobileReport.append(mobileItem);
     });
   }
 
@@ -3509,6 +3651,7 @@
     const box = app.querySelector("[data-dashboard-budget-list]");
     if (!profile || !box) return;
     const result = core.budgets.dashboard(profile, toMonthInput(new Date()));
+    box.closest(".dashboard-budgets-panel")?.classList.toggle("is-empty", !result.ok || !result.items.length);
     box.innerHTML = "";
     if (!result.ok || !result.items.length) {
       box.append(emptyState({
@@ -3685,6 +3828,7 @@
     const openCategoryButton = app.querySelector("[data-open-category-manager]");
     const closeTransactionButtons = app.querySelectorAll("[data-close-transaction-composer]");
     const closeCategoryButtons = app.querySelectorAll("[data-close-category-manager]");
+    const quickActions = app.querySelector("[data-mobile-quick-actions]");
     const handleKeydown = (event) => {
       if (event.key !== "Escape") return;
       if (document.body.classList.contains("has-category-manager")) {
@@ -3695,7 +3839,13 @@
       if (document.body.classList.contains("has-mobile-transaction-composer")) {
         closeMobileTransactionComposer();
         app.querySelector("[data-quick-transaction]")?.focus();
+        return;
       }
+      if (document.body.classList.contains("has-mobile-account-composer")) {
+        closeMobileAccountComposer();
+        return;
+      }
+      if (!quickActions?.hidden) closeMobileQuickActions();
     };
     const handleResize = () => {
       if (!isCompactTransactionLayout()) closeMobileTransactionComposer();
@@ -3704,6 +3854,18 @@
     openCategoryButton?.addEventListener("click", openCategoryManager);
     closeTransactionButtons.forEach((button) => button.addEventListener("click", closeMobileTransactionComposer));
     closeCategoryButtons.forEach((button) => button.addEventListener("click", closeCategoryManager));
+    quickActions?.addEventListener("click", (event) => {
+      if (event.target === event.currentTarget) closeMobileQuickActions();
+    });
+    app.querySelectorAll("[data-close-mobile-quick-actions]").forEach((button) => button.addEventListener("click", closeMobileQuickActions));
+    app.querySelectorAll("[data-mobile-quick-action]").forEach((button) => button.addEventListener("click", () => {
+      const action = button.dataset.mobileQuickAction;
+      closeMobileQuickActions();
+      if (action === "income" || action === "expense") openTransactionComposer(action);
+      if (action === "account") openNewAccountFromQuickActions();
+      if (action === "transfer") openTransferComposer();
+      if (action === "goal") openGoalComposer();
+    }));
     document.addEventListener("keydown", handleKeydown);
     window.addEventListener("resize", handleResize);
     mobileSurfaceCleanup = () => {
@@ -3719,6 +3881,58 @@
     return window.matchMedia("(max-width: 900px)").matches;
   }
 
+  function isMobileQuickActionsLayout() {
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+
+  function openMobileQuickActions() {
+    if (!isMobileQuickActionsLayout()) return;
+    const sheet = app.querySelector("[data-mobile-quick-actions]");
+    if (!sheet) return;
+    sheet.hidden = false;
+    document.body.classList.add("has-mobile-quick-actions");
+    sheet.querySelector("[data-close-mobile-quick-actions]")?.focus();
+    renderIcons();
+  }
+
+  function closeMobileQuickActions() {
+    const sheet = app.querySelector("[data-mobile-quick-actions]");
+    if (!sheet || sheet.hidden) return;
+    sheet.hidden = true;
+    document.body.classList.remove("has-mobile-quick-actions");
+    app.querySelector("[data-quick-transaction]")?.focus();
+  }
+
+  function openNewAccountFromQuickActions() {
+    setView("accounts");
+    resetAccountForm();
+    openMobileAccountComposer();
+  }
+
+  function isMobileAccountComposerLayout() {
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+
+  function openMobileAccountComposer() {
+    const composer = app.querySelector("[data-account-composer]");
+    if (!isMobileAccountComposerLayout() || !composer) {
+      app.querySelector("#accountName")?.focus();
+      return;
+    }
+    composer.hidden = false;
+    document.body.classList.add("has-mobile-account-composer");
+    composer.querySelector("#accountName")?.focus();
+    renderIcons();
+  }
+
+  function closeMobileAccountComposer(options = {}) {
+    const composer = app.querySelector("[data-account-composer]");
+    if (!composer || composer.hidden || !isMobileAccountComposerLayout()) return;
+    composer.hidden = true;
+    document.body.classList.remove("has-mobile-account-composer");
+    if (options.restoreFocus !== false) app.querySelector("[data-new-account]")?.focus();
+  }
+
   function openMobileTransactionComposer() {
     if (!isCompactTransactionLayout()) return;
     closeCategoryManager();
@@ -3731,7 +3945,93 @@
     if (backdrop) backdrop.hidden = false;
     mobileComposerScrollY = window.scrollY;
     document.body.classList.add("has-mobile-transaction-composer");
+    panel?.querySelector(".transaction-type-segment")?.scrollIntoView({ block: "nearest" });
     syncFloatingActionButton();
+  }
+
+  async function handleNativeBack() {
+    const visible = (selector) => {
+      const element = app.querySelector(selector);
+      return element && !element.hidden;
+    };
+
+    if (visible("[data-ai-voice-modal]")) {
+      await closeAssistantVoiceModal();
+      return true;
+    }
+    if (visible("[data-receipt-ocr-modal]")) {
+      await closeReceiptOcrModal();
+      return true;
+    }
+    if (visible("[data-shared-content-modal]")) {
+      await closeIncomingSharedContent();
+      return true;
+    }
+    if (visible("[data-assistant-personalization-modal]")) {
+      closeAssistantPersonalizationClearModal();
+      return true;
+    }
+    if (document.querySelector("[data-goal-money-modal]")) {
+      closeGoalMoneyModal();
+      return true;
+    }
+    if (document.querySelector("[data-goal-aux-modal]")) {
+      closeGoalAuxModal();
+      return true;
+    }
+    if (document.body.classList.contains("has-category-manager")) {
+      closeCategoryManager();
+      return true;
+    }
+    if (document.body.classList.contains("has-mobile-transaction-composer")) {
+      closeMobileTransactionComposer();
+      return true;
+    }
+    if (document.body.classList.contains("has-mobile-account-composer")) {
+      closeMobileAccountComposer();
+      return true;
+    }
+    if (!app.querySelector("[data-mobile-quick-actions]")?.hidden) {
+      closeMobileQuickActions();
+      return true;
+    }
+    if (visible("[data-transfer-composer]")) {
+      closeAccountTransfer();
+      return true;
+    }
+    if (visible("[data-budget-composer]")) {
+      closeBudgetComposer();
+      return true;
+    }
+    if (visible("[data-profile-composer]")) {
+      closeProfileComposer();
+      return true;
+    }
+    if (visible("[data-goal-composer]")) {
+      closeGoalComposer();
+      return true;
+    }
+    if (visible("[data-sync-conflict-modal]")) {
+      closeSyncConflictModal();
+      return true;
+    }
+
+    const previousView = navigationHistory.pop();
+    if (previousView && previousView !== state.view) {
+      setView(previousView, { fromNativeBack: true });
+      return true;
+    }
+    if (state.view !== "overview") {
+      setView("overview", { fromNativeBack: true });
+      return true;
+    }
+    return false;
+  }
+
+  function mobileNavigationViewFor(view) {
+    if (["budgets", "goals", "cashflow", "planning"].includes(view)) return "planning";
+    if (["accounts", "profiles", "settings", "notifications", "more"].includes(view)) return "more";
+    return view;
   }
 
   function closeMobileTransactionComposer() {
@@ -3915,6 +4215,27 @@
         drawCashflowCharts();
       });
     });
+    app.querySelectorAll("[data-cashflow-chart]").forEach((button) => {
+      button.addEventListener("click", () => {
+        syncMobileCashflowChart(button.dataset.cashflowChart || "balance");
+        drawCashflowCharts();
+      });
+    });
+    bindCashflowMobileDisclosure("[data-toggle-cashflow-balance-range]", ".cashflow-summary-grid", "is-mobile-range-expanded", "Ver saldo mínimo e máximo", "Ocultar saldo mínimo e máximo");
+    bindCashflowMobileDisclosure("[data-toggle-cashflow-alerts]", "[data-cashflow-alerts]", "is-mobile-list-expanded", "Ver todos", "Ver menos");
+    bindCashflowMobileDisclosure("[data-toggle-cashflow-tips]", "[data-cashflow-tips]", "is-mobile-list-expanded", "Ver todas", "Ver menos");
+    bindCashflowMobileDisclosure("[data-toggle-cashflow-movements]", "[data-cashflow-timeline]", "is-mobile-list-expanded", "Ver todos os movimentos", "Ver menos movimentos");
+    bindCashflowMobileDisclosure("[data-toggle-cashflow-calendar]", ".cashflow-planner-panel", "is-mobile-calendar-open", "Ver calendário", "Ocultar calendário");
+  }
+
+  function bindCashflowMobileDisclosure(buttonSelector, targetSelector, className, closedLabel, openLabel) {
+    app.querySelector(buttonSelector)?.addEventListener("click", (event) => {
+      const target = app.querySelector(targetSelector);
+      if (!target) return;
+      const isOpen = target.classList.toggle(className);
+      event.currentTarget.setAttribute("aria-expanded", String(isOpen));
+      event.currentTarget.textContent = isOpen ? openLabel : closedLabel;
+    });
   }
 
   function bindGoalForm() {
@@ -4023,6 +4344,19 @@
         renderGoals();
       });
     }
+
+    app.querySelector("[data-mobile-achievements-toggle]")?.addEventListener("click", (event) => {
+      const panel = event.currentTarget.closest(".goals-achievements-panel");
+      const expanded = panel?.classList.toggle("is-mobile-expanded");
+      event.currentTarget.setAttribute("aria-expanded", String(Boolean(expanded)));
+      event.currentTarget.textContent = expanded ? "Ocultar conquistas" : "Ver conquistas";
+    });
+    app.querySelector("[data-mobile-insights-toggle]")?.addEventListener("click", (event) => {
+      const panel = event.currentTarget.closest(".goal-insights-panel");
+      const expanded = panel?.classList.toggle("is-mobile-expanded");
+      event.currentTarget.setAttribute("aria-expanded", String(Boolean(expanded)));
+      event.currentTarget.textContent = expanded ? "Mostrar menos" : "Ver todos os insights das metas";
+    });
   }
 
   function bindProfileForm() {
@@ -4087,6 +4421,13 @@
         renderProfiles();
       });
     }
+
+    app.querySelector("[data-mobile-profiles-stats-toggle]")?.addEventListener("click", (event) => {
+      const panel = event.currentTarget.closest(".profiles-stats-panel");
+      const expanded = panel?.classList.toggle("is-mobile-expanded");
+      event.currentTarget.setAttribute("aria-expanded", String(Boolean(expanded)));
+      event.currentTarget.textContent = expanded ? "Ocultar estatísticas" : "Ver estatísticas consolidadas";
+    });
   }
 
   function resetProfileForm() {
@@ -4195,6 +4536,45 @@
       setView("settings");
     });
 
+    const settingsView = app.querySelector("#view-settings");
+    const settingsSectionLabels = {
+      account: ["Conta", "Conta e perfil"],
+      appearance: ["Preferências", "Aparência"],
+      notifications: ["Alertas", "Notificações"],
+      security: ["Privacidade", "Privacidade e segurança"],
+      assistant: ["Assistente", "Assistente Nexio"],
+      data: ["Dados", "Dados e backup"],
+      portability: ["Dados", "Importar e exportar"],
+      about: ["Nexio", "Sobre o Nexio"],
+    };
+    const closeMobileSettingsSection = ({ restoreFocus = true } = {}) => {
+      if (!settingsView) return;
+      const activeSection = settingsView.dataset.mobileSettingsActive;
+      settingsView.classList.remove("is-mobile-settings-detail");
+      delete settingsView.dataset.mobileSettingsActive;
+      if (restoreFocus && activeSection) {
+        app.querySelector(`[data-open-mobile-settings-section="${activeSection}"]`)?.focus();
+      }
+    };
+    app.querySelectorAll("[data-open-mobile-settings-section]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const section = button.dataset.openMobileSettingsSection;
+        const [eyebrow, title] = settingsSectionLabels[section] || ["Configurações", "Configurações"];
+        if (!settingsView) return;
+        settingsView.dataset.mobileSettingsActive = section;
+        settingsView.classList.add("is-mobile-settings-detail");
+        settingsView.querySelector("[data-mobile-settings-eyebrow]").textContent = eyebrow;
+        settingsView.querySelector("[data-mobile-settings-title]").textContent = title;
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        settingsView.querySelector("[data-close-mobile-settings-section]")?.focus();
+      });
+    });
+    app.querySelectorAll("[data-close-mobile-settings-section]").forEach((button) => {
+      button.addEventListener("click", () => closeMobileSettingsSection());
+    });
+    app.querySelector("[data-settings-login]")?.addEventListener("click", openExistingLoginFlow);
+    app.querySelector("[data-settings-logout]")?.addEventListener("click", signOutCurrentSession);
+
     const personalizationModal = app.querySelector("[data-assistant-personalization-modal]");
     app.querySelector("[data-clear-assistant-personalization]")?.addEventListener("click", openAssistantPersonalizationClearModal);
     app.querySelectorAll("[data-cancel-clear-assistant-personalization]").forEach((button) => {
@@ -4269,6 +4649,30 @@
           controls.forEach((control) => { control.disabled = false; });
         }
       });
+    });
+    const mobileSearch = app.querySelector("[data-mobile-transaction-search]");
+    if (mobileSearch) {
+      mobileSearch.value = state.filters.description;
+      mobileSearch.addEventListener("input", () => {
+        state.filters.description = mobileSearch.value;
+        state.transactionPage = 1;
+        renderTransactionsTable();
+      });
+    }
+    const mobileFilterSheet = app.querySelector("[data-mobile-transaction-filter-sheet]");
+    const toggleMobileFilterSheet = (open) => {
+      if (!mobileFilterSheet) return;
+      mobileFilterSheet.classList.toggle("is-mobile-open", open);
+      document.body.classList.toggle("has-mobile-transaction-filter-sheet", open);
+      app.querySelector("[data-open-mobile-transaction-filters]")?.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) mobileFilterSheet.querySelector("#filterCategory")?.focus();
+    };
+    app.querySelector("[data-open-mobile-transaction-filters]")?.addEventListener("click", () => toggleMobileFilterSheet(true));
+    app.querySelectorAll("[data-close-mobile-transaction-filters]").forEach((button) => {
+      button.addEventListener("click", () => toggleMobileFilterSheet(false));
+    });
+    mobileFilterSheet?.addEventListener("click", (event) => {
+      if (event.target === mobileFilterSheet) toggleMobileFilterSheet(false);
     });
 
     app.querySelectorAll("[data-theme-choice]").forEach((button) => {
@@ -4831,10 +5235,269 @@
     refreshNotificationSurfaces();
     updatePendingTone(app.querySelector("[data-pending-impact-card]"), app.querySelector("[data-pending-impact-icon]"), pendingImpact);
     updatePendingTone(app.querySelector("[data-projected-balance-card]"), app.querySelector("[data-projected-balance-icon]"), projectedBalance);
+    app.querySelector(".dashboard-goals-panel")?.classList.toggle("is-empty", !profile.goals.length);
+    const mobileFinancialContext = isMobileGoalsLayout() && core.financialContext
+      ? core.financialContext.get(profile, { referenceDate: toDateInput(new Date()), period: "current-month", includeAudit: true })
+      : null;
+    renderDashboardAttention(mobileFinancialContext);
+    renderSpendable(mobileFinancialContext);
 
     setAnimatedMoney("[data-cash-income]", monthIncome);
     setAnimatedMoney("[data-cash-expense]", monthExpense);
     setAnimatedMoney("[data-cash-result]", monthIncome - monthExpense);
+  }
+
+  function renderDashboardAttention(mobileFinancialContext = null) {
+    const panel = app.querySelector("[data-dashboard-attention]");
+    const list = app.querySelector("[data-dashboard-attention-list]");
+    if (!panel || !list) return;
+    if (isMobileGoalsLayout() && core.financialContext && core.today) {
+      renderNexioToday(panel, list, mobileFinancialContext);
+      return;
+    }
+    const items = currentNotificationItems()
+      .filter((item) => item.priority === "high" || item.priority === "medium")
+      .slice(0, 2);
+    panel.hidden = !items.length;
+    list.innerHTML = items.map((item) => `
+      <button class="dashboard-attention-item tone-${escapeHtml(item.tone)}" data-dashboard-attention-open="${escapeHtml(item.key)}" type="button">
+        <span class="dashboard-attention-icon"><i data-lucide="${escapeHtml(item.icon)}" aria-hidden="true"></i></span>
+        <span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></span>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
+      </button>
+    `).join("");
+    list.querySelectorAll("[data-dashboard-attention-open]").forEach((button) => {
+      button.addEventListener("click", () => openNotificationItem(button.dataset.dashboardAttentionOpen));
+    });
+    renderIcons();
+  }
+
+  function renderNexioToday(panel, list, mobileFinancialContext = null) {
+    const profile = currentProfile();
+    if (!profile) return;
+    const dueSoonDays = Number(profile.notificationState?.preferences?.dueSoonDays) || 3;
+    const context = mobileFinancialContext || core.financialContext.get(profile, { referenceDate: toDateInput(new Date()), period: "current-month" });
+    const result = core.today.get(context, { dueSoonDays, formatMoney: money });
+    const more = panel.querySelector("[data-dashboard-today-more]");
+    panel.hidden = false;
+    list.innerHTML = result.items.map((item) => `
+      <article class="dashboard-attention-item nexio-today-item tone-${escapeHtml(item.severity)}">
+        <span class="dashboard-attention-icon"><i data-lucide="${escapeHtml(item.icon)}" aria-hidden="true"></i></span>
+        <span>
+          <strong>${escapeHtml(item.title)}</strong>
+          <small>${escapeHtml(item.message)}</small>
+          <span class="sr-only">Por que você está vendo isto: ${escapeHtml(item.reason)}</span>
+        </span>
+        ${item.action ? `<button class="ghost-action compact" data-nexio-today-action="${escapeHtml(item.action.view)}" data-nexio-today-type="${escapeHtml(item.type)}" type="button">${escapeHtml(item.action.label)}</button>` : ""}
+      </article>
+    `).join("");
+    list.querySelectorAll("[data-nexio-today-action]").forEach((button) => {
+      button.addEventListener("click", () => openNexioTodayAction(button.dataset.nexioTodayAction, button.dataset.nexioTodayType));
+    });
+    if (more) {
+      more.hidden = result.overflowCount < 1;
+      more.onclick = () => setView("notifications");
+    }
+    renderIcons();
+  }
+
+  function openNexioTodayAction(view, type) {
+    if (view === "transactions" && type === "insufficient-data") {
+      openTransactionComposer();
+      return;
+    }
+    if (view === "transactions") {
+      setView("transactions");
+      state.filters.status = "open";
+      state.transactionPage = 1;
+      syncFilterInputs();
+      renderTransactionsTable();
+      return;
+    }
+    if (view === "budgets" || view === "cashflow" || view === "goals") {
+      setView(view);
+      return;
+    }
+  }
+
+  function renderSpendable(mobileFinancialContext) {
+    const panel = app.querySelector("[data-spendable-panel]");
+    if (!panel) return;
+    if (!isMobileGoalsLayout() || !mobileFinancialContext || !core.spendable) {
+      panel.hidden = true;
+      return;
+    }
+    const result = core.spendable.get(mobileFinancialContext);
+    panel.hidden = false;
+    if (result.state === "no-data") {
+      panel.innerHTML = `
+        <div class="spendable-empty">
+          <span class="spendable-icon"><i data-lucide="wallet-cards" aria-hidden="true"></i></span>
+          <span><small>Quanto posso gastar?</small><strong>Precisamos de mais dados</strong><em>${escapeHtml(result.quality.reason)}</em></span>
+          <button class="primary-action compact" data-spendable-add type="button">Adicionar movimentação</button>
+          <button class="ghost-action compact" data-open-purchase-simulator type="button">Simular uma compra</button>
+        </div>`;
+      panel.querySelector("[data-spendable-add]")?.addEventListener("click", () => openTransactionComposer());
+      panel.querySelector("[data-open-purchase-simulator]")?.addEventListener("click", openPurchaseSimulator);
+      renderIcons();
+      return;
+    }
+    const horizon = formatDate(result.horizon.end);
+    const stateLabel = result.state === "limited" ? "Base limitada" : "Estimativa local";
+    const shortfall = result.shortfall > 0
+      ? `<p class="spendable-shortfall">Seus compromissos cadastrados superam seu saldo atual em ${money(result.shortfall)}.</p>`
+      : "";
+    panel.innerHTML = `
+      <div class="spendable-card">
+        <div class="spendable-heading"><span>Quanto posso gastar?</span><b>${escapeHtml(stateLabel)}</b></div>
+        <strong>${money(result.available)}</strong>
+        <p>livres até ${escapeHtml(horizon)}</p>
+        <div class="spendable-composition"><span>Saldo realizado <b>${money(result.composition.realizedBalance)}</b></span><span>Compromissos <b>-${money(result.composition.knownCommitments)}</b></span></div>
+        ${shortfall}
+        <div class="spendable-actions"><button class="primary-action compact" data-open-purchase-simulator type="button">Simular uma compra</button><button class="ghost-action compact" data-open-spendable-details type="button">Como calculamos?</button></div>
+      </div>`;
+    panel.querySelector("[data-open-spendable-details]")?.addEventListener("click", () => openSpendableMobileDetails(result));
+    panel.querySelector("[data-open-purchase-simulator]")?.addEventListener("click", openPurchaseSimulator);
+  }
+
+  function openPurchaseSimulator() {
+    const profile = currentProfile();
+    const accounts = (profile?.accounts || []).filter((account) => account.active !== false);
+    const categories = core.budgets?.expenseCategories?.(profile) || [];
+    const sheet = document.createElement("div");
+    sheet.className = "spendable-sheet-backdrop purchase-simulator-backdrop";
+    sheet.dataset.purchaseSimulatorSheet = "true";
+    document.querySelector("[data-purchase-simulator-sheet]")?.remove();
+    document.body.append(sheet);
+    const close = () => sheet.remove();
+    if (!accounts.length) {
+      sheet.innerHTML = `
+        <section class="spendable-sheet purchase-simulator-sheet" role="dialog" aria-modal="true" aria-labelledby="purchaseSimulatorTitle">
+          <header><div><span>Posso comprar?</span><h3 id="purchaseSimulatorTitle">Simular uma compra</h3></div><button class="icon-button" data-close-purchase-simulator type="button" aria-label="Fechar simulador"><i data-lucide="x" aria-hidden="true"></i></button></header>
+          <div class="purchase-simulator-empty"><i data-lucide="landmark" aria-hidden="true"></i><strong>Adicione uma conta antes de simular uma compra.</strong><span>A simulação usa o saldo e os compromissos da conta selecionada.</span><button class="primary-action" data-purchase-simulator-add-account type="button">Adicionar conta</button></div>
+        </section>`;
+      sheet.querySelector("[data-close-purchase-simulator]")?.addEventListener("click", close);
+      sheet.querySelector("[data-purchase-simulator-add-account]")?.addEventListener("click", () => {
+        close();
+        setView("accounts");
+        openMobileAccountComposer();
+      });
+      sheet.addEventListener("click", (event) => { if (event.target === sheet) close(); });
+      renderIcons();
+      return;
+    }
+    const categoryOptions = categories.map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join("");
+    const accountOptions = accounts.map((account) => `<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`).join("");
+    sheet.innerHTML = `
+      <section class="spendable-sheet purchase-simulator-sheet" role="dialog" aria-modal="true" aria-labelledby="purchaseSimulatorTitle">
+        <header><div><span>Posso comprar?</span><h3 id="purchaseSimulatorTitle">Simular uma compra</h3></div><button class="icon-button" data-close-purchase-simulator type="button" aria-label="Fechar simulador"><i data-lucide="x" aria-hidden="true"></i></button></header>
+        <p class="purchase-simulator-intro">Veja como esta compra afetaria seu planejamento, sem alterar seus dados.</p>
+        <form class="stacked-form purchase-simulator-form" data-purchase-simulator-form>
+          <label class="field"><span>Valor</span><input data-purchase-amount type="number" inputmode="decimal" min="0.01" step="0.01" required placeholder="0,00" /></label>
+          <label class="field"><span>Categoria</span><select data-purchase-category required>${categoryOptions}</select></label>
+          <label class="field"><span>Conta</span><select data-purchase-account required>${accountOptions}</select></label>
+          <fieldset class="purchase-payment-type"><legend>Forma de pagamento</legend><label><input data-purchase-payment type="radio" name="purchasePayment" value="cash" checked /><span>À vista</span></label><label><input data-purchase-payment type="radio" name="purchasePayment" value="installments" /><span>Parcelado</span></label></fieldset>
+          <label class="field" data-purchase-installments-field hidden><span>Quantidade de parcelas</span><select data-purchase-installments>${Array.from({ length: 119 }, (_, index) => `<option value="${index + 2}">${index + 2}x</option>`).join("")}</select></label>
+          <label class="field"><span>Data da compra</span><input data-purchase-date type="date" value="${escapeHtml(toDateInput(new Date()))}" required /></label>
+          <p class="form-hint" data-purchase-simulator-error hidden></p>
+          <button class="primary-action" type="submit">Analisar impacto</button>
+        </form>
+      </section>`;
+    const installmentsField = sheet.querySelector("[data-purchase-installments-field]");
+    sheet.querySelectorAll("[data-purchase-payment]").forEach((input) => input.addEventListener("change", () => {
+      installmentsField.hidden = sheet.querySelector("[data-purchase-payment]:checked")?.value !== "installments";
+    }));
+    sheet.querySelector("[data-purchase-simulator-form]")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const paymentType = sheet.querySelector("[data-purchase-payment]:checked")?.value || "cash";
+      const simulation = core.purchaseSimulator?.simulate(profile, {
+        amount: Number(sheet.querySelector("[data-purchase-amount]")?.value),
+        categoryId: sheet.querySelector("[data-purchase-category]")?.value,
+        accountId: sheet.querySelector("[data-purchase-account]")?.value,
+        paymentType,
+        installments: Number(sheet.querySelector("[data-purchase-installments]")?.value),
+        date: sheet.querySelector("[data-purchase-date]")?.value,
+      }, { referenceDate: toDateInput(new Date()) });
+      if (!simulation?.ok) {
+        const error = sheet.querySelector("[data-purchase-simulator-error]");
+        error.textContent = simulation?.error || "Não foi possível analisar esta compra.";
+        error.hidden = false;
+        return;
+      }
+      renderPurchaseSimulationResult(sheet, simulation, openPurchaseSimulator, close);
+    });
+    sheet.querySelector("[data-close-purchase-simulator]")?.addEventListener("click", close);
+    sheet.addEventListener("click", (event) => { if (event.target === sheet) close(); });
+    renderIcons();
+  }
+
+  function renderPurchaseSimulationResult(sheet, result, reopen, close) {
+    const spendableBefore = result.before.spendable === null ? "Base limitada" : money(result.before.spendable);
+    const spendableAfter = result.after.spendable === null ? "Base limitada" : money(result.after.spendable);
+    const installments = result.monthlyImpact.slice(0, 4).map((item) => `<li><span>${escapeHtml(formatMonthYear(item.month))}</span><b>-${money(item.amount)}</b></li>`).join("");
+    const additionalInstallments = result.monthlyImpact.slice(4).map((item) => `<li><span>${escapeHtml(formatMonthYear(item.month))}</span><b>-${money(item.amount)}</b></li>`).join("");
+    const remaining = result.monthlyImpact.length - 4;
+    const budget = result.budget
+      ? `<section class="purchase-simulator-result-block"><span>Orçamento · ${escapeHtml(result.budget.categoryName)}</span><div><b>Antes ${Math.round(result.budget.before.percent)}%</b><b>Depois ${Math.round(result.budget.after.percent)}%</b></div><p>${result.budget.after.status === "exceeded" ? `Neste cenário, o orçamento seria ultrapassado em ${money(result.budget.after.exceededBy)}.` : `${money(result.budget.after.committed)} de ${money(result.budget.limit)} comprometidos.`}</p></section>`
+      : "";
+    sheet.querySelector(".purchase-simulator-sheet").innerHTML = `
+      <header><div><span>Posso comprar?</span><h3 id="purchaseSimulatorTitle">Veja o impacto</h3></div><button class="icon-button" data-close-purchase-simulator type="button" aria-label="Fechar simulador"><i data-lucide="x" aria-hidden="true"></i></button></header>
+      <div class="purchase-simulator-result-total"><span>Compra simulada</span><strong>${money(result.purchase.amount)}</strong><small>${result.purchase.installmentCount > 1 ? `${result.purchase.installmentCount}x de ${money(result.purchase.installmentAmount)}` : "À vista"} · ${escapeHtml(result.purchase.categoryName)}</small></div>
+      <p class="purchase-simulator-conclusion">${escapeHtml(result.conclusion)}</p>
+      <section class="purchase-simulator-result-block"><span>Seu mês</span><div><b>Livre antes <strong>${spendableBefore}</strong></b><b>Livre depois <strong>${spendableAfter}</strong></b></div><p>Impacto neste mês: <strong>${result.impact.spendable === null ? "Base limitada" : `-${money(Math.abs(result.impact.spendable))}`}</strong></p></section>
+      ${budget}
+      <section class="purchase-simulator-result-block"><span>Projeção</span><div><b>Antes <strong>${money(result.before.cashflowBalance)}</strong></b><b>Depois <strong>${money(result.after.cashflowBalance)}</strong></b></div><p>${escapeHtml(result.risk.change.message)}</p></section>
+      ${result.purchase.installmentCount > 1 ? `<section class="purchase-simulator-result-block"><span>Próximos meses</span><ul>${installments}</ul>${remaining > 0 ? `<ul data-purchase-extra-installments hidden>${additionalInstallments}</ul><button class="ghost-action compact" data-toggle-purchase-installments type="button">Ver todas as parcelas</button>` : ""}</section>` : ""}
+      ${result.quality.state !== "normal" ? `<p class="purchase-simulator-quality">${escapeHtml(result.quality.reason)}</p>` : ""}
+      <details class="purchase-simulator-method"><summary>Como calculamos?</summary><p>Comparamos o contexto financeiro atual com um cenário temporário que contém apenas as parcelas hipotéticas. Nenhum dado foi salvo.</p><p>Receitas futuras não aumentam o valor livre; metas não são descontadas nesta análise.</p></details>
+      <footer><button class="ghost-action" data-edit-purchase-simulation type="button">Editar simulação</button><button class="primary-action" data-close-purchase-simulator type="button">Concluir</button></footer>`;
+    sheet.querySelectorAll("[data-close-purchase-simulator]").forEach((button) => button.addEventListener("click", close));
+    sheet.querySelector("[data-toggle-purchase-installments]")?.addEventListener("click", (event) => {
+      const extra = sheet.querySelector("[data-purchase-extra-installments]");
+      if (!extra) return;
+      extra.hidden = !extra.hidden;
+      event.currentTarget.textContent = extra.hidden ? "Ver todas as parcelas" : "Mostrar menos";
+    });
+    sheet.querySelector("[data-edit-purchase-simulation]")?.addEventListener("click", () => { close(); reopen(); });
+    renderIcons();
+  }
+
+  function openSpendableMobileDetails(result) {
+    const commitments = result.commitments.slice(0, 4);
+    const commitmentList = commitments.length
+      ? commitments.map((item) => `<li><span><strong>${escapeHtml(item.description || "Despesa pendente")}</strong><small>Vencimento ${escapeHtml(formatDate(item.date))}</small></span><b>-${money(item.amount)}</b></li>`).join("")
+      : "<li class=\"spendable-detail-empty\">Não há despesas pendentes cadastradas neste período.</li>";
+    const shortfall = result.shortfall > 0 ? `<p class="spendable-detail-warning">Seus compromissos cadastrados superam seu saldo atual em ${money(result.shortfall)}.</p>` : "";
+    const sheet = document.createElement("div");
+    sheet.className = "spendable-sheet-backdrop";
+    sheet.dataset.spendableSheet = "true";
+    sheet.innerHTML = `
+      <section class="spendable-sheet" role="dialog" aria-modal="true" aria-labelledby="spendableSheetTitle">
+        <header><div><span>Estimativa conservadora</span><h3 id="spendableSheetTitle">Quanto posso gastar?</h3></div><button class="icon-button" data-close-spendable-sheet type="button" aria-label="Fechar detalhes"><i data-lucide="x" aria-hidden="true"></i></button></header>
+        <div class="spendable-detail-total"><strong>${money(result.available)}</strong><span>livres até ${escapeHtml(formatDate(result.horizon.end))}</span></div>
+        <section class="spendable-detail-composition" aria-label="Composição do valor livre"><span>Saldo realizado <b>${money(result.composition.realizedBalance)}</b></span><span>Contas e despesas abertas <b>-${money(result.composition.knownCommitments)}</b></span><strong>Livre estimado <b>${money(result.available)}</b></strong></section>
+        ${shortfall}
+        <section class="spendable-detail-income"><span>Receitas previstas</span><strong>${money(result.composition.futureIncome)}</strong><p>Não entram no valor livre até serem recebidas.</p></section>
+        <p class="spendable-detail-note">Orçamentos e metas não são descontados automaticamente: representam planejamento, não obrigações financeiras.</p>
+        <section class="spendable-detail-obligations"><div><h4>Compromissos conhecidos</h4><button class="ghost-action compact" data-spendable-view-commitments type="button">Ver todas</button></div><ul>${commitmentList}</ul></section>
+        <p class="spendable-detail-quality">${escapeHtml(result.quality.reason)}</p>
+        <footer><button class="ghost-action" data-spendable-view-flow type="button">Ver fluxo</button><button class="primary-action" data-spendable-view-commitments type="button">Ver compromissos</button></footer>
+      </section>`;
+    document.querySelector("[data-spendable-sheet]")?.remove();
+    document.body.append(sheet);
+    const close = () => sheet.remove();
+    sheet.querySelector("[data-close-spendable-sheet]")?.addEventListener("click", close);
+    sheet.addEventListener("click", (event) => { if (event.target === sheet) close(); });
+    sheet.querySelectorAll("[data-spendable-view-commitments]").forEach((button) => button.addEventListener("click", () => {
+      close();
+      setView("transactions");
+      state.filters.status = "open";
+      state.transactionPage = 1;
+      syncFilterInputs();
+      renderTransactionsTable();
+    }));
+    sheet.querySelector("[data-spendable-view-flow]")?.addEventListener("click", () => { close(); setView("cashflow"); });
+    renderIcons();
   }
 
   function renderRecentTransactions() {
@@ -4905,6 +5568,7 @@
     table?.classList.toggle("is-empty", !rows.length);
     updateTransactionSummaryCards(rows);
     renderTransactionReport(rows);
+    syncMobileTransactionFilterControls();
 
     if (!rows.length) {
       const row = document.createElement("tr");
@@ -4936,7 +5600,12 @@
       return;
     }
 
+    let mobileDateGroup = "";
     pageRows.forEach((transaction, index) => {
+      if (mobileList && state.filters.sort.startsWith("date") && transaction.date !== mobileDateGroup) {
+        mobileList.append(transactionMobileDateGroup(transaction.date));
+        mobileDateGroup = transaction.date;
+      }
       mobileList?.append(transactionCard(transaction, index));
       tbody.append(transactionTableRow(transaction));
     });
@@ -4978,7 +5647,7 @@
       <time class="transaction-mobile-date" datetime="${escapeHtml(transaction.date)}">${escapeHtml(transactionShortDate(transaction.date).toUpperCase())}</time>
       <div class="transaction-mobile-content">
         <div class="transaction-mobile-title"><span class="category-dot" aria-hidden="true">${escapeHtml(category.icon)}</span><h3>${escapeHtml(transaction.description)}</h3></div>
-        <p>${escapeHtml(transactionSubtitle(transaction))}</p>
+        <p>${escapeHtml(category.name)} · ${escapeHtml(transactionMobileSubtitle(transaction))}</p>
       </div>
       <strong class="transaction-mobile-amount ${transaction.type === "income" ? "amount-income" : "amount-expense"}">${transaction.type === "income" ? "+" : "-"}${money(transaction.amount)}</strong>
       <label class="transaction-card-check" aria-label="Selecionar ${escapeHtml(transaction.description)}">
@@ -4986,6 +5655,13 @@
       </label>
     `;
     return card;
+  }
+
+  function transactionMobileDateGroup(value) {
+    const heading = document.createElement("h3");
+    heading.className = "transaction-mobile-date-group";
+    heading.textContent = friendlyTransactionDate(value).toUpperCase();
+    return heading;
   }
 
   function transactionActionButtons(transaction) {
@@ -5005,6 +5681,15 @@
       ? `Parcela ${transaction.installmentNumber || 1}/${transaction.installmentTotal || 1}`
       : (transaction.type === "income" ? "Receita avulsa" : "Despesa avulsa");
     return `${kind} · ${account}`;
+  }
+
+  function transactionMobileSubtitle(transaction) {
+    const account = transactionAccountName(transaction);
+    if (transaction.transferId) return `Transferência · ${account}`;
+    if (transaction.installmentGroupId) {
+      return `Parcela ${transaction.installmentNumber || 1} de ${transaction.installmentTotal || 1} · ${account}`;
+    }
+    return account;
   }
 
   function transactionAccountName(transaction) {
@@ -5327,6 +6012,12 @@
       }
       renderTransactionsTable();
     });
+    app.querySelector("[data-mobile-transaction-selection-toggle]")?.addEventListener("click", (event) => {
+      const panel = app.querySelector(".transaction-list-panel");
+      const isSelectionMode = panel?.classList.toggle("is-mobile-selection-mode");
+      event.currentTarget.setAttribute("aria-pressed", isSelectionMode ? "true" : "false");
+      event.currentTarget.querySelector("span").textContent = isSelectionMode ? "Concluir" : "Selecionar";
+    });
     app.querySelectorAll("[data-table-sort]").forEach((button) => {
       button.addEventListener("click", () => {
         state.filters.sort = nextSortValue(button.dataset.tableSort);
@@ -5364,8 +6055,14 @@
       populateStatusSelects();
       updateTransactionStatusField();
     }
-    app.querySelector("#transactionDescription")?.focus();
-    app.querySelector("#transactionForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const description = app.querySelector("#transactionDescription");
+    if (isCompactTransactionLayout()) {
+      app.querySelector(".transaction-composer-panel")?.scrollTo({ top: 0 });
+      description?.focus({ preventScroll: true });
+    } else {
+      description?.focus();
+      app.querySelector("#transactionForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   function updateTransactionPagination(rows, pageRows) {
@@ -5642,6 +6339,37 @@
       const input = app.querySelector(`#${id}`);
       if (input) input.value = state.filters[key];
     });
+    syncMobileTransactionFilterControls();
+  }
+
+  function syncMobileTransactionFilterControls() {
+    const mobileSearch = app.querySelector("[data-mobile-transaction-search]");
+    if (mobileSearch && mobileSearch.value !== state.filters.description) mobileSearch.value = state.filters.description;
+    const count = activeTransactionFilterCount();
+    const badge = app.querySelector("[data-mobile-transaction-filter-count]");
+    if (badge) {
+      badge.textContent = String(count);
+      badge.toggleAttribute("hidden", count === 0);
+    }
+  }
+
+  function activeTransactionFilterCount() {
+    const filters = state.filters;
+    const currentMonth = toMonthInput(new Date());
+    const [year, month] = currentMonth.split("-").map(Number);
+    const startOfMonth = `${currentMonth}-01`;
+    const endOfMonth = toDateInput(new Date(year, month, 0));
+    return [
+      filters.description,
+      filters.category !== "all",
+      filters.account !== "all",
+      filters.status !== "all",
+      filters.valueMin,
+      filters.valueMax,
+      filters.sort !== "date-desc",
+      filters.dateFrom && filters.dateFrom !== startOfMonth,
+      filters.dateTo && filters.dateTo !== endOfMonth,
+    ].filter(Boolean).length;
   }
 
   function getFilteredTransactions() {
@@ -5998,6 +6726,7 @@
   function renderGoals() {
     const profile = currentProfile();
     const goals = profile.goals;
+    const mobileLayout = isMobileGoalsLayout();
     const saved = sum(goals, "saved");
     const target = sum(goals, "target");
     const active = goals.filter((goal) => Number(goal.saved || 0) < Number(goal.target || 0));
@@ -6010,10 +6739,12 @@
     syncGoalFilterControls();
 
     const goalList = app.querySelector("[data-goal-list]");
+    const goalsView = app.querySelector("#view-goals");
     const visibleGoals = filterAndSortGoals(goals);
+    goalsView?.classList.toggle("has-no-mobile-goals", mobileLayout && !goals.length);
     goalList.innerHTML = "";
     if (!goals.length) {
-      goalList.append(emptyState({
+      goalList.append(mobileLayout ? goalMobileEmptyState() : emptyState({
         icon: "sparkles",
         title: "Seu próximo sonho começa aqui.",
         description: "Crie objetivos financeiros e acompanhe cada avanço com histórico, previsão e conquistas.",
@@ -6029,11 +6760,149 @@
         action: clearGoalFilters,
       }));
     } else {
-      visibleGoals.forEach((goal) => goalList.append(goalCard(goal)));
+      visibleGoals.forEach((goal, index) => goalList.append(mobileLayout ? goalMobileCard(goal, { primary: index === 0 }) : goalCard(goal)));
     }
-    renderGoalEvolutionCharts(visibleGoals);
+    if (!mobileLayout) renderGoalEvolutionCharts(visibleGoals);
     renderInsights();
     requestAnimationFrame(renderIcons);
+  }
+
+  function isMobileGoalsLayout() {
+    return window.matchMedia("(max-width: 767px)").matches;
+  }
+
+  function goalMobileCard(goal, options = {}) {
+    const progressPercent = goalProgressPercent(goal);
+    const remaining = Math.max(Number(goal.target || 0) - Number(goal.saved || 0), 0);
+    const daysLeft = daysUntil(goal.deadline);
+    const forecast = goalForecast(goal, remaining, daysLeft, goalMonthlyNeed(goal));
+    const statusClass = goalVisualStatus(goal, forecast);
+    const card = document.createElement("article");
+    card.className = `goal-card goal-mobile-card${options.primary ? " is-primary-goal" : ""}`;
+    card.dataset.goalId = goal.id;
+    card.dataset.theme = goal.theme;
+    card.dataset.status = statusClass;
+    card.style.setProperty("--progress", `${progressPercent}%`);
+    card.innerHTML = `
+      <button class="goal-mobile-open" data-open-goal-details="${goal.id}" type="button" aria-label="Abrir detalhes da meta ${escapeHtml(goal.name)}">
+        <span class="goal-mobile-heading">
+          <span class="goal-symbol" aria-hidden="true">${escapeHtml(goalIcon(goal))}</span>
+          <span>${options.primary ? '<small class="goal-mobile-primary-label">Meta em foco</small>' : ""}<strong>${escapeHtml(goal.name)}</strong><small>${money(goal.saved)} de ${money(goal.target)}</small></span>
+          <b>${progressPercent}%</b>
+        </span>
+        <span class="progress-track goal-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progressPercent}"><span class="progress-fill"><i></i></span></span>
+        <span class="goal-mobile-meta"><span>Faltam ${money(remaining)} · ${goalDaysRemainingLabel(daysLeft)}</span><em class="goal-status ${statusClass}">${goalStatusLabel(statusClass)}</em></span>
+        ${options.primary ? `<small class="goal-mobile-forecast">Previsão: ${escapeHtml(forecast.label)}</small>` : ""}
+      </button>
+      <div class="goal-mobile-actions">
+        <button class="primary-action compact" data-mobile-contribute="${goal.id}" type="button">${options.primary ? "Adicionar dinheiro" : "Adicionar valor"}</button>
+        <button class="icon-button" data-mobile-goal-menu="${goal.id}" type="button" aria-label="Mais ações para ${escapeHtml(goal.name)}"><i data-lucide="ellipsis" aria-hidden="true"></i></button>
+      </div>`;
+    card.querySelector("[data-open-goal-details]").addEventListener("click", () => openGoalMobileDetails(goal.id));
+    card.querySelector("[data-mobile-contribute]").addEventListener("click", () => openGoalMobileContribution(goal.id));
+    card.querySelector("[data-mobile-goal-menu]").addEventListener("click", () => openGoalMobileMenu(goal.id));
+    return card;
+  }
+
+  function goalMobileEmptyState() {
+    const state = document.createElement("section");
+    state.className = "goal-mobile-empty-state";
+    state.innerHTML = `
+      <i class="goal-mobile-empty-icon" data-lucide="sparkles" aria-hidden="true"></i>
+      <div>
+        <h2>Seu próximo objetivo começa aqui.</h2>
+        <p>Transforme um plano em uma meta e acompanhe seu progresso.</p>
+      </div>
+      <div class="goal-mobile-suggestions" aria-label="Sugestões de meta">
+        ${["Reserva", "Viagem", "Casa", "Carro", "Quitar dívida", "Outro"].map((name) => `<button type="button" data-goal-quick-suggestion="${escapeHtml(name)}">${escapeHtml(name)}</button>`).join("")}
+      </div>
+      <button class="primary-action" data-create-first-goal type="button">Criar primeira meta</button>`;
+    state.querySelector("[data-create-first-goal]")?.addEventListener("click", () => openGoalComposer());
+    state.querySelectorAll("[data-goal-quick-suggestion]").forEach((button) => button.addEventListener("click", () => {
+      openGoalComposer({ suggestedName: button.dataset.goalQuickSuggestion });
+    }));
+    return state;
+  }
+
+  function openGoalMobileContribution(goalId) {
+    const goal = currentProfile().goals.find((item) => item.id === goalId);
+    if (!goal) return;
+    openGoalMobileSheet(`
+      <form class="goal-money-form" data-mobile-contribution-form>
+        <div class="goal-modal-header"><div><span>Adicionar valor</span><h3>${escapeHtml(goal.name)}</h3></div><button class="icon-button" data-close-goal-mobile-sheet type="button" aria-label="Fechar">x</button></div>
+        <div class="goal-modal-balance"><span>Guardado</span><strong>${money(goal.saved)}</strong></div>
+        <label class="field"><span>Valor do aporte</span><input name="amount" type="number" min="0.01" step="0.01" required autofocus /></label>
+        <div class="goal-modal-actions"><button class="ghost-action" data-close-goal-mobile-sheet type="button">Cancelar</button><button class="primary-action" type="submit">Adicionar valor</button></div>
+      </form>`);
+    document.querySelector("[data-mobile-contribution-form]")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      contributeGoal(goalId, Number(event.currentTarget.elements.amount.value));
+      closeGoalMobileSheet();
+    });
+  }
+
+  function openGoalMobileMenu(goalId) {
+    const goal = currentProfile().goals.find((item) => item.id === goalId);
+    if (!goal) return;
+    openGoalMobileSheet(`
+      <section class="goal-mobile-menu" aria-label="Ações da meta ${escapeHtml(goal.name)}">
+        <div class="goal-modal-header"><div><span>Ações</span><h3>${escapeHtml(goal.name)}</h3></div><button class="icon-button" data-close-goal-mobile-sheet type="button" aria-label="Fechar">x</button></div>
+        <button data-mobile-goal-action="edit" type="button">Editar</button><button data-mobile-goal-action="reminder" type="button">Lembrete</button><button data-mobile-goal-action="simulate" type="button">Simular</button><button class="is-danger" data-mobile-goal-action="delete" type="button">Excluir</button>
+      </section>`);
+    document.querySelectorAll("[data-mobile-goal-action]").forEach((button) => button.addEventListener("click", () => {
+      closeGoalMobileSheet();
+      const action = button.dataset.mobileGoalAction;
+      if (action === "edit") editGoal(goalId);
+      if (action === "reminder") createReminder(goalId);
+      if (action === "simulate") openGoalSimulationModal(goalId);
+      if (action === "delete") deleteGoal(goalId);
+    }));
+  }
+
+  function openGoalMobileDetails(goalId) {
+    const goal = currentProfile().goals.find((item) => item.id === goalId);
+    if (!goal) return;
+    const progressPercent = goalProgressPercent(goal);
+    const remaining = Math.max(Number(goal.target || 0) - Number(goal.saved || 0), 0);
+    const daysLeft = daysUntil(goal.deadline);
+    const monthlyNeed = goalMonthlyNeed(goal);
+    const forecast = goalForecast(goal, remaining, daysLeft, monthlyNeed);
+    const historyStats = goalHistoryStats(goal);
+    const historyItems = goalHistoryEntries(goal);
+    const badges = goalAchievementBadges(goal, historyItems, progressPercent);
+    openGoalMobileSheet(`
+      <section class="goal-mobile-detail" data-mobile-goal-detail="${escapeHtml(goal.id)}" style="--progress: ${progressPercent}%">
+        <div class="goal-modal-header"><div><span>Meta financeira</span><h3>${escapeHtml(goal.name)}</h3></div><button class="icon-button" data-close-goal-mobile-sheet type="button" aria-label="Fechar detalhes">x</button></div>
+        <div class="goal-mobile-detail-total"><strong>${money(goal.saved)}</strong><span>de ${money(goal.target)} · ${progressPercent}%</span></div>
+        <div class="progress-track goal-progress-track"><span class="progress-fill"><i></i></span></div>
+        <div class="goal-mobile-detail-meta"><span class="goal-status ${goalVisualStatus(goal, forecast)}">${goalStatusLabel(goalVisualStatus(goal, forecast))}</span><span>Faltam ${money(remaining)} · até ${formatDate(goal.deadline)}</span></div>
+        <div class="goal-mobile-detail-actions"><button class="primary-action compact" data-mobile-contribute="${goal.id}" type="button">Adicionar</button><button class="ghost-action compact" data-mobile-withdraw="${goal.id}" type="button">Retirar</button><button class="ghost-action compact" data-mobile-transfer="${goal.id}" type="button">Transferir</button></div>
+        <details open><summary>Planejamento</summary><div class="goal-mobile-detail-grid"><span><small>Tempo restante</small><strong>${goalDaysRemainingLabel(daysLeft)}</strong></span><span><small>Ritmo ideal</small><strong>${money(monthlyNeed)}/mês</strong></span></div><p class="goal-motivation">${escapeHtml(goalMotivation(goal, progressPercent / 100, remaining, daysLeft, monthlyNeed))}</p><div class="goal-forecast ${forecast.status}"><span>Previsão de conclusão</span><strong>${escapeHtml(forecast.label)}</strong><small>${escapeHtml(forecast.detail)}</small></div></details>
+        <details><summary>Evolução</summary><div class="goal-evolution-panel"><canvas class="goal-evolution-chart" data-goal-evolution-chart="mobile-${escapeHtml(goal.id)}" height="160" role="img" aria-label="Evolução da meta ${escapeHtml(goal.name)}"></canvas></div></details>
+        <details><summary>Histórico (${historyStats.count})</summary><div class="goal-ledger-stats"><div><span>Entradas</span><strong>${money(historyStats.entradas)}</strong></div><div><span>Retiradas</span><strong>${money(historyStats.retiradas)}</strong></div><div><span>Transf. enviadas</span><strong>${money(historyStats.transferenciasEnviadas)}</strong></div><div><span>Transf. recebidas</span><strong>${money(historyStats.transferenciasRecebidas)}</strong></div></div><div class="goal-history-list">${historyItems.length ? historyItems.map(goalHistoryItemHtml).join("") : "<p class=\"goal-history-empty\">Nenhuma movimentação registrada.</p>"}</div></details>
+        <details><summary>Conquistas</summary><div class="goal-badge-list">${badges.map((badge) => `<span class="${badge.active ? "is-active" : ""}">${escapeHtml(badge.label)}</span>`).join("")}</div></details>
+      </section>`);
+    const sheet = document.querySelector("[data-goal-mobile-sheet]");
+    sheet?.querySelector("[data-mobile-contribute]")?.addEventListener("click", () => openGoalMobileContribution(goal.id));
+    sheet?.querySelector("[data-mobile-withdraw]")?.addEventListener("click", () => { closeGoalMobileSheet(); openGoalMoneyModal("withdraw", goal.id); });
+    sheet?.querySelector("[data-mobile-transfer]")?.addEventListener("click", () => { closeGoalMobileSheet(); openGoalMoneyModal("transfer", goal.id); });
+    requestAnimationFrame(() => renderGoalEvolutionCharts([{ ...goal, id: `mobile-${goal.id}` }]));
+  }
+
+  function openGoalMobileSheet(content) {
+    closeGoalMobileSheet();
+    const sheet = document.createElement("div");
+    sheet.className = "goal-mobile-sheet-backdrop";
+    sheet.dataset.goalMobileSheet = "true";
+    sheet.innerHTML = `<div class="goal-mobile-sheet" role="dialog" aria-modal="true">${content}</div>`;
+    document.body.append(sheet);
+    sheet.querySelectorAll("[data-close-goal-mobile-sheet]").forEach((button) => button.addEventListener("click", closeGoalMobileSheet));
+    sheet.addEventListener("click", (event) => { if (event.target === sheet) closeGoalMobileSheet(); });
+    requestAnimationFrame(renderIcons);
+  }
+
+  function closeGoalMobileSheet() {
+    document.querySelector("[data-goal-mobile-sheet]")?.remove();
   }
 
   function goalCard(goal) {
@@ -6306,6 +7175,7 @@
       { label: "Meta concluída", active: goals.some((goal) => Number(goal.saved || 0) >= Number(goal.target || 0)) },
       { label: "10 aportes", active: totalContributions >= 10 },
     ];
+    list.closest(".goals-achievements-panel")?.toggleAttribute("hidden", isMobileGoalsLayout() && !achievements.some((item) => item.active));
     list.innerHTML = achievements.map((item) => `
       <span class="${item.active ? "is-active" : ""}">
         <i data-lucide="${item.active ? "badge-check" : "badge"}" aria-hidden="true"></i>
@@ -6772,6 +7642,10 @@
     modal.hidden = false;
     modal.classList.add("is-open");
     document.body.classList.add("has-modal-open");
+    if (options.suggestedName && options.suggestedName !== "Outro") {
+      const name = app.querySelector("#goalName");
+      if (name) name.value = options.suggestedName;
+    }
     setTimeout(() => app.querySelector("#goalName")?.focus(), 40);
   }
 
@@ -6939,7 +7813,11 @@
     const insights = buildInsights(profile);
     app.querySelectorAll("[data-insight-list], [data-dashboard-insight-list]").forEach((box) => {
       box.innerHTML = "";
-      const visibleInsights = box.matches("[data-dashboard-insight-list]") ? insights.slice(0, 2) : insights;
+      const isMobileGoalsInsights = isMobileGoalsLayout() && box.closest("#view-goals");
+      const isMobileOverviewInsights = isMobileGoalsLayout() && box.closest("#view-overview");
+      const visibleInsights = isMobileGoalsInsights
+        ? buildGoalInsights(profile)
+        : box.matches("[data-dashboard-insight-list]") ? (isMobileOverviewInsights ? insights : insights.slice(0, 2)) : insights;
       visibleInsights.forEach((text) => {
         const item = document.createElement("div");
         item.className = "insight-item";
@@ -7022,6 +7900,24 @@
       insights.push("✨ <strong>Comece seu histórico.</strong> Lance receitas, despesas pagas e aportes nas metas para receber leituras mais certeiras sobre seus hábitos.");
     }
 
+    return insights.slice(0, 8);
+  }
+
+  function buildGoalInsights(profile) {
+    const activeGoals = profile.goals.filter((goal) => Number(goal.saved || 0) < Number(goal.target || 0));
+    const overdue = activeGoals.filter((goal) => daysUntil(goal.deadline) < 0);
+    const close = activeGoals.filter((goal) => goalProgressPercent(goal) >= 75);
+    const reminders = activeGoals.flatMap((goal) => (goal.reminders || []).map((reminder) => ({ ...reminder, goal: goal.name })));
+    const insights = [];
+    if (!profile.goals.length) insights.push("💡 <strong>Metas em pausa.</strong> Crie um objetivo para acompanhar aportes, progresso e próximos passos.");
+    else if (!activeGoals.length) insights.push("🎉 <strong>Metas concluídas.</strong> Você zerou seus objetivos ativos. Crie uma nova meta para continuar evoluindo.");
+    close.slice(0, 2).forEach((goal) => insights.push(`🎯 <strong>${escapeHtml(goal.name)} está perto.</strong> Faltam ${money(Math.max(Number(goal.target || 0) - Number(goal.saved || 0), 0))} para concluir essa meta.`));
+    overdue.slice(0, 2).forEach((goal) => insights.push(`⚠️ <strong>${escapeHtml(goal.name)} passou do prazo.</strong> Atualize a data ou divida o valor restante em aportes menores.`));
+    activeGoals.filter((goal) => !overdue.includes(goal)).slice(0, 3).forEach((goal) => {
+      insights.push(`📈 <strong>${escapeHtml(goal.name)} está no radar.</strong> Guardando ${money(goalMonthlyNeed(goal))} por mês, você mantém o objetivo no prazo.`);
+    });
+    reminders.filter((reminder) => reminder.date >= toDateInput(new Date())).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2)
+      .forEach((reminder) => insights.push(`⏰ <strong>Lembrete de ${escapeHtml(reminder.goal)} em ${formatDate(reminder.date)}.</strong> ${escapeHtml(reminder.text)}.`));
     return insights.slice(0, 8);
   }
 
@@ -7222,6 +8118,7 @@
     item.className = `profile-item profile-compact-card ${isActive ? "is-active" : ""}`;
     item.dataset.profileId = profile.id;
     item.innerHTML = `
+      <button class="profile-mobile-open" data-use-profile="${profile.id}" type="button" aria-label="${isActive ? "Perfil ativo" : "Ativar perfil"} ${escapeHtml(profile.name)}"></button>
       <div class="profile-card-header">
         <span class="profile-color" aria-hidden="true">${initialsFrom(profile.name)}</span>
         <div class="profile-title-block">
@@ -7248,6 +8145,16 @@
         <button class="icon-button profile-icon-action" data-export-profile="${profile.id}" type="button" aria-label="Exportar ${escapeHtml(profile.name)}" title="Exportar"><i data-lucide="download" aria-hidden="true"></i></button>
         <button class="icon-button profile-icon-action danger" data-delete-profile="${profile.id}" type="button" aria-label="Excluir ${escapeHtml(profile.name)}" title="Excluir"><i data-lucide="trash-2" aria-hidden="true"></i></button>
       </div>
+      <details class="profile-mobile-menu">
+        <summary class="icon-button" aria-label="Mais ações para ${escapeHtml(profile.name)}"><i data-lucide="ellipsis" aria-hidden="true"></i></summary>
+        <div aria-label="Ações do perfil ${escapeHtml(profile.name)}">
+          <button data-use-profile="${profile.id}" type="button">${isActive ? "Perfil em uso" : "Usar perfil"}</button>
+          <button data-edit-profile="${profile.id}" type="button">Editar</button>
+          <button data-duplicate-profile="${profile.id}" type="button">Duplicar</button>
+          <button data-export-profile="${profile.id}" type="button">Exportar</button>
+          <button class="is-danger" data-delete-profile="${profile.id}" type="button">Excluir</button>
+        </div>
+      </details>
     `;
     return item;
   }
@@ -7421,6 +8328,9 @@
     const profile = currentProfile();
     app.querySelector("#settingsProfileName").value = profile.name;
     app.querySelector("#settingsUserName").value = user.name;
+    const authenticated = hasAuthenticatedSession(user);
+    app.querySelector("[data-settings-login]")?.toggleAttribute("hidden", authenticated);
+    app.querySelector("[data-settings-logout]")?.toggleAttribute("hidden", !authenticated);
     app.querySelector("#settingsTheme").value = user.theme;
     app.querySelector("#settingsCurrency").value = user.currency;
     const languageSelect = app.querySelector("#settingsLanguage");
@@ -7765,7 +8675,7 @@
     const upcoming = transactionsForCashflow(profile)
       .filter((transaction) => toMonthInput(parseLocalDate(transaction.date)) === month)
       .filter(isCashflowTransactionIncluded)
-      .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)))
+      .sort((a, b) => cashflowMovementRank(a, todayInput) - cashflowMovementRank(b, todayInput) || a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)))
       .slice(0, 8);
     timeline.innerHTML = "";
     if (!upcoming.length) {
@@ -7783,7 +8693,7 @@
       const item = document.createElement("article");
       const category = findCategory(transaction.categoryId);
       const priority = cashflowPriority(transaction);
-      const daysText = cashflowDaysLabel(transaction.date);
+      const daysText = cashflowTimelineDateLabel(transaction);
       item.className = `timeline-item cashflow-movement-card ${transaction.type === "income" ? "timeline-income" : "timeline-expense"} priority-${priority.level}`;
       item.innerHTML = `
         <span class="timeline-dot" aria-hidden="true">${escapeHtml(category.icon)}</span>
@@ -7909,11 +8819,14 @@
   }
 
   function cashflowPriority(transaction) {
-    const days = daysBetweenToday(transaction.date);
-    const amount = Number(transaction.amount || 0);
-    if (transaction.status === "Atrasado" || days < 0 || days === 0) return { level: "high", label: "Alta" };
-    if (days <= 7 || amount >= 500) return { level: "medium", label: "Média" };
-    return { level: "low", label: "Baixa" };
+    return core.finance.cashflowPriority(transaction);
+  }
+
+  function cashflowMovementRank(transaction, todayInput) {
+    if (transaction.status === "Atrasado") return 0;
+    if (isOpenTransaction(transaction) && transaction.date >= todayInput) return 1;
+    if (transaction.date >= todayInput) return 2;
+    return 3;
   }
 
   function cashflowDaysLabel(date) {
@@ -7922,6 +8835,22 @@
     if (days === 0) return "vence hoje";
     if (days === 1) return "vence amanhã";
     return `vence em ${days} dias`;
+  }
+
+  function cashflowTimelineDateLabel(transaction) {
+    if (!isOpenTransaction(transaction)) return `Lançamento em ${formatDate(transaction.date)}`;
+    return cashflowDaysLabel(transaction.date);
+  }
+
+  function syncMobileCashflowChart(chart) {
+    app.querySelectorAll("[data-cashflow-chart]").forEach((button) => {
+      const active = button.dataset.cashflowChart === chart;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+    app.querySelectorAll("[data-cashflow-chart-panel]").forEach((panel) => {
+      panel.classList.toggle("is-mobile-chart-active", panel.dataset.cashflowChartPanel === chart);
+    });
   }
 
   function daysBetweenToday(date) {
@@ -9003,5 +9932,5 @@
     }
   });
 
-  window.NexioApp = Object.freeze({ bootstrap, handleConnectivity });
+  window.NexioApp = Object.freeze({ bootstrap, handleConnectivity, handleNativeBack });
 })();

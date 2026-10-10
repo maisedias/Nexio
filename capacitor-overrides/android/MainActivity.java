@@ -1,6 +1,5 @@
 package br.com.nexiofinanceiro.app;
 
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
@@ -49,21 +48,6 @@ public class MainActivity extends BridgeActivity {
         webView.getSettings().setDomStorageEnabled(true);
         webView.setWebViewClient(new NexioWebViewClient(getBridge()));
 
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-            return;
-        }
-
-        new AlertDialog.Builder(this)
-            .setTitle("Sair do Nexio Financeiro?")
-            .setMessage("Deseja fechar o aplicativo?")
-            .setNegativeButton("Cancelar", null)
-            .setPositiveButton("Sair", (dialog, which) -> finish())
-            .show();
     }
 
     private void applySystemBarInsets() {

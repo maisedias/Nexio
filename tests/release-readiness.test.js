@@ -42,8 +42,8 @@ check(() => {
 });
 
 check(() => {
-  assert.match(gradle, /versionCode\s+8/);
-  assert.match(gradle, /versionName\s+"1\.0\.8"/);
+  assert.match(gradle, /versionCode\s+11/);
+  assert.match(gradle, /versionName\s+"1\.0\.11"/);
   assert.match(gradle, /NEXIO_ANDROID_KEYSTORE_FILE/);
   assert.match(gradle, /verifyReleaseSigning/);
   assert.match(gradle, /minifyEnabled\s+true/);

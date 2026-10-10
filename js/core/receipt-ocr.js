@@ -154,6 +154,45 @@
     let generation = 0;
     let activeImage = null;
 
+    function supportsPhotoSource(source) {
+      if (source === "camera") return typeof camera?.takePhoto === "function" || typeof camera?.getPhoto === "function";
+      return typeof camera?.chooseFromGallery === "function" || typeof camera?.getPhoto === "function";
+    }
+
+    async function acquirePhoto(source, scanOptions) {
+      const quality = 88;
+      if (source === "camera" && typeof camera?.takePhoto === "function") {
+        return camera.takePhoto({
+          quality,
+          targetWidth: 2048,
+          targetHeight: 2048,
+          correctOrientation: true,
+          editable: scanOptions.allowEditing ? "in-app" : "none",
+          saveToGallery: false,
+        });
+      }
+      if (source === "gallery" && typeof camera?.chooseFromGallery === "function") {
+        const result = await camera.chooseFromGallery({ quality, allowMultipleSelection: false });
+        const photo = Array.isArray(result?.results) ? result.results[0] : null;
+        if (!photo) throw normalizeError({ code: "cancelled" }, source);
+        return photo;
+      }
+      // Compatibility for an Android package built with Camera before 8.1.
+      return camera.getPhoto({
+        source: source === "camera" ? "CAMERA" : "PHOTOS",
+        resultType: "URI",
+        quality,
+        width: 2048,
+        height: 2048,
+        correctOrientation: true,
+        allowEditing: Boolean(scanOptions.allowEditing),
+        saveToGallery: false,
+        promptLabelHeader: "Escanear comprovante",
+        promptLabelPhoto: "Escolher da galeria",
+        promptLabelPicture: "Usar câmera",
+      });
+    }
+
     async function cleanupImage() {
       if (!activeImage?.cleanup) {
         activeImage = null;
@@ -214,24 +253,12 @@
 
     async function scan(source, scanOptions = {}) {
       const normalizedSource = source === "gallery" ? "gallery" : "camera";
-      if (!camera?.getPhoto) throw normalizeError({ code: `${normalizedSource}-unavailable` }, normalizedSource);
+      if (!supportsPhotoSource(normalizedSource)) throw normalizeError({ code: `${normalizedSource}-unavailable` }, normalizedSource);
       const operation = ++generation;
       await cleanupImage();
       try {
         await ensurePermission(normalizedSource);
-        const photo = await camera.getPhoto({
-          source: normalizedSource === "camera" ? "CAMERA" : "PHOTOS",
-          resultType: "URI",
-          quality: 88,
-          width: 2048,
-          height: 2048,
-          correctOrientation: true,
-          allowEditing: Boolean(scanOptions.allowEditing),
-          saveToGallery: false,
-          promptLabelHeader: "Escanear comprovante",
-          promptLabelPhoto: "Escolher da galeria",
-          promptLabelPicture: "Usar câmera",
-        });
+        const photo = await acquirePhoto(normalizedSource, scanOptions);
         if (operation !== generation) throw normalizeError({ code: "cancelled" }, normalizedSource);
         return await prepareAndRecognize(photo, normalizedSource, scanOptions, operation);
       } catch (error) {

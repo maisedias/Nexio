@@ -106,17 +106,20 @@
   --line-height-body: 1.5;
   --line-height-compact: 1.25;
   --line-height-caption: 1.3847;
+  --line-height-relaxed: 1.6;
   --line-height-mobile-title: 1.625rem;
   --line-height-card-title: 1.0625rem;
 
   /* Letter spacing */
   --letter-spacing-display: -0.05em;
+  --letter-spacing-tight: -0.02em;
   --letter-spacing-heading: -0.035em;
   --letter-spacing-title: -0.025em;
   --letter-spacing-statistic: -0.045em;
   --letter-spacing-body: 0;
   --letter-spacing-caption: 0.01em;
   --letter-spacing-label: 0.04em;
+  --letter-spacing-wide: 0.08em;
 
   /* Responsive typography roles: desktop defaults */
   --type-display-size: var(--font-size-display-xl);
@@ -129,6 +132,21 @@
   --type-body-line-height: var(--line-height-body);
   --type-caption-size: var(--font-size-caption);
   --type-caption-line-height: var(--line-height-caption);
+  --type-label-size: var(--font-size-caption);
+  --type-label-line-height: var(--line-height-caption);
+  --type-financial-size: var(--font-size-statistic-lg);
+  --type-financial-line-height: var(--line-height-tight);
+
+  /* Mobile composition roles. These values are consumed only by mobile rules. */
+  --mobile-page-inset: var(--space-3);
+  --mobile-section-gap: var(--space-4);
+  --mobile-card-gap: var(--space-3);
+  --mobile-list-gap: var(--space-2);
+  --mobile-sheet-padding: var(--space-4);
+  --mobile-card-primary: var(--color-surface);
+  --mobile-card-secondary: var(--color-surface-raised);
+  --mobile-card-list: var(--color-surface-soft);
+  --mobile-insight-surface: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
 
   /* Spacing scale: 4px base with 8-point rhythm */
   --space-0: 0;
@@ -147,6 +165,7 @@
   --border-width-thin: 0.0625rem;
   --border-width-medium: 0.125rem;
   --border-width-accent: 0.1875rem;
+  --focus-ring-width: var(--border-width-accent);
   --radius-small: 0.5rem;
   --radius-medium: 0.875rem;
   --radius-large: 1.125rem;
@@ -330,6 +349,7 @@
   --nx-border: var(--color-border);
   --nx-primary: #4f8fff;
   --nx-primary-hover: #6aa2ff;
+  --nx-primary-soft: var(--color-primary-subtle);
   --nx-income: var(--color-income);
   --nx-expense: var(--color-expense);
   --nx-transfer: var(--color-transfer);
@@ -482,6 +502,10 @@ body.theme-dark,
   --color-danger-border-soft: color-mix(in srgb, var(--color-danger) 22%, var(--color-border));
   --color-danger-surface-soft: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface-soft));
   --color-text-muted-subtle: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+  --mobile-card-primary: var(--color-surface);
+  --mobile-card-secondary: var(--color-surface-raised);
+  --mobile-card-list: var(--color-surface-soft);
+  --mobile-insight-surface: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface));
   --shadow-primary-hover: 0 0.625rem 1.5rem color-mix(in srgb, var(--color-primary) 18%, transparent);
   --shadow-inset-active: inset var(--border-width-accent) 0 var(--color-primary);
   --focus-ring: var(--nx-focus-ring);
@@ -524,6 +548,7 @@ body.theme-dark,
   --nx-border: var(--color-border);
   --nx-income: var(--color-income);
   --nx-expense: var(--color-expense);
+  --nx-primary-soft: var(--color-primary-subtle);
   --nx-transfer: var(--color-transfer);
   --nx-warning: var(--color-warning);
   --nx-danger: var(--color-danger);
@@ -580,7 +605,17 @@ body.theme-dark,
     --type-display-size: var(--font-size-heading-xl);
     --type-heading-size: var(--font-size-heading-md);
     --type-title-size: var(--font-size-heading-sm);
+    --type-label-size: var(--font-size-caption);
+    --type-financial-size: clamp(var(--font-size-heading-lg), 9vw, var(--font-size-display-lg));
     --card-padding: var(--space-4);
+    --card-padding-compact: var(--space-3);
+    --button-height: var(--size-touch-target);
+    --input-height: var(--size-touch-target);
+    --mobile-page-inset: var(--space-3);
+    --mobile-section-gap: var(--space-4);
+    --mobile-card-gap: var(--space-3);
+    --mobile-list-gap: var(--space-2);
+    --mobile-sheet-padding: var(--space-4);
     --list-item-padding: var(--space-3);
   }
 }

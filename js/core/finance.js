@@ -74,6 +74,15 @@
     }, { income: 0, expense: 0 });
   }
 
+  function cashflowPriority(transaction, now = new Date()) {
+    if (!isOpenTransaction(transaction)) return { level: "low", label: "Baixa" };
+    const days = utils.daysBetweenToday(transaction.date, now);
+    const amount = Number(transaction.amount || 0);
+    if (transaction.status === "Atrasado" || days <= 0) return { level: "high", label: "Alta" };
+    if (days <= 7 || amount >= 500) return { level: "medium", label: "Média" };
+    return { level: "low", label: "Baixa" };
+  }
+
   function formatMoney(value, currency = "BRL") {
     return new Intl.NumberFormat(currencyLocales[currency] || "pt-BR", {
       style: "currency",
@@ -86,6 +95,7 @@
     calculateBalance,
     calculateCashflowBalance,
     calculateProjectedBalance,
+    cashflowPriority,
     cashflowTotalsForMonth,
     currencyLocales,
     currentMonthOpenTransactions,

@@ -210,7 +210,7 @@ test("25. Web OCR cancellation resolves promptly", async () => {
 });
 
 test("26. preserves native Android camera and OCR providers", () => {
-  const Camera = { getPhoto() {} }; const TextRecognition = { processImage() {} };
+  const Camera = { takePhoto() {}, chooseFromGallery() {} }; const TextRecognition = { processImage() {} };
   const host = { Capacitor: { isNativePlatform: () => true, getPlatform: () => "android", Plugins: { Camera, TextRecognition } } };
   const receipt = platform.resolveAssistantCapabilities({ host }).receipt;
   assert.equal(receipt.camera, Camera); assert.equal(receipt.textRecognition, TextRecognition);
@@ -290,4 +290,57 @@ test("38. campo de data preserva responsividade e temas compartilhados", () => {
   assert.match(styles, /var\(--nx-surface-raised\)|var\(--nx-surface-soft\)/);
 });
 
-console.log("Platform parity tests passed: 38/38.");
+test("39. revisão do Assistente ocupa a linha completa da grade em todas as larguras", () => {
+  assert.match(html, /<aside class="assistant-draft-review"[\s\S]*?data-ai-draft-summary/);
+  assert.match(styles, /\.transaction-form-modern > \.assistant-draft-review\s*\{[\s\S]*?grid-column:\s*1\s*\/\s*-1;[\s\S]*?order:\s*0;[\s\S]*?min-width:\s*0;/);
+  assert.match(styles, /\.assistant-draft-heading strong, \.assistant-draft-heading small\s*\{[\s\S]*?overflow-wrap:\s*break-word;[\s\S]*?word-break:\s*normal;/);
+  assert.match(styles, /\.assistant-draft-review dd\s*\{[\s\S]*?overflow-wrap:\s*break-word;[\s\S]*?word-break:\s*normal;/);
+});
+
+test("40. OCR não anuncia 100% antes de concluir e cancelamentos saem do processamento", () => {
+  assert.match(ui, /if \(value >= 100\)\s*\{\s*setReceiptOcrState\("recognizing", \{ message: "Concluindo a leitura do comprovante\.\.\." \}\);/);
+  assert.match(ui, /if \(interpretation\.strategy === "cancelled"\)\s*\{\s*setReceiptOcrState\("error", \{ message: "A interpretação foi cancelada/);
+  assert.match(ui, /async function recognizeAssistantTranscript[\s\S]*?try \{[\s\S]*?\} catch \(error\) \{[\s\S]*?handleAssistantVoiceError\(error\)/);
+});
+
+test("41. OCR Web separa inicialização e reconhecimento, e cancela o temporizador ao concluir", async () => {
+  let logger;
+  let terminated = 0;
+  const host = { setTimeout, clearTimeout, Tesseract: { createWorker: async (_lang, _engine, options) => {
+    logger = options.logger;
+    return {
+      recognize: async () => {
+        logger({ status: "recognizing text", progress: 1 });
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return { data: { text: "TOTAL R$ 58,90" } };
+      },
+      terminate: async () => { terminated += 1; },
+    };
+  } } };
+  const ocr = platform.createWebTextRecognition({ host, assetRoot: "http://localhost/", timeoutMs: 20, workerTimeoutMs: 20 });
+  const progress = [];
+  const result = await ocr.processImage({ image: "receipt", onProgress: (message) => progress.push(message.progress) });
+  assert.equal(result.text, "TOTAL R$ 58,90");
+  assert.deepEqual(progress, [1]);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(terminated, 0);
+  await ocr.release();
+});
+
+test("42. OCR Web interrompe inicialização pendente e rejeita processamento duplicado", async () => {
+  const host = { setTimeout, clearTimeout, Tesseract: { createWorker: async () => new Promise(() => {}) } };
+  const ocr = platform.createWebTextRecognition({ host, assetRoot: "http://localhost/", workerTimeoutMs: 15 });
+  const pending = ocr.processImage({ image: "first" });
+  await assert.rejects(ocr.processImage({ image: "second" }), (error) => error.code === "ocr-busy");
+  await assert.rejects(pending, (error) => error.code === "ocr-timeout" && error.stage === "worker");
+});
+
+test("43. texto útil de recibo abre a revisão, e falha do parser preserva o rascunho manual", () => {
+  assert.match(ui, /const operationId = \+\+assistantReceipt\.operationId/);
+  assert.match(ui, /!\/recognizing text\/i\.test\(String\(progress\?\.status \|\| ""\)\)/);
+  assert.match(ui, /core\.aiInterpreter\?\.manualDraft\?\.\(result\.text, localDraft/);
+  assert.match(ui, /if \(canReview\) \{[\s\S]*?prefillTransactionFromAssistant\(interpretation\.draft, result\.text/);
+  assert.match(ui, /assistantReceipt\.operationId \+= 1/);
+});
+
+console.log("Platform parity tests passed: 43/43.");

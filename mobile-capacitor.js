@@ -31,13 +31,24 @@
     if (!isNativeApp()) return;
     const { StatusBar, SplashScreen, Network, App } = capacitorPlugins();
 
-    try {
-      await StatusBar?.setOverlaysWebView?.({ overlay: false });
-      await StatusBar?.setBackgroundColor?.({ color: "#0B1020" });
-      await StatusBar?.setStyle?.({ style: "DARK" });
-    } catch (_) {
-      // The Web UI remains usable when the optional native status bar API is unavailable.
-    }
+    const applyStatusBarTheme = async () => {
+      const darkTheme = document.body?.classList.contains("theme-dark");
+      try {
+        await StatusBar?.setOverlaysWebView?.({ overlay: false });
+        await StatusBar?.setBackgroundColor?.({ color: darkTheme ? "#0B1020" : "#F7F9FC" });
+        // Capacitor's DARK style draws dark icons.  The application shell is
+        // dark by default, so it requires LIGHT (white) system-bar icons.
+        await StatusBar?.setStyle?.({ style: darkTheme ? "LIGHT" : "DARK" });
+      } catch (_) {
+        // The Web UI remains usable when the optional native status bar API is unavailable.
+      }
+    };
+
+    await applyStatusBarTheme();
+    new MutationObserver(() => void applyStatusBarTheme()).observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
 
     try {
       await SplashScreen?.hide?.();
@@ -60,13 +71,18 @@
     }
 
     try {
-      App?.addListener?.("backButton", () => {
-        if (window.history.length > 1) {
-          window.history.back();
-          return;
-        }
-        if (window.confirm("Deseja sair do Nexio Financeiro?")) {
-          App.exitApp();
+      let handlingBack = false;
+      App?.addListener?.("backButton", async () => {
+        if (handlingBack) return;
+        handlingBack = true;
+        try {
+          const handled = await window.NexioApp?.handleNativeBack?.();
+          if (!handled) await App?.exitApp?.();
+        } catch (_) {
+          // A broken Web handler must never make the Android back button crash.
+          await App?.exitApp?.();
+        } finally {
+          handlingBack = false;
         }
       });
     } catch (_) {

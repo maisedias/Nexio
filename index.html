@@ -10,9 +10,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260722-design-system-v2" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20260811-sync-status-ux" />
-    <link rel="stylesheet" href="css/design-system.css?v=20260722-design-system-v2" />
+    <link rel="stylesheet" href="styles.css?v=20261001-mobile-design-system-1" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20261001-mobile-settings-1" />
+    <link rel="stylesheet" href="css/design-system.css?v=20261001-mobile-design-system-1" />
   </head>
   <body>
     <div id="app"></div>
@@ -308,6 +308,7 @@
               <button class="ghost-action compact" data-quick-profile type="button"><i data-lucide="user-plus" aria-hidden="true"></i><span>Novo perfil</span></button>
               <button class="ghost-action compact" data-quick-goal type="button"><i data-lucide="target" aria-hidden="true"></i><span>Nova meta</span></button>
               <button class="ghost-action compact" data-quick-export type="button"><i data-lucide="download" aria-hidden="true"></i><span>Exportar</span></button>
+              <a class="ghost-action compact web-app-download" href="https://play.google.com/store/apps/details?id=br.com.nexiofinanceiro.app&amp;pli=1" target="_blank" rel="noopener noreferrer"><i data-lucide="smartphone" aria-hidden="true"></i><span>Baixar o app</span></a>
               <button class="primary-action compact" data-quick-transaction type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Nova transação</span></button>
             </div>
           </header>
@@ -360,6 +361,19 @@
                 <small data-projected-balance-trend>Inclui pendências do mês</small>
               </article>
             </div>
+
+            <section class="panel dashboard-attention-panel" data-dashboard-attention hidden>
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Inteligência diária</p>
+                  <h2>Nexio Hoje</h2>
+                </div>
+                <button class="ghost-action" data-dashboard-today-more type="button" hidden>Ver tudo</button>
+              </div>
+              <div class="dashboard-attention-list" data-dashboard-attention-list></div>
+            </section>
+
+            <section class="panel spendable-panel" data-spendable-panel hidden aria-live="polite"></section>
 
             <div class="dashboard-main-grid">
               <section class="panel dashboard-flow-panel">
@@ -446,9 +460,10 @@
               <section class="panel insight-panel dashboard-insights-panel">
                 <div class="panel-heading">
                   <div>
-                    <p class="eyebrow">Insights</p>
-                    <h2>Leituras automáticas</h2>
+                    <p class="eyebrow"><span class="desktop-overview-label">Insights</span><span class="mobile-overview-label">Insight Nexio</span></p>
+                    <h2><span class="desktop-overview-label">Leituras automáticas</span><span class="mobile-overview-label">Leitura para o seu mês</span></h2>
                   </div>
+                  <button class="ghost-action dashboard-insights-toggle" data-mobile-overview-insights-toggle type="button" aria-expanded="false">Ver análises</button>
                 </div>
                 <div class="insight-list dashboard-insights" data-dashboard-insight-list></div>
               </section>
@@ -496,46 +511,98 @@
             </section>
           </section>
 
+          <section id="view-planning" class="view mobile-navigation-hub" data-view-panel="planning" hidden aria-hidden="true">
+            <header class="mobile-hub-heading">
+              <p class="eyebrow">Organização financeira</p>
+              <h2>Planejamento</h2>
+              <p>Decida o próximo passo do seu dinheiro com clareza.</p>
+            </header>
+            <div class="mobile-hub-list">
+              <button class="mobile-hub-card" data-view-shortcut="budgets" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="gauge" aria-hidden="true"></i></span>
+                <span><strong>Orçamentos</strong><small>Acompanhe os limites do mês</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+              <button class="mobile-hub-card" data-view-shortcut="goals" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="target" aria-hidden="true"></i></span>
+                <span><strong>Metas</strong><small>Planeje e acompanhe objetivos</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+              <button class="mobile-hub-card" data-view-shortcut="cashflow" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i></span>
+                <span><strong>Fluxo de caixa</strong><small>Veja a previsão do seu saldo</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+            </div>
+          </section>
+
+          <section id="view-more" class="view mobile-navigation-hub" data-view-panel="more" hidden aria-hidden="true">
+            <header class="mobile-hub-heading">
+              <p class="eyebrow">Sua conta Nexio</p>
+              <h2>Mais</h2>
+              <p class="mobile-more-active-profile"><span>Perfil financeiro ativo</span><strong data-mobile-active-profile-name>Perfil atual</strong></p>
+              <p>Gerencie suas contas, perfis e preferências.</p>
+            </header>
+            <div class="mobile-hub-list">
+              <button class="mobile-hub-card" data-view-shortcut="accounts" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="landmark" aria-hidden="true"></i></span>
+                <span><strong>Contas</strong><small>Organize seus saldos separados</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+              <button class="mobile-hub-card" data-view-shortcut="profiles" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="users" aria-hidden="true"></i></span>
+                <span><strong>Perfis</strong><small>Alterne ou ajuste perfis financeiros</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+              <button class="mobile-hub-card" data-view-shortcut="settings" type="button">
+                <span class="mobile-hub-icon"><i data-lucide="settings" aria-hidden="true"></i></span>
+                <span><strong>Configurações</strong><small>Preferências, importação e exportação</small></span>
+                <i data-lucide="chevron-right" aria-hidden="true"></i>
+              </button>
+            </div>
+          </section>
+
           <section id="view-assistant" class="view assistant-experience" data-view-panel="assistant">
-            <section class="panel assistant-hero-panel">
+            <section class="panel assistant-hero-panel assistant-nexio-hero">
               <div class="assistant-hero-icon" aria-hidden="true"><i data-lucide="sparkles"></i></div>
               <div class="assistant-hero-copy">
                 <p class="eyebrow">Finanças pessoais</p>
-                <h2>Assistente Financeiro</h2>
-                <p>Prepare um rascunho de lançamento e revise todos os detalhes antes de salvar.</p>
+                <h2><span class="assistant-desktop-title">Assistente Financeiro</span><span class="assistant-mobile-title">Assistente Nexio</span></h2>
+                <p><span class="assistant-desktop-copy">Prepare um rascunho de lançamento e revise todos os detalhes antes de salvar.</span><span class="assistant-mobile-copy">Como posso ajudar com suas finanças?</span></p>
               </div>
               <span class="assistant-local-badge"><i data-lucide="shield-check" aria-hidden="true"></i>Parser local primeiro</span>
             </section>
 
             <section class="assistant-option-grid" aria-label="Opções do Assistente Financeiro">
-              <article class="panel assistant-option-card">
+              <article class="panel assistant-option-card assistant-voice-feature">
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="mic"></i></span>
                 <div>
                   <p class="eyebrow">Entrada rápida</p>
                   <h3>Registrar por voz</h3>
-                  <p>Descreva uma receita ou despesa e prepare um rascunho para revisão.</p>
+                  <p><span class="assistant-desktop-copy">Descreva uma receita ou despesa e prepare um rascunho para revisão.</span><span class="assistant-mobile-copy"><strong>Diga uma movimentação</strong><small>Você revisa tudo antes de salvar.</small></span></p>
                 </div>
                 <button class="primary-action" data-open-ai-voice type="button"><i data-lucide="mic" aria-hidden="true"></i><span>Registrar por voz</span></button>
               </article>
-              <article class="panel assistant-option-card">
+              <article class="panel assistant-option-card assistant-compact-action">
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="scan-text"></i></span>
                 <div>
                   <p class="eyebrow">Leitura de comprovante</p>
                   <h3>Escanear comprovante</h3>
-                  <p>Fotografe ou escolha um comprovante e prepare um rascunho com reconhecimento local.</p>
+                  <p><span class="assistant-desktop-copy">Fotografe ou escolha um comprovante e prepare um rascunho com reconhecimento local.</span><span class="assistant-mobile-copy">Reconhecimento local com revisão antes de salvar.</span></p>
                 </div>
                 <button class="primary-action" data-open-receipt-ocr type="button"><i data-lucide="scan-text" aria-hidden="true"></i><span>Escanear comprovante</span></button>
               </article>
-              <article class="panel assistant-option-card" data-share-target-option>
+              <article class="panel assistant-option-card assistant-compact-action" data-share-target-option>
                 <span class="assistant-option-icon" aria-hidden="true"><i data-lucide="share-2"></i></span>
                 <div>
                   <p class="eyebrow">Compartilhamento Android</p>
-                  <h3>Compartilhar com o Nexio</h3>
-                  <p>Envie textos, imagens ou PDFs de outro aplicativo Android para criar um rascunho local.</p>
+                  <h3>Receber no Nexio</h3>
+                  <p><span class="assistant-desktop-copy">No outro aplicativo, abra o arquivo, toque em Compartilhar e selecione Nexio Financeiro. Textos, imagens e PDFs chegam como rascunho local.</span><span class="assistant-mobile-copy">No outro app: Compartilhar → Nexio Financeiro.</span></p>
                 </div>
-                <span class="assistant-local-badge"><i data-lucide="smartphone" aria-hidden="true"></i>Menu de compartilhamento</span>
+                <span class="assistant-local-badge"><i data-lucide="smartphone" aria-hidden="true"></i>Disponível no menu Android</span>
               </article>
             </section>
+            <p class="assistant-learning-note"><i data-lucide="brain-circuit" aria-hidden="true"></i><span>As sugestões aprendem somente com suas confirmações locais.</span></p>
 
             <div class="assistant-modal-backdrop" data-ai-voice-modal hidden>
               <section class="assistant-voice-modal" data-ai-voice-state="idle" role="dialog" aria-modal="true" aria-labelledby="assistantVoiceTitle" aria-describedby="assistantVoiceInstruction assistantVoiceStatus">
@@ -683,8 +750,9 @@
             </section>
 
             <div class="accounts-layout">
-              <section class="panel account-form-panel">
-                <div class="panel-heading"><div><p class="eyebrow" data-account-form-mode>Nova conta</p><h2>Dados da conta</h2></div></div>
+              <div class="account-composer-backdrop" data-account-composer hidden>
+              <section class="panel account-form-panel account-composer-sheet" role="dialog" aria-modal="true" aria-labelledby="accountComposerTitle">
+                <div class="panel-heading"><div><p class="eyebrow" data-account-form-mode>Nova conta</p><h2 id="accountComposerTitle">Dados da conta</h2></div><button class="icon-button mobile-account-composer-close" data-close-account-composer type="button" aria-label="Fechar formulário de conta"><i data-lucide="x" aria-hidden="true"></i></button></div>
                 <form id="accountForm" class="stacked-form">
                   <input id="accountId" type="hidden" />
                   <label class="field"><span>Nome</span><input id="accountName" type="text" maxlength="80" placeholder="Ex.: Conta do dia a dia" required /></label>
@@ -696,6 +764,7 @@
                   <div class="account-form-actions"><button class="primary-action" data-save-account type="submit">Salvar conta</button><button class="ghost-action" data-reset-account-form type="button">Limpar</button></div>
                 </form>
               </section>
+              </div>
 
               <section class="panel accounts-list-panel">
                 <div class="panel-heading"><div><p class="eyebrow">Visão por conta</p><h2>Suas contas</h2></div><label class="checkbox-line compact"><input data-show-inactive-accounts type="checkbox" /><span>Mostrar inativas</span></label></div>
@@ -724,6 +793,7 @@
               <div class="budgets-hero-copy">
                 <p class="eyebrow">Planejamento mensal</p>
                 <h2>Orçamentos</h2>
+                <p class="budget-mobile-month" data-budgets-month-label>Este mês</p>
                 <p>Defina limites por categoria e acompanhe gastos realizados e comprometidos.</p>
               </div>
               <div class="budgets-summary-grid" aria-label="Resumo dos orçamentos">
@@ -732,7 +802,7 @@
                 <article><span>Comprometido</span><strong data-budgets-committed>R$ 0,00</strong></article>
                 <article><span>Mês</span><strong data-budgets-month-label>Este mês</strong></article>
               </div>
-              <button class="primary-action budgets-new-action" data-new-budget type="button"><i data-lucide="plus" aria-hidden="true"></i><span>Novo orçamento</span></button>
+              <button class="primary-action budgets-new-action" data-new-budget type="button" aria-label="Criar orçamento" title="Criar orçamento"><i data-lucide="plus" aria-hidden="true"></i><span class="budget-mobile-add-symbol" aria-hidden="true">+</span><span>Novo orçamento</span></button>
             </section>
 
             <section class="panel budgets-toolbar-panel" aria-label="Filtros de orçamento">
@@ -760,6 +830,7 @@
                   <tbody data-budget-report></tbody>
                 </table>
               </div>
+              <div class="budget-mobile-report" data-budget-report-mobile aria-live="polite"></div>
             </details>
 
             <div class="budget-modal-backdrop" data-budget-composer hidden>
@@ -938,7 +1009,28 @@
                 </article>
               </div>
 
-              <div class="transaction-filters-card">
+              <div class="mobile-transaction-filter-bar" aria-label="Busca e filtros de transações">
+                <label class="mobile-transaction-search">
+                  <i data-lucide="search" aria-hidden="true"></i>
+                  <span class="sr-only">Buscar transações</span>
+                  <input data-mobile-transaction-search type="search" placeholder="Buscar transação" />
+                </label>
+                <button class="mobile-transaction-filter-trigger" data-open-mobile-transaction-filters type="button" aria-haspopup="dialog" aria-expanded="false">
+                  <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                  <span>Filtros</span>
+                  <b data-mobile-transaction-filter-count hidden>0</b>
+                </button>
+              </div>
+
+              <div class="transaction-filter-sheet-backdrop" data-mobile-transaction-filter-sheet>
+              <section class="transaction-filters-card transaction-filter-sheet" aria-label="Filtros de transações">
+                <header class="mobile-transaction-filter-sheet-header">
+                  <div>
+                    <p class="eyebrow">Refinar lista</p>
+                    <h3>Filtros</h3>
+                  </div>
+                  <button class="icon-button" data-close-mobile-transaction-filters type="button" aria-label="Fechar filtros"><i data-lucide="x" aria-hidden="true"></i></button>
+                </header>
                 <div class="filter-grid primary-filters">
                   <label class="field compact-field transaction-search-field">
                     <span>Buscar</span>
@@ -1018,6 +1110,8 @@
                     <button class="danger-action compact" data-delete-filtered-transactions type="button">Excluir filtradas</button>
                   </div>
                 </details>
+                <button class="primary-action mobile-transaction-filter-apply" data-close-mobile-transaction-filters type="button">Ver transações</button>
+              </section>
               </div>
 
               <details class="transaction-report-panel">
@@ -1049,6 +1143,7 @@
                   <span>Selecionar visíveis</span>
                 </label>
                 <span data-transaction-page-summary>Mostrando 0 transações</span>
+                <button class="mobile-transaction-selection-toggle" data-mobile-transaction-selection-toggle type="button" aria-pressed="false"><i data-lucide="list-checks" aria-hidden="true"></i><span>Selecionar</span></button>
               </div>
 
               <div class="transaction-card-grid transaction-mobile-list" data-transactions-mobile-list></div>
@@ -1141,6 +1236,7 @@
                   <strong data-cashflow-max-balance>R$ 0,00</strong>
                 </article>
               </div>
+              <button class="ghost-action compact cashflow-mobile-range-toggle" data-toggle-cashflow-balance-range type="button" aria-expanded="false">Ver saldo mínimo e máximo</button>
             </section>
 
             <div class="cashflow-intelligence-grid">
@@ -1160,6 +1256,7 @@
                   </div>
                 </div>
                 <div class="cashflow-alert-list" data-cashflow-alerts></div>
+                <button class="ghost-action compact cashflow-mobile-list-toggle" data-toggle-cashflow-alerts type="button" aria-expanded="false">Ver todos</button>
               </section>
               <section class="panel cashflow-insight-card">
                 <div class="panel-heading">
@@ -1173,7 +1270,12 @@
             </div>
 
             <div class="cashflow-chart-grid">
-              <section class="panel cashflow-chart-panel cashflow-main-chart-panel">
+              <div class="cashflow-mobile-chart-tabs" role="tablist" aria-label="Análises do fluxo de caixa">
+                <button class="is-active" data-cashflow-chart="balance" type="button" role="tab" aria-selected="true">Saldo acumulado</button>
+                <button data-cashflow-chart="daily" type="button" role="tab" aria-selected="false">Entradas x saídas</button>
+                <button data-cashflow-chart="forecast" type="button" role="tab" aria-selected="false">Previsão</button>
+              </div>
+              <section class="panel cashflow-chart-panel cashflow-main-chart-panel" data-cashflow-chart-panel="daily">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Dia a dia</p>
@@ -1190,7 +1292,7 @@
                 <p class="cashflow-note" data-cashflow-mode-note></p>
               </section>
 
-              <section class="panel cashflow-chart-panel">
+              <section class="panel cashflow-chart-panel is-mobile-chart-active" data-cashflow-chart-panel="balance">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Tendência</p>
@@ -1205,7 +1307,7 @@
               </section>
             </div>
 
-            <section class="panel cashflow-chart-panel cashflow-forecast-panel">
+            <section class="panel cashflow-chart-panel cashflow-forecast-panel" data-cashflow-chart-panel="forecast">
               <div class="panel-heading">
                 <div>
                   <p class="eyebrow">Próximos dias</p>
@@ -1224,6 +1326,7 @@
                   <h2>Agenda inteligente</h2>
                 </div>
                 <span class="calendar-caption">Eventos do mês</span>
+                <button class="ghost-action compact cashflow-mobile-calendar-toggle" data-toggle-cashflow-calendar type="button" aria-expanded="false">Ver calendário</button>
               </div>
               <div class="cashflow-planner">
                 <div class="cashflow-calendar" data-cashflow-calendar aria-label="Calendário financeiro mensal"></div>
@@ -1233,6 +1336,7 @@
                     <strong>Prioridade automática</strong>
                   </div>
                   <div class="cashflow-timeline" data-cashflow-timeline></div>
+                  <button class="ghost-action compact cashflow-mobile-list-toggle" data-toggle-cashflow-movements type="button" aria-expanded="false">Ver todos os movimentos</button>
                 </aside>
               </div>
             </section>
@@ -1245,6 +1349,7 @@
                 </div>
               </div>
               <div class="cashflow-tip-list" data-cashflow-tips></div>
+              <button class="ghost-action compact cashflow-mobile-list-toggle" data-toggle-cashflow-tips type="button" aria-expanded="false">Ver todas</button>
             </section>
           </section>
 
@@ -1320,10 +1425,11 @@
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Conquistas</p>
-                    <h2>Medalhas</h2>
+                    <h2><span class="goal-achievements-title-desktop">Medalhas</span><span class="goal-achievements-title-mobile">Conquistas</span></h2>
                   </div>
                 </div>
                 <div class="goals-achievement-list" data-goal-achievements></div>
+                <button class="ghost-action goal-mobile-expand" data-mobile-achievements-toggle type="button" aria-expanded="false">Ver conquistas</button>
               </section>
               <section class="panel goal-insights-panel">
                 <div class="panel-heading">
@@ -1333,6 +1439,7 @@
                   </div>
                 </div>
                 <div class="insight-list" data-insight-list></div>
+                <button class="ghost-action goal-mobile-expand" data-mobile-insights-toggle type="button" aria-expanded="false">Ver todos os insights das metas</button>
               </section>
             </div>
 
@@ -1432,6 +1539,7 @@
                   <p class="eyebrow">Últimos 6 meses</p>
                   <h2>Estatísticas consolidadas</h2>
                 </div>
+                <button class="ghost-action compact profiles-mobile-stats-toggle" data-mobile-profiles-stats-toggle type="button" aria-expanded="false">Ver estatísticas consolidadas</button>
                 <div class="profiles-stats-summary">
                   <span><small>Receitas</small><strong data-profiles-stats-income>R$ 0,00</strong></span>
                   <span><small>Despesas</small><strong data-profiles-stats-expense>R$ 0,00</strong></span>
@@ -1499,8 +1607,25 @@
           </section>
 
           <section id="view-settings" class="view settings-experience settings-premium" data-view-panel="settings">
+            <section class="settings-mobile-hub" aria-label="Categorias de configurações">
+              <header class="settings-mobile-hub-header"><p class="eyebrow">Central Nexio</p><h2>Configurações</h2></header>
+              <div class="settings-mobile-category-list">
+                <button class="settings-mobile-category" data-open-mobile-settings-section="account" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="user-round"></i></span><span><strong>Conta e perfil</strong><small>Nome, avatar e identidade</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="appearance" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="palette"></i></span><span><strong>Aparência</strong><small>Tema, cor, idioma e moeda</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="notifications" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="bell"></i></span><span><strong>Notificações</strong><small>Alertas financeiros e antecedência</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="security" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="shield-check"></i></span><span><strong>Privacidade e segurança</strong><small>Confirmações, bloqueio e sessão</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="assistant" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="sparkles"></i></span><span><strong>Assistente Nexio</strong><small>Sugestões e preferências aprendidas</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="data" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="cloud"></i></span><span><strong>Dados e backup</strong><small>Sincronização, armazenamento e arquivos</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="portability" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="arrow-left-right"></i></span><span><strong>Importar e exportar</strong><small>Portabilidade dos seus dados</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+                <button class="settings-mobile-category" data-open-mobile-settings-section="about" type="button"><span class="settings-mobile-category-icon" aria-hidden="true"><i data-lucide="info"></i></span><span><strong>Sobre o Nexio</strong><small>Versão, privacidade e informações</small></span><i data-lucide="chevron-right" aria-hidden="true"></i></button>
+              </div>
+            </section>
+            <header class="settings-mobile-detail-header">
+              <button class="icon-button" data-close-mobile-settings-section type="button" aria-label="Voltar para configurações"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+              <div><p class="eyebrow" data-mobile-settings-eyebrow>Configurações</p><h2 data-mobile-settings-title>Configurações</h2></div>
+            </header>
             <form id="settingsForm" class="settings-layout">
-              <section class="panel settings-card settings-account-card">
+              <section class="panel settings-card settings-account-card" data-mobile-settings-section="account">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Conta</p>
@@ -1522,9 +1647,13 @@
                     <input id="settingsUserName" type="text" required />
                   </label>
                 </div>
+                <div class="settings-auth-actions" data-settings-auth-actions>
+                  <button class="primary-action" data-settings-login type="button" hidden><i data-lucide="log-in" aria-hidden="true"></i>Entrar na conta</button>
+                  <button class="ghost-action settings-auth-logout" data-settings-logout type="button" hidden><i data-lucide="log-out" aria-hidden="true"></i>Sair da conta</button>
+                </div>
               </section>
 
-              <section class="panel settings-card settings-theme-card">
+              <section class="panel settings-card settings-theme-card" data-mobile-settings-section="appearance data">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Tema</p>
@@ -1585,14 +1714,14 @@
                 <button class="primary-action settings-save-action" type="submit">Salvar configurações</button>
               </section>
 
-              <section class="panel settings-card settings-security-card">
+              <section class="panel settings-card settings-security-card" data-mobile-settings-section="security">
                 <div class="panel-heading"><div><p class="eyebrow">Segurança</p><h2>Proteção da conta</h2></div></div>
                 <label class="settings-switch-row"><span><strong>Confirmação para ações críticas</strong><small>Solicitar confirmação antes de excluir dados.</small></span><input data-setting-toggle="confirmCriticalActions" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="settings-switch-row"><span><strong>Bloqueio automático</strong><small>Protege a sessão após inatividade.</small></span><input data-setting-toggle="autoLock" type="checkbox" /><i aria-hidden="true"></i></label>
                 <div class="settings-security-status"><i data-lucide="shield-check"></i><span><strong>Sessão protegida</strong><small data-settings-session-type>Dados locais</small></span></div>
               </section>
 
-              <section class="panel settings-card settings-assistant-personalization-card">
+              <section class="panel settings-card settings-assistant-personalization-card" data-mobile-settings-section="assistant">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Assistente Financeiro</p>
@@ -1609,23 +1738,27 @@
                 <button class="ghost-action settings-personalization-clear" data-clear-assistant-personalization type="button">Limpar preferências aprendidas</button>
               </section>
 
-              <section class="panel settings-card settings-notifications-card">
+              <section class="panel settings-card settings-notifications-card" data-mobile-settings-section="notifications">
                 <div class="panel-heading"><div><p class="eyebrow">Notificações</p><h2>Alertas financeiros</h2></div></div>
                 <label class="settings-switch-row"><span><strong>Ativar alertas no aplicativo</strong><small>Controla somente a central interna do Nexio.</small></span><input data-notification-preference="enabled" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <h3 class="settings-mobile-section-label">Contas</h3>
                 <label class="settings-switch-row"><span><strong>Contas a pagar vencidas</strong><small>Despesas abertas após a data de vencimento.</small></span><input data-notification-preference="overdueExpenses" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="settings-switch-row"><span><strong>Contas a pagar próximas</strong><small>Despesas dentro da antecedência escolhida.</small></span><input data-notification-preference="dueSoonExpenses" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="settings-switch-row"><span><strong>Contas a receber vencidas</strong><small>Receitas abertas após a data esperada.</small></span><input data-notification-preference="overdueIncome" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="settings-switch-row"><span><strong>Contas a receber próximas</strong><small>Receitas dentro da antecedência escolhida.</small></span><input data-notification-preference="dueSoonIncome" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <h3 class="settings-mobile-section-label">Orçamentos</h3>
                 <label class="settings-switch-row"><span><strong>Orçamentos em atenção</strong><small>Quando o comprometido alcança o alerta configurado.</small></span><input data-notification-preference="budgetAttention" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="settings-switch-row"><span><strong>Orçamentos excedidos</strong><small>Quando o comprometido chega a 100% ou mais.</small></span><input data-notification-preference="budgetExceeded" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <h3 class="settings-mobile-section-label">Metas</h3>
                 <label class="settings-switch-row"><span><strong>Metas</strong><small>Prazos próximos ou vencidos de metas incompletas.</small></span><input data-notification-preference="goals" type="checkbox" checked /><i aria-hidden="true"></i></label>
+                <h3 class="settings-mobile-section-label">Sistema</h3>
                 <label class="settings-switch-row"><span><strong>Problemas de sincronização</strong><small>Somente conflitos ou falhas persistentes seguras.</small></span><input data-notification-preference="syncIssues" type="checkbox" checked /><i aria-hidden="true"></i></label>
                 <label class="field notification-days-field"><span>Avisar com antecedência</span><select id="notificationDueSoonDays"><option value="1">1 dia</option><option value="3">3 dias</option><option value="5">5 dias</option><option value="7">7 dias</option></select></label>
               </section>
             </form>
 
             <div class="settings-data-grid">
-              <section class="panel settings-card settings-import-card">
+              <section class="panel settings-card settings-import-card" data-mobile-settings-section="data portability">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Backup</p>
@@ -1641,7 +1774,7 @@
                 <div class="import-history" data-import-history></div>
               </section>
 
-              <section class="panel settings-card settings-export-card">
+              <section class="panel settings-card settings-export-card" data-mobile-settings-section="portability">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Exportações</p>
@@ -1653,14 +1786,14 @@
                 <pre class="export-box" data-export-box></pre>
               </section>
 
-              <section class="panel settings-card settings-about-card">
+              <section class="panel settings-card settings-about-card" data-mobile-settings-section="about">
                 <div class="panel-heading">
                   <div>
                     <p class="eyebrow">Sobre</p>
                     <h2>Nexio Financeiro</h2>
                   </div>
                 </div>
-                <div class="settings-about-brand"><img src="assets/nexio-symbol.png" alt="" /><div><strong>Gestão financeira inteligente</strong><span data-release-version>Versão 1.0.5</span></div></div>
+                <div class="settings-about-brand"><img src="assets/nexio-symbol.png" alt="" /><div><strong>Gestão financeira inteligente</strong><span data-release-version>Versão 1.0.10</span></div></div>
                 <div class="settings-about-links"><a href="politica-de-privacidade.html">Política de Privacidade</a><a class="deletion-link" href="excluir-conta.html">Excluir Contas e Dados</a></div>
                 <div class="danger-zone">
                   <div>
@@ -1751,6 +1884,41 @@
               <i data-lucide="plus" aria-hidden="true"></i>
             </button>
           </div>
+
+          <nav class="mobile-bottom-navigation" aria-label="Navegação principal mobile">
+            <button class="mobile-bottom-nav-item is-active" data-mobile-nav-view="overview" type="button" aria-current="page"><i data-lucide="house" aria-hidden="true"></i><span>Início</span></button>
+            <button class="mobile-bottom-nav-item" data-mobile-nav-view="transactions" type="button"><i data-lucide="wallet-cards" aria-hidden="true"></i><span>Transações</span></button>
+            <button class="mobile-bottom-nav-item" data-mobile-nav-view="planning" type="button"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>Planejamento</span></button>
+            <button class="mobile-bottom-nav-item" data-mobile-nav-view="assistant" type="button"><i data-lucide="sparkles" aria-hidden="true"></i><span>Assistente</span></button>
+            <button class="mobile-bottom-nav-item" data-mobile-nav-view="more" type="button"><i data-lucide="ellipsis" aria-hidden="true"></i><span>Mais</span></button>
+          </nav>
+
+          <div class="mobile-quick-actions-backdrop" data-mobile-quick-actions hidden>
+            <section class="mobile-quick-actions-sheet" role="dialog" aria-modal="true" aria-labelledby="mobileQuickActionsTitle">
+              <header class="mobile-quick-actions-header">
+                <div>
+                  <p class="eyebrow">Novo lançamento</p>
+                  <h2 id="mobileQuickActionsTitle">Adicionar</h2>
+                </div>
+                <button class="icon-button" data-close-mobile-quick-actions type="button" aria-label="Fechar ações rápidas"><i data-lucide="x" aria-hidden="true"></i></button>
+              </header>
+              <section class="mobile-quick-actions-group mobile-quick-actions-primary" aria-labelledby="mobileQuickActionsPrimaryTitle">
+                <p id="mobileQuickActionsPrimaryTitle" class="mobile-quick-actions-label">Ações principais</p>
+                <div class="mobile-quick-actions-list">
+                  <button class="mobile-quick-action is-expense" data-mobile-quick-action="expense" type="button"><span class="mobile-quick-action-icon"><i data-lucide="arrow-down" aria-hidden="true"></i></span><span><strong>Despesa</strong><small>Registrar saída</small></span></button>
+                  <button class="mobile-quick-action is-income" data-mobile-quick-action="income" type="button"><span class="mobile-quick-action-icon"><i data-lucide="arrow-up" aria-hidden="true"></i></span><span><strong>Receita</strong><small>Registrar entrada</small></span></button>
+                  <button class="mobile-quick-action is-transfer" data-mobile-quick-action="transfer" type="button"><span class="mobile-quick-action-icon"><i data-lucide="repeat-2" aria-hidden="true"></i></span><span><strong>Transferência</strong><small>Entre contas</small></span></button>
+                </div>
+              </section>
+              <section class="mobile-quick-actions-group mobile-quick-actions-secondary" aria-labelledby="mobileQuickActionsSecondaryTitle">
+                <p id="mobileQuickActionsSecondaryTitle" class="mobile-quick-actions-label">Ações secundárias</p>
+                <div class="mobile-quick-actions-list">
+                  <button class="mobile-quick-action" data-mobile-quick-action="account" type="button"><span class="mobile-quick-action-icon"><i data-lucide="landmark" aria-hidden="true"></i></span><span><strong>Nova conta</strong></span></button>
+                  <button class="mobile-quick-action" data-mobile-quick-action="goal" type="button"><span class="mobile-quick-action-icon"><i data-lucide="target" aria-hidden="true"></i></span><span><strong>Nova meta</strong></span></button>
+                </div>
+              </section>
+            </section>
+          </div>
         </main>
       </div>
     </template>
@@ -1772,6 +1940,10 @@
     <script src="js/core/budgets.js?v=20260728-monthly-budgets"></script>
     <script src="js/core/transactions.js?v=20260722-layered-architecture"></script>
     <script src="js/core/goals.js?v=20260722-layered-architecture"></script>
+    <script src="js/core/financial-context.js?v=20261001-financial-context"></script>
+    <script src="js/core/today.js?v=20261001-nexio-today"></script>
+    <script src="js/core/spendable.js?v=20261002-spendable"></script>
+    <script src="js/core/purchase-simulator.js?v=20261005-purchase-simulator"></script>
     <script src="js/core/profiles.js?v=20260729-notifications-center"></script>
     <script src="js/core/reports.js?v=20260722-layered-architecture"></script>
     <script src="js/core/notifications.js?v=20260729-notifications-center"></script>
@@ -1785,7 +1957,7 @@
     <script src="js/core/external-navigation.js?v=20260806-quick-actions"></script>
     <script src="js/ui/receipt-image.js?v=20260807-web-android-parity"></script>
     <script src="js/services/assistant-platform.js?v=20260807-web-android-parity"></script>
-    <script src="js/ui/shared-ui.js?v=20260807-web-android-parity"></script>
+    <script src="js/ui/shared-ui.js?v=20261001-mobile-settings-1"></script>
     <script src="js/ui/desktop.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/tablet.js?v=20260722-layered-architecture"></script>
     <script src="js/ui/mobile.js?v=20260722-layered-architecture"></script>

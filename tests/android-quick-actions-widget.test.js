@@ -111,7 +111,7 @@ test("10. ausência de perfil ativo bloqueia sem perder o destino", async () => 
 
 test("11. permissão de microfone negada permanece no fluxo existente", () => {
   assert.match(renderer, /startAssistantVoiceRecognition\(\)[\s\S]*assistantSpeechService\(\)/);
-  assert.match(renderer, /permission-denied[\s\S]*O acesso ao microfone está bloqueado/);
+  assert.match(renderer, /permission-denied[\s\S]*Permissão de microfone necessária para registrar por voz/);
   assert.doesNotMatch(renderer, /NexioQuickActions[\s\S]*requestPermissions/);
 });
 

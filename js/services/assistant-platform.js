@@ -10,6 +10,7 @@
   const IMAGE_EXTENSIONS = Object.freeze(["jpg", "jpeg", "png", "webp"]);
   const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
   const DEFAULT_OCR_TIMEOUT_MS = 60_000;
+  const DEFAULT_OCR_WORKER_TIMEOUT_MS = 20_000;
 
   function capabilityError(code, message, details = {}) {
     const error = new Error(message);
@@ -244,9 +245,17 @@
     let runtimePromise = null;
     let workerPromise = null;
     let generation = 0;
-    const progressListeners = new Set();
+    const progressListeners = new Map();
     const cancellationHandlers = new Set();
     const timeoutMs = Math.max(10, Number(options.timeoutMs) || DEFAULT_OCR_TIMEOUT_MS);
+    const workerTimeoutMs = Math.max(10, Number(options.workerTimeoutMs) || DEFAULT_OCR_WORKER_TIMEOUT_MS);
+    const diagnosticSink = options.diagnostics || host.__NEXIO_RECEIPT_OCR_DIAGNOSTICS__;
+    let activeOperation = null;
+
+    function diagnostic(stage, status, details = {}) {
+      if (typeof diagnosticSink?.record !== "function") return;
+      diagnosticSink.record({ subsystem: "receipt-ocr", stage, status, ...details });
+    }
 
     function asset(path) {
       return new URL(path, assetRoot).href;
@@ -282,7 +291,10 @@
           langPath: asset("vendor/tesseract/lang"),
           workerBlobURL: false,
           gzip: true,
-          logger: (message) => progressListeners.forEach((listener) => listener(message)),
+          logger: (message) => {
+            const listener = progressListeners.get(activeOperation);
+            if (listener) listener(message);
+          },
         })).catch((error) => {
           workerPromise = null;
           throw error;
@@ -298,56 +310,66 @@
       const pending = workerPromise;
       workerPromise = null;
       if (!pending) return;
-      try {
-        const worker = await pending;
-        await worker?.terminate?.();
-      } catch (_) {
+      void Promise.resolve(pending).then((worker) => worker?.terminate?.()).catch(() => {
         // A failed or already terminated worker has no durable state.
-      }
+      });
     }
 
     async function processImage(request = {}) {
       const source = request.image || request.path;
       if (!source) throw capabilityError("missing-image", "Nenhuma imagem foi selecionada.", { platform: "web" });
+      if (activeOperation !== null) throw capabilityError("ocr-busy", "Já existe uma leitura de comprovante em andamento.", { platform: "web" });
       const operation = ++generation;
       const progressListener = typeof request.onProgress === "function" ? request.onProgress : null;
       const timerHost = host.setTimeout ? host : global;
-      let timeoutId = null;
       let cancelRecognition = null;
-      if (progressListener) progressListeners.add(progressListener);
+      const startedAt = Date.now();
+      activeOperation = operation;
+      if (progressListener) progressListeners.set(operation, progressListener);
+      diagnostic("ocr", "start", { operation });
       try {
-        const recognition = (async () => {
-          const worker = await getWorker();
-          if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
-          return worker.recognize(source, { rotateAuto: true });
-        })();
-        const timeout = new Promise((_, reject) => {
-          timeoutId = timerHost.setTimeout(() => reject(capabilityError(
-            "ocr-timeout",
-            "A leitura demorou mais que o esperado e foi interrompida.",
-            { platform: "web", timeoutMs },
-          )), timeoutMs);
-        });
         const cancellation = new Promise((_, reject) => {
           cancelRecognition = () => reject(capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" }));
           cancellationHandlers.add(cancelRecognition);
         });
-        const result = await Promise.race([recognition, timeout, cancellation]);
+        const waitForStage = async (stage, promise, limitMs) => {
+          let timeoutId = null;
+          diagnostic(stage, "start", { operation });
+          try {
+            const timeout = new Promise((_, reject) => {
+              timeoutId = timerHost.setTimeout(() => {
+                diagnostic(stage, "timeout", { operation, durationMs: Date.now() - startedAt });
+                reject(capabilityError("ocr-timeout", "A leitura demorou mais que o esperado e foi interrompida.", { platform: "web", timeoutMs: limitMs, stage }));
+              }, limitMs);
+            });
+            const result = await Promise.race([promise, timeout, cancellation]);
+            diagnostic(stage, "complete", { operation, durationMs: Date.now() - startedAt });
+            return result;
+          } finally {
+            if (timeoutId !== null) timerHost.clearTimeout(timeoutId);
+          }
+        };
+        const worker = await waitForStage("worker", getWorker(), workerTimeoutMs);
         if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
-        return {
+        const result = await waitForStage("recognition", worker.recognize(source, { rotateAuto: true }), timeoutMs);
+        if (operation !== generation) throw capabilityError("cancelled", "A leitura foi cancelada.", { platform: "web" });
+        const normalized = {
           text: String(result?.data?.text || "").trim(),
           blocks: Array.isArray(result?.data?.blocks) ? result.data.blocks : [],
           confidence: Number(result?.data?.confidence) || 0,
           platform: "web",
         };
+        diagnostic("ocr", "complete", { operation, durationMs: Date.now() - startedAt, hasText: Boolean(normalized.text) });
+        return normalized;
       } catch (error) {
-        if (error?.code === "ocr-timeout") void terminateWorker();
+        diagnostic("ocr", error?.code === "ocr-timeout" ? "timeout" : "error", { operation, durationMs: Date.now() - startedAt, code: error?.code || "ocr-error" });
+        if (error?.code === "ocr-timeout") await terminateWorker();
         if (error?.code) throw error;
         throw capabilityError("ocr-error", "Não foi possível ler o comprovante localmente.", { platform: "web", cause: error });
       } finally {
-        if (timeoutId !== null) timerHost.clearTimeout(timeoutId);
         if (cancelRecognition) cancellationHandlers.delete(cancelRecognition);
-        if (progressListener) progressListeners.delete(progressListener);
+        if (progressListener) progressListeners.delete(operation);
+        if (activeOperation === operation) activeOperation = null;
       }
     }
 
@@ -364,7 +386,13 @@
     const native = isNativeRuntime(host);
     const nativeSpeech = native && typeof plugins.SpeechRecognition?.start === "function";
     const webSpeech = typeof webSpeechConstructor(host) === "function";
-    const nativeCamera = native && typeof plugins.Camera?.getPhoto === "function";
+    // Camera 8.1 split the legacy getPhoto flow into two Activity-safe methods.
+    // Accept the old method only for an already-installed older native runtime.
+    const nativeCamera = native && (
+      typeof plugins.Camera?.takePhoto === "function"
+      || typeof plugins.Camera?.chooseFromGallery === "function"
+      || typeof plugins.Camera?.getPhoto === "function"
+    );
     const nativeOcr = native && typeof plugins.TextRecognition?.processImage === "function";
     const webPicker = Boolean(options.fileInput?.click);
     const webOcr = Boolean(host.document?.createElement || host.Tesseract?.createWorker);
@@ -410,6 +438,7 @@
     IMAGE_TYPES,
     MAX_IMAGE_BYTES,
     DEFAULT_OCR_TIMEOUT_MS,
+    DEFAULT_OCR_WORKER_TIMEOUT_MS,
     capabilityError,
     isNativeRuntime,
     nativePlatform,

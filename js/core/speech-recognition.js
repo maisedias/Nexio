@@ -58,7 +58,7 @@
     if (/permission|not-allowed|denied/.test(rawCode) || /permission|permiss[aã]o/.test(rawMessage.toLowerCase())) {
       return recognitionError("permission-denied", source.platform === "web"
         ? "A permissão do microfone foi negada. Autorize o acesso nas configurações do navegador ou digite o lançamento."
-        : "O acesso ao microfone está bloqueado. Permita o acesso nas configurações do Android e tente novamente.", { platform: source.platform });
+        : "Permissão de microfone necessária para registrar por voz. Permita o acesso nas configurações do Android e tente novamente.", { platform: source.platform });
     }
     if (/no[-_ ]?speech|speech[-_ ]?timeout|no[-_ ]?match/.test(rawCode)) {
       return recognitionError("no-speech", "Nenhuma fala foi detectada. Tente novamente e fale depois que o microfone começar a ouvir.", { platform: source.platform });
