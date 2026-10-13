@@ -519,8 +519,62 @@ body.has-mobile-transaction-composer, body.has-category-manager { overflow: hidd
 .goal-card, .profile-item { min-height: 0 !important; }
 .goals-grid, .profiles-grid, .settings-layout, .settings-data-grid { gap: var(--nx-space-3) !important; }
 .settings-premium .settings-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.settings-premium .settings-data-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.settings-premium .settings-data-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .danger-zone { border: var(--border-width-thin) solid var(--color-danger-border-soft); border-radius: var(--nx-control-radius); background: var(--color-danger-surface-soft); padding: var(--nx-space-3); }
+
+/* Settings: dense desktop composition without artificial card heights. */
+@media (min-width: 901px) {
+  .settings-premium .settings-layout,
+  .settings-premium .settings-data-grid {
+    align-items: start;
+  }
+
+  .settings-premium .settings-card {
+    min-height: 0;
+    align-content: start;
+  }
+
+  .settings-premium .settings-account-card {
+    grid-template-columns: minmax(var(--size-touch-target), .62fr) minmax(0, 1.38fr);
+  }
+
+  .settings-premium .settings-account-card > .panel-heading,
+  .settings-premium .settings-account-card > .settings-auth-actions {
+    grid-column: 1 / -1;
+  }
+
+  .settings-premium .settings-account-card > .settings-avatar-control,
+  .settings-premium .settings-account-card > .stacked-form {
+    align-self: start;
+  }
+
+  .settings-premium .settings-theme-card .settings-sync-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .settings-premium .settings-theme-card .settings-sync-card > span {
+    grid-column: 1 / -1;
+  }
+
+  .settings-premium .settings-notifications-card {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+
+  .settings-premium .settings-notifications-card > .panel-heading,
+  .settings-premium .settings-notifications-card > .notification-days-field {
+    grid-column: 1 / -1;
+  }
+
+  .settings-premium .settings-notifications-card > .settings-mobile-section-label {
+    display: none;
+  }
+
+  .settings-premium .settings-about-card {
+    grid-column: 1 / -1;
+  }
+}
 
 /* Notification center */
 body.has-notification-center { overflow: hidden; }
@@ -2303,15 +2357,11 @@ body.has-ai-assistant-modal { overflow: hidden; }
     display: none;
   }
 
-  .budgets-new-action > i {
-    display: none;
-  }
-
-  .budgets-new-action > .budget-mobile-add-symbol {
+  .budgets-new-action > i,
+  .budgets-new-action > svg {
     display: block;
-    font-size: var(--font-size-heading-lg);
-    font-weight: var(--font-weight-semibold);
-    line-height: 1;
+    width: var(--size-icon-medium);
+    height: var(--size-icon-medium);
   }
 
   .budgets-toolbar-panel {

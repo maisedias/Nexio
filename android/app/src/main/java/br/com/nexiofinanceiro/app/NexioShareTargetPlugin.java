@@ -1,6 +1,7 @@
 package br.com.nexiofinanceiro.app;
 
 import android.content.ContentResolver;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -179,7 +180,9 @@ public class NexioShareTargetPlugin extends Plugin {
         }
 
         Uri uri = streams.get(0);
-        ContentResolver resolver = getContext().getContentResolver();
+        Context context = getContext();
+        if (context == null) throw new IOException("context-unavailable");
+        ContentResolver resolver = context.getContentResolver();
         String mime = normalizeMime(resolver.getType(uri));
         if (mime.isEmpty()) mime = suppliedMime;
         String name = displayName(resolver, uri);
@@ -242,7 +245,9 @@ public class NexioShareTargetPlugin extends Plugin {
     }
 
     private File shareCache() throws IOException {
-        File directory = new File(getContext().getCacheDir(), "nexio-shares");
+        Context context = getContext();
+        if (context == null || context.getCacheDir() == null) throw new IOException("context-unavailable");
+        File directory = new File(context.getCacheDir(), "nexio-shares");
         if (!directory.exists() && !directory.mkdirs()) throw new IOException("cache-unavailable");
         return directory;
     }

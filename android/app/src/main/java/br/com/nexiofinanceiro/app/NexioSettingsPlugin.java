@@ -1,6 +1,7 @@
 package br.com.nexiofinanceiro.app;
 
 import android.content.Intent;
+import android.content.Context;
 import android.net.Uri;
 import android.provider.Settings;
 
@@ -14,12 +15,21 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 public class NexioSettingsPlugin extends Plugin {
     @PluginMethod
     public void openAppSettings(PluginCall call) {
-        Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-        intent.setData(Uri.fromParts("package", getContext().getPackageName(), null));
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        getContext().startActivity(intent);
-        JSObject result = new JSObject();
-        result.put("opened", true);
-        call.resolve(result);
+        Context context = getContext();
+        if (context == null) {
+            call.reject("context-unavailable", "context-unavailable");
+            return;
+        }
+        try {
+            Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(Uri.fromParts("package", context.getPackageName(), null));
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(intent);
+            JSObject result = new JSObject();
+            result.put("opened", true);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("settings-unavailable", "settings-unavailable", error);
+        }
     }
 }

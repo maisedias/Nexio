@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css?v=20261001-mobile-design-system-1" />
-    <link rel="stylesheet" href="nexio-v2.css?v=20261001-mobile-settings-1" />
+    <link rel="stylesheet" href="nexio-v2.css?v=20261011-settings-web-layout-1" />
     <link rel="stylesheet" href="css/design-system.css?v=20261001-mobile-design-system-1" />
   </head>
   <body>
@@ -802,7 +802,7 @@
                 <article><span>Comprometido</span><strong data-budgets-committed>R$ 0,00</strong></article>
                 <article><span>Mês</span><strong data-budgets-month-label>Este mês</strong></article>
               </div>
-              <button class="primary-action budgets-new-action" data-new-budget type="button" aria-label="Criar orçamento" title="Criar orçamento"><i data-lucide="plus" aria-hidden="true"></i><span class="budget-mobile-add-symbol" aria-hidden="true">+</span><span>Novo orçamento</span></button>
+              <button class="primary-action budgets-new-action" data-new-budget type="button" aria-label="Criar orçamento" title="Criar orçamento"><i data-lucide="plus" aria-hidden="true"></i><span>Novo orçamento</span></button>
             </section>
 
             <section class="panel budgets-toolbar-panel" aria-label="Filtros de orçamento">
@@ -1783,7 +1783,7 @@
                 </div>
                 <label class="field compact-field"><span>Conta para exportar</span><select id="exportAccount"></select></label>
                 <button class="ghost-action" data-export-data type="button">Exportar dados</button>
-                <pre class="export-box" data-export-box></pre>
+                <pre class="export-box" data-export-box aria-live="polite">Gere a exportação para visualizar uma prévia segura dos dados neste espaço.</pre>
               </section>
 
               <section class="panel settings-card settings-about-card" data-mobile-settings-section="about">

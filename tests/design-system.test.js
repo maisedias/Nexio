@@ -244,6 +244,11 @@ assert.doesNotMatch(index, /Detected category|Nothing was saved automatically/, 
 const mobileReleaseBlock = activeSkin.match(/\/\* Mobile release layout \*\/[\s\S]*?(?=@media \(prefers-reduced-motion: reduce\)|$)/)?.[0] || "";
 assert.ok(mobileReleaseBlock, "The mobile release layout contract is missing");
 assert.doesNotMatch(mobileReleaseBlock, /(^|[;{\s])width:\s*(?:[3-9]\d{2,})px/m, "Mobile release rules must not introduce a fixed width larger than the viewport");
+assert.match(legacyComponents, /\.cashflow-quick-filters\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*nowrap;[^}]*overflow-x:\s*auto;[^}]*scrollbar-width:\s*none;[^}]*touch-action:\s*pan-x;/, "Mobile cashflow filters must remain a touch-scrollable single row");
+assert.match(legacyComponents, /\.cashflow-range-button\s*\{[^}]*flex:\s*0 0 auto;[^}]*min-height:\s*44px;[^}]*white-space:\s*nowrap;/, "Mobile cashflow filter buttons must stay compact, tappable, and unbroken");
+assert.match(legacyComponents, /\.mobile-bottom-nav-item span\s*\{[^}]*overflow-wrap:\s*normal;[^}]*white-space:\s*nowrap;[^}]*word-break:\s*normal;/, "Mobile navigation labels must not split across lines");
+assert.match(renderer, /data-cashflow-range\]"\)\.forEach\([\s\S]*?state\.cashflowRange = range;[\s\S]*?syncCashflowRangeButtons\(\);[\s\S]*?drawCashflowCharts\(\);/, "Cashflow range controls must retain their existing state and chart update flow");
+assert.match(renderer, /function mobileNavigationViewFor\(view\)[\s\S]*?\["budgets", "goals", "cashflow", "planning"\][\s\S]*?return "planning";/, "Mobile planning navigation must preserve the existing cashflow route mapping");
 
 const luminance = (hex) => {
   const channels = hex.match(/[a-f\d]{2}/gi).map((value) => parseInt(value, 16) / 255);

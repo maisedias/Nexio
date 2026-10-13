@@ -234,6 +234,9 @@ test("16. Android manifests register natural ACTION_SEND and ACTION_SEND_MULTIPL
   assert.match(plugin, /renderPdfPage/);
   assert.match(plugin, /MAX_SHARED_BYTES/);
   assert.match(main, /registerPlugin\(NexioShareTargetPlugin\.class\)/);
+  assert.match(main, /protected void onNewIntent\(Intent intent\)[\s\S]*?setIntent\(intent\);[\s\S]*?super\.onNewIntent\(intent\);/, "Single-task Activity must refresh its intent before Capacitor receives a new share");
+  assert.match(main, /Bridge bridge = getBridge\(\);[\s\S]*?if \(bridge == null\) return;[\s\S]*?if \(webView == null\) return;/, "Activity startup must not dereference an unavailable Capacitor bridge or WebView");
+  assert.match(plugin, /Context context = getContext\(\);[\s\S]*?if \(context == null\) throw new IOException\("context-unavailable"\);/, "Share bridge must turn a lost Android context into a handled error instead of an NPE");
 });
 
 console.log("Android Share Target tests passed: 16/16.");

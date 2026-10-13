@@ -38,16 +38,29 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
 
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
-        controller.setAppearanceLightStatusBars(false);
-        controller.setAppearanceLightNavigationBars(false);
+        if (controller != null) {
+            controller.setAppearanceLightStatusBars(false);
+            controller.setAppearanceLightNavigationBars(false);
+        }
 
         applySystemBarInsets();
 
-        webView = getBridge().getWebView();
+        Bridge bridge = getBridge();
+        if (bridge == null) return;
+        webView = bridge.getWebView();
+        if (webView == null) return;
         webView.setBackgroundColor(SYSTEM_BAR_COLOR);
         webView.getSettings().setDomStorageEnabled(true);
-        webView.setWebViewClient(new NexioWebViewClient(getBridge()));
+        webView.setWebViewClient(new NexioWebViewClient(bridge));
 
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        // singleTask activities receive new shares and shortcuts here. Keep the
+        // Activity intent current before Capacitor dispatches it to plugins.
+        setIntent(intent);
+        super.onNewIntent(intent);
     }
 
     private void applySystemBarInsets() {
@@ -87,8 +100,10 @@ public class MainActivity extends BridgeActivity {
 
             if ("http".equals(scheme) || "https".equals(scheme) || "mailto".equals(scheme) || "tel".equals(scheme)) {
                 Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-                startActivity(intent);
-                return true;
+                if (intent.resolveActivity(getPackageManager()) != null) {
+                    startActivity(intent);
+                    return true;
+                }
             }
 
             return false;
